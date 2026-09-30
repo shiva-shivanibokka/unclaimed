@@ -20,7 +20,7 @@ Stages overlap on purpose. The riskiest unknowns are answered first. Each stage 
 > **Change (Sep 30):** the hackathon FAQ says Alexa+ developer tools (MCP Toolkit, `alexa-ai` CLI, Web Simulator) are partner-only. We build a self-hosted MCP server + our own web simulator. Hosting is optional; a locally runnable public repo + demo video is enough.
 - [x] Join the hackathon on Devpost
 - [x] Amazon Developer account
-- [x] AWS account (Paid plan, 810995308352) · [ ] $25 budget alert · [ ] Bedrock model access in us-east-1 · [ ] hackathon credits form
+- [x] AWS account (Paid plan, 810995308352) · [x] $25 budget alert (`unclaimed-monthly-25`, emails sbokka@sfsu.edu at 50/80/100% actual + 100% forecast) · [ ] Bedrock model access in us-east-1 (Sep 30: calls blocked while the new AWS account is being verified) · [ ] hackathon credits form
 - [x] WSL2 Ubuntu 26.04 with Node 24 (nvm) and AWS CLI v2
 - [x] Publish the repo to GitHub: https://github.com/shiva-shivanibokka/unclaimed (public, AGPL-3.0, topics set)
 - [x] Hello MCP server (TypeScript, Streamable HTTP, stateless, JSON responses). Verified it negotiates protocol `2025-11-25`; local smoke test: warm calls 2–7 ms
