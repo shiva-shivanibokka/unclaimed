@@ -20,7 +20,9 @@
 ## Accounts status (Sep 30, 2026)
 - Devpost: registered; project "Unclaimed: A Benefits Screener for Alexa+" started (draft)
 - Amazon Developer account: created (Sole Proprietorship)
-- AWS: signing up on the **Paid** plan ($200 credits; add a $25 budget alert). Hackathon AWS credits form: submitted/pending
+- AWS: account created on the **Paid** plan ($200 credits). Region: **us-east-1**. Hackathon AWS credits form: pending.
+  - Never use root credentials or put keys in the repo. Access via IAM Identity Center (SSO) or an IAM admin user; CLI profile name: `unclaimed`. In WSL: install AWS CLI v2, then `aws configure sso --profile unclaimed` (or `aws configure --profile unclaimed`), and verify with `aws sts get-caller-identity --profile unclaimed`.
+  - Before deploying, confirm the $25 budget alert exists (`aws budgets describe-budgets`) and that Bedrock model access is enabled in us-east-1.
 - GitHub: `gh` authenticated on Windows; repo `unclaimed` to be created (task 1)
 
 ## Non-negotiables
