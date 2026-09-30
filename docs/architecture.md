@@ -35,7 +35,7 @@ The coverage checker traces thousands of generated CA + IL households. The build
 
 Entry fields: `id`, `engine_field`, `entity`, `definition`, `ask`, `answer` schema, `convert`, `what_if_range`, `applies_when`, `requires`, `cost` (1 easy … 5 sensitive), `clarifiers`.
 
-## Engine facts (measured on policyengine-us 2.18.1; Stage 1 pins 2.18.2, whose re-measured numbers are in `engine/README.md`)
+## Engine facts (measured on policyengine-us 2.18.2; Stage 1 pins 2.18.2, whose re-measured numbers are in `engine/README.md`)
 - 6,185 variables, 925 of them inputs. Anything not provided silently falls back to a default: usually 0/false, but county defaults to the first county in the state (Alameda CA / Adams IL) and immigration status defaults to citizen.
 - Income inputs are yearly; SNAP and WIC outputs are monthly. Medicaid/CHIP output is the value of coverage, not cash.
 - Cold start ~14s (+~5s on the first calculation of each program), so the engine must be always-on, not serverless.
