@@ -20,12 +20,20 @@ Stages overlap on purpose. The riskiest unknowns are answered first. Each stage 
 > **Change (Sep 30):** the hackathon FAQ says Alexa+ developer tools (MCP Toolkit, `alexa-ai` CLI, Web Simulator) are partner-only. We build a self-hosted MCP server + our own web simulator. Hosting is optional; a locally runnable public repo + demo video is enough.
 - [x] Join the hackathon on Devpost
 - [x] Amazon Developer account
-- [x] AWS account (Paid plan) · [ ] $25 budget alert · [ ] Bedrock model access in us-east-1 · [ ] hackathon credits form
-- [ ] Publish the repo to GitHub (`unclaimed`, public)
-- [ ] Hello MCP server (TypeScript, Streamable HTTP, MCP 2025-11-25), built to Alexa+'s published requirements
+- [x] AWS account (Paid plan, 810995308352) · [ ] $25 budget alert · [ ] Bedrock model access in us-east-1 · [ ] hackathon credits form
+- [x] WSL2 Ubuntu 26.04 with Node 24 (nvm) and AWS CLI v2
+- [x] Publish the repo to GitHub: https://github.com/shiva-shivanibokka/unclaimed (public, AGPL-3.0, topics set)
+- [x] Hello MCP server (TypeScript, Streamable HTTP, stateless, JSON responses). Verified it negotiates protocol `2025-11-25`; local smoke test: warm calls 2–7 ms
 - [ ] Hello web simulator: Echo Show–style frame, push-to-talk (browser STT/TTS), MCP client with a Strands + Bedrock brain
-- [ ] Measure per-turn latency; record it
-- [ ] Log every friction point in `docs/friction-log.md` (starting with: Alexa+ tools not available to participants)
+- [ ] Host the simulator + MCP server publicly (free, no login, rate-limited). Judges can't be expected to bring their own Bedrock access to run it locally
+- [ ] Measure per-turn latency (our MCP server + simulator brain; the real Alexa+ round trip isn't measurable without access); record it
+- [x] Log every friction point in `docs/friction-log.md` (5 entries so far)
+
+Decisions and answers (Sep 30):
+- **No sign-in / OAuth.** Alexa+ docs: "Account linking is optional"; only needed "if your tools genuinely require user identity". We store nothing about the person, and judges must be able to test without logging in.
+- **500 ms:** Alexa+ docs only say the server "must meet a round-trip query response latency of less than 500 ms" (no word on enforcement). We treat it as a per-call budget for our MCP server and measure it; the `hello` tool's `delay_ms` knob stays for testing if access ever opens.
+- **No real-Echo bridge.** We have no Amazon device, and the classic-skill bridge is voice-only; the simulator shows more.
+- Add-on tooling: our AWS account is denied by Amazon's role (allowlist-only), and the hackathon FAQ says participants won't get it. Not on any path.
 
 ## Stage 1: Engine service (Oct 1 – Oct 4)
 - [ ] FastAPI service wrapping PolicyEngine-US (pinned version); warm on startup

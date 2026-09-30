@@ -18,7 +18,9 @@
    - Hello MCP server in `mcp-server/` (TypeScript, Streamable HTTP, MCP 2025-11-25), still built to Alexa+'s published requirements (so it's ready for real Alexa+).
    - Hello version of our **Alexa+ simulator** in `simulator/`: a web page with an Echo Show–style frame, push-to-talk voice (browser speech-to-text + text-to-speech), and an MCP client whose "brain" is a **Strands agent on Amazon Bedrock** (this also satisfies the AWS Builder mini-challenge). Later it renders our MCP App UI.
    - Measure end-to-end latency per turn and record it.
-   - Optional real-device path: [KayLerch/alexa-skill-mcp-bridge](https://github.com/KayLerch/alexa-skill-mcp-bridge) exposes an MCP server on a physical Echo through a classic Alexa Skill (open to everyone via the Amazon Developer account) + a Strands agent on Bedrock AgentCore Runtime. Voice only (no screens in v1). Evaluate in Stage 4.
+   - No sign-in/OAuth (account linking is optional per Alexa+ docs; we store nothing and judges need no login).
+   - Host the simulator + MCP server publicly with a rate limit: judges can't be expected to bring their own Bedrock access.
+   - No real-Echo bridge: the user owns no Amazon device, and it would be voice-only.
 4. After every stage: commit, push, and update the checkboxes in `docs/stages.md`.
 
 ## Accounts status (Sep 30, 2026)
