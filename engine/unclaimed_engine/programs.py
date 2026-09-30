@@ -1,4 +1,4 @@
-"""Programs we screen for, mapped to PolicyEngine-US variables (policyengine-us 2.18.2).
+"""Programs we screen for, mapped to PolicyEngine-US variables (version pinned in pyproject.toml).
 
 `variable` is summed over the household. Monthly variables are calculated for the
 screening month, yearly ones for the screening year. `per` is how we report the
@@ -30,27 +30,32 @@ class Program:
     # Engine variables whose values explain the result ("why you qualify / don't").
     # Labels and units come from PolicyEngine; the AI phrases them for the person.
     explain: tuple[str, ...] = ()
+    # The program's name in a state where it goes by another name (CalFresh, Medi-Cal).
+    state_names: tuple[tuple[str, str], ...] = ()
+
+    def name_in(self, state: str) -> str:
+        return dict(self.state_names).get(state, self.name)
 
 
 PROGRAMS: tuple[Program, ...] = (
     # Federal, both states
-    Program("snap", "SNAP (CalFresh in California)", "snap", "month", eligibility="is_snap_eligible",
+    Program("snap", "SNAP food assistance", "snap", "month", state_names=(("CA", "CalFresh"),), eligibility="is_snap_eligible",
             explain=("meets_snap_gross_income_test", "meets_snap_net_income_test", "meets_snap_asset_test", "meets_snap_work_requirements", "snap_gross_test_income_fpg_ratio", "snap_max_allotment")),
     Program("wic", "WIC", "wic", "month", eligibility="is_wic_eligible",
             explain=("wic_category", "meets_wic_income_test", "wic_income_limit", "meets_wic_categorical_eligibility")),
-    Program("school_meals", "Free or reduced-price school meals", "free_school_meals", "month",
-            explain=("school_meal_fpg_ratio", "meets_school_meal_categorical_eligibility")),
+    Program("school_meals", "Free or reduced-price school meals", "school_meal_net_subsidy", "month",
+            explain=("school_meal_tier", "school_meal_fpg_ratio", "meets_school_meal_categorical_eligibility")),
     Program("lifeline", "Lifeline phone and internet discount", "lifeline", "month", eligibility="is_lifeline_eligible",
             explain=("is_lifeline_income_eligible",)),
     Program("ssi", "Supplemental Security Income (SSI)", "ssi", "month",
-            explain=("is_ssi_eligible", "meets_ssi_resource_test")),
+            explain=("is_ssi_eligible", "is_ssi_disabled", "meets_ssi_resource_test")),
     Program("eitc", "Federal Earned Income Tax Credit", "eitc", "year",
             explain=("eitc_eligible", "eitc_maximum", "eitc_phased_in", "eitc_phase_out_start", "eitc_agi_limit")),
     Program("ctc", "Federal Child Tax Credit", "ctc_value", "year",
             explain=("ctc_maximum", "ctc_phase_in", "ctc_refundable_maximum", "ctc_limiting_tax_liability")),
     Program("aca_ptc", "ACA health insurance premium tax credit", "aca_ptc", "month",
             explain=("aca_magi_fraction", "is_aca_ptc_eligible", "is_aca_eshi_eligible")),
-    Program("medicaid", "Medicaid (Medi-Cal in California)", "medicaid", "month", eligibility="is_medicaid_eligible", coverage=True,
+    Program("medicaid", "Medicaid", "medicaid", "month", state_names=(("CA", "Medi-Cal"),), eligibility="is_medicaid_eligible", coverage=True,
             explain=("medicaid_category", "medicaid_income_level", "is_medicaid_immigration_status_eligible", "is_medicaid_ineligible_due_to_work_requirement")),
     Program("chip", "CHIP (children's health insurance)", "chip", "month", eligibility="is_chip_eligible", coverage=True,
             explain=("chip_category", "medicaid_income_level")),
