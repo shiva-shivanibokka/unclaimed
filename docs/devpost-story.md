@@ -1,4 +1,3 @@
-<!-- Devpost "About the project" draft. Updated as the build progresses. [NAME] = final product name. -->
 
 ## Inspiration
 Every year, billions of dollars in benefits go unclaimed. The IRS estimates that roughly 1 in 5 people eligible for the Earned Income Tax Credit never claim it, and food assistance, WIC and health-coverage programs have similar gaps. The people who qualify are often the busiest: a parent making dinner with two kids, a worker juggling shifts. The forms are long, the rules are confusing, and most people assume they don't qualify.
@@ -6,7 +5,7 @@ Every year, billions of dollars in benefits go unclaimed. The IRS estimates that
 Alexa+ is already in the kitchen, where those conversations happen. I wanted a voice agent that works like a good caseworker: it asks a few smart questions, does the math exactly, and tells you what to do next.
 
 ## What it does
-[NAME] is a self-hosted MCP server for **Alexa+** that screens a household for benefits in **California and Illinois**:
+Unclaimed is a self-hosted MCP server for **Alexa+** that screens a household for benefits in **California and Illinois**:
 
 1. **Asks only the questions that matter.** After five core questions (ZIP code, who lives with you, pay before taxes, other income, housing cost), a *Question Engine* decides the next question by testing which unknown fact would change the result the most. When nothing left would change the answer, it stops.
 2. **Calculates exactly.** Eligibility and amounts come from [PolicyEngine-US](https://github.com/PolicyEngine/policyengine-us), an open-source rules engine that encodes federal and state tax and benefit law. The AI never does arithmetic and never decides eligibility.
