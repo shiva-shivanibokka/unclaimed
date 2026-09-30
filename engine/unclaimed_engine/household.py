@@ -4,19 +4,22 @@ person's units: paycheck + frequency -> yearly income).
 Every optional field is either known (a value) or unknown (None). Unknown fields are
 not sent to PolicyEngine, which would silently fill in a default; we report those
 defaults back as `assumptions` so nothing is assumed invisibly.
+
+Allowed values (immigration statuses, counties) come from PolicyEngine itself, the
+single source of truth, so a PolicyEngine upgrade can't leave a stale copy here.
 """
 
 from datetime import date
 from typing import Literal
 
+from policyengine_us.system import system
 from pydantic import BaseModel, Field, model_validator
 
+from .programs import SUPPORTED_STATES
+
 Relationship = Literal["head", "spouse", "child"]
-Immigration = Literal[
-    "CITIZEN", "LEGAL_PERMANENT_RESIDENT", "REFUGEE", "ASYLEE", "DEPORTATION_WITHHELD",
-    "CUBAN_HAITIAN_ENTRANT", "CONDITIONAL_ENTRANT", "PAROLED_ONE_YEAR", "UNDOCUMENTED",
-    "DACA", "TPS",
-]
+Immigration = Literal[tuple(s.name for s in system.variables["immigration_status"].possible_values)]
+COUNTIES = frozenset(c.name for c in system.variables["county"].possible_values)
 
 
 class Person(BaseModel):
@@ -32,9 +35,9 @@ class Person(BaseModel):
 
 
 class Household(BaseModel):
-    state: Literal["CA", "IL"]
+    state: Literal[SUPPORTED_STATES]
     county: str | None = Field(None, description="PolicyEngine county, e.g. SAN_FRANCISCO_COUNTY_CA")
-    zip: str | None = Field(None, pattern=r"^\d{5}$")
+    zip: str | None = Field(None, pattern=r"^\d{5}$", description="Used to find the county when county is unknown")
     people: list[Person] = Field(min_length=1, max_length=12)
     rent: float | None = Field(None, ge=0, description="Yearly rent paid by the household")
     childcare_expenses: float | None = Field(None, ge=0, description="Yearly, out of pocket")
@@ -50,6 +53,6 @@ class Household(BaseModel):
         ids = [p.id for p in self.people]
         if len(set(ids)) != len(ids):
             raise ValueError("person ids must be unique")
-        if self.county and not self.county.endswith(f"_{self.state}"):
-            raise ValueError(f"county {self.county} is not in {self.state}")
+        if self.county and (self.county not in COUNTIES or not self.county.endswith(f"_{self.state}")):
+            raise ValueError(f"{self.county} is not a county in {self.state}")
         return self

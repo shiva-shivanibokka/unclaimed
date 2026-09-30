@@ -5,7 +5,8 @@ Python service that runs [PolicyEngine-US](https://github.com/PolicyEngine/polic
 - `unclaimed_engine/household.py`: input schema, already in engine units (yearly income; the MCP server converts from paychecks)
 - `unclaimed_engine/programs.py`: the programs we screen for, mapped to PolicyEngine variables
 - `unclaimed_engine/calculate.py`: household → PolicyEngine situation → per-program results + assumptions
-- `unclaimed_engine/app.py`: FastAPI (`GET /health`, `POST /calculate`), warmed up at startup
+- `unclaimed_engine/geo.py` + `data/zip_county.csv`: ZIP → county (HUD USPS crosswalk, residential-address weighted)
+- `unclaimed_engine/app.py`: FastAPI (`GET /health`, `GET /programs`, `POST /calculate`, schema at `/openapi.json`), warmed up at startup
 - `tests/`: results vs. official published figures (USDA, IRS, state law), and the API contract
 - `scripts/measure_latency.py`: warm latency per household shape and per program
 
@@ -38,6 +39,8 @@ curl -s localhost:8000/calculate -H 'content-type: application/json' -d '{
 - **Known vs. unknown.** Every optional field is a value or `null`/missing. Unknown fields aren't sent to PolicyEngine, which would silently default them (0, false, citizen, the first county in the state). The defaults actually used come back in `assumptions`, so nothing is assumed invisibly. "Declined" is tracked by the caller (Stage 2).
 - **Periods.** Screening date `as_of` (default today). Monthly programs are calculated for that month, yearly ones for that calendar year (tax credits = the return filed the next spring).
 - **Amounts.** `amount` is per `per` (tax credits per year, everything else per month); `monthly_value` puts every program on one scale for the Question Engine. Medicaid and CHIP report `eligible_people` rather than dollars, because the engine's value is the cost of coverage, not cash.
+- **County.** A given `county` wins. Otherwise the ZIP is used: if one county holds ≥ 95% of the ZIP's residential addresses it is used, else `county` is null and `county_candidates` lists the options to ask about. Refresh the data each quarter: `HUD_API_TOKEN=... uv run python scripts/build_zip_county.py`.
+- **Single source of truth.** Allowed immigration statuses, county names and the defaults reported in `assumptions` are read from PolicyEngine at startup, not copied. Supported states are defined once, in `programs.py`. Other components read `/programs` and `/openapi.json` rather than re-typing them.
 - **Household shape (v1).** One head, an optional spouse, and children, in one tax unit. Other adults (grandparents, roommates) aren't supported yet.
 - **Privacy.** Nothing is stored; logs carry only the state, the number of people and the timing.
 

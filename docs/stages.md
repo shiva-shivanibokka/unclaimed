@@ -39,10 +39,10 @@ Decisions and answers (Sep 30):
 - [x] FastAPI service wrapping PolicyEngine-US (pinned `policyengine-us==2.18.2`); warm on startup (5.7 s). Runs in WSL/Linux (Windows path-length limit)
 - [x] Household schema (people, ages, relationships, income, hours worked, pregnancy, disability, immigration, rent, child care, state, county); unknown fields are reported as `assumptions`
 - [x] Program list for CA + IL: SNAP/CalFresh, WIC, school meals, Lifeline, SSI, EITC, CTC, ACA credit, Medicaid/Medi-Cal, CHIP, CalWORKs, CalEITC, YCTC, CARE, FERA, CA child care, IL TANF, IL EITC, IL CTC, IL LIHEAP, IL CCAP. CA LIHEAP isn't modeled by the engine → plan card only
-- [x] Correctness vs. official figures: 20 tests pass (USDA SNAP FY2026 max allotments + benefit formula, IRS 2026 EITC maxima, CTC incl. refundable phase-in, IL EITC = 20% of federal, Medicaid expansion, children's coverage, WIC, the H.R.1 SNAP work rule, API validation)
+- [x] Correctness vs. official figures (28 tests total with API, ZIP and consistency checks) (USDA SNAP FY2026 max allotments + benefit formula, IRS 2026 EITC maxima, CTC incl. refundable phase-in, IL EITC = 20% of federal, Medicaid expansion, children's coverage, WIC, the H.R.1 SNAP work rule, API validation)
 - [x] Latency measured: full screening ~430 ms median warm, ~1.1 s worst; per-program costs in `engine/README.md`
 - [ ] "Why you qualify" reasons from the engine's intermediate values
-- [ ] ZIP → county crosswalk (HUD USPS; needs a free HUD API token, since HUD's downloads are behind a bot check)
+- [x] ZIP → county crosswalk: HUD USPS 2026 Q2, weighted by residential addresses (`engine/data/zip_county.csv`, rebuilt by `scripts/build_zip_county.py` with `HUD_API_TOKEN`). Auto-assign when one county has ≥ 95% of residences; otherwise return candidates to ask (58 CA / 250 IL ZIPs)
 
 Findings that change later stages:
 - The SNAP work rule for adults 18–64 without dependents makes **weekly hours worked** a must-ask question (Stage 2), and results must mention the 3-month allowance the engine ignores.

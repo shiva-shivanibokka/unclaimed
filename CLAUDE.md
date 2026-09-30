@@ -39,6 +39,7 @@
 - Units: ask in the person's units (paycheck + frequency, before/after taxes) and convert in code to the engine's periods (income yearly; SNAP/WIC monthly).
 - States in scope: **CA + IL**. ZIP → county via the HUD crosswalk; ask the county only if a ZIP spans more than one.
 - License: AGPL-3.0 (PolicyEngine-US is AGPL).
+- **One source of truth per fact; nothing hard-coded.** Facts owned by others (rules, amounts, engine defaults, county names, ZIP data) are read from their source (PolicyEngine, HUD), never copied. Our own decisions (supported states, program list, thresholds) are defined once, with a name, and everything else imports or fetches them (other components use the engine's `/programs` and `/openapi.json`, never a re-typed copy). The one deliberate exception: test expectations are official figures typed in with citations, because a test that reads its answer from the engine can't catch the engine being wrong.
 
 ## Stack
 - `mcp-server/`: TypeScript, MCP spec 2025-11-25, Streamable HTTP, remote URL, target < 500 ms per response. MCP Apps for Echo Show UI.

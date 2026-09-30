@@ -8,6 +8,9 @@ amount to the person: tax credits per year, everything else per month.
 from dataclasses import dataclass
 from typing import Literal
 
+# The states Unclaimed serves. Defined only here; everything else imports it.
+SUPPORTED_STATES: tuple[str, ...] = ("CA", "IL")
+
 
 @dataclass(frozen=True)
 class Program:
@@ -15,7 +18,7 @@ class Program:
     name: str
     variable: str
     per: Literal["month", "year"]
-    states: tuple[str, ...] = ("CA", "IL")
+    states: tuple[str, ...] = SUPPORTED_STATES
     # Health coverage: the engine's value is the cost of coverage, not cash, so we
     # report who is eligible (from `eligibility`, a person-level bool) instead of dollars.
     eligibility: str | None = None
