@@ -21,7 +21,7 @@ Stages overlap on purpose. The riskiest unknowns are answered first. Each stage 
 - [ ] Create the Devpost project (draft) and pick the Alexa+ track + both mini-challenges
 - [x] Windows: install WSL2 + Ubuntu (the Alexa+ CLI supports macOS/Ubuntu only); Node 24+ inside Ubuntu (Ubuntu 26.04, Node 24.21 via nvm, AWS CLI 2.37; Sep 30)
 - [ ] AWS account + request hackathon AWS credits (https://forms.gle/GaHFxSbBQNG9Kti6A); enable Amazon Bedrock model access (account created, us-east-1; credits pending; Bedrock not yet checked)
-- [ ] Amazon developer account; install the `alexa-ai` CLI; read the Alexa+ MCP quickstart (account done; CLI blocked on the IAM user + CodeArtifact setup, see friction log)
+- [ ] Amazon developer account; install the `alexa-ai` CLI; read the Alexa+ MCP quickstart (account done; IAM user `alexa-ai-tools` created, AWS account 810995308352, but Amazon's `AddOn3PDeveloperToolsRead` role denies our account: the add-on tooling is allowlist-only. The track only requires a self-hosted MCP server (spec 2025-11-25+, Streamable HTTP) or a simulated Alexa+ web app. See friction log)
 - [ ] Repo skeleton, license, CI (skeleton + AGPL license public at https://github.com/shiva-shivanibokka/unclaimed; CI not yet)
 - [ ] "Hello" MCP server (TypeScript, Streamable HTTP) deployed on AWS (built and smoke-tested locally Sep 30: warm calls 2–7 ms; not yet deployed)
 - [ ] Test in the Alexa+ web simulator (and on a real Echo if available)
