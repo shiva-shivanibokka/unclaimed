@@ -36,6 +36,7 @@
 
 ## Stack
 - `mcp-server/`: TypeScript, MCP spec 2025-11-25, Streamable HTTP, remote URL, target < 500 ms per response. MCP Apps for Echo Show UI.
+- **Demo path (decided Sep 30):** the user has no Amazon device and Alexa+ add-on tooling is allowlist-only (our AWS account is denied). Submission = self-hosted MCP server + a simulated Alexa+ web app (a Strands agent on Bedrock as the orchestrator, browser speech, Echo Show-style frame). Both are allowed by the track rules. The simulator must be public, free, and need no login for judges; rate-limit it. The add-on is a bonus only if Amazon grants access.
 - `engine/`: Python 3.11+, FastAPI, `policyengine-us`. Always warm (cold start ~14 s + ~5 s first calc per program; ~1 GB RAM).
 - Alexa+ tooling: `@alexa-ai/cli` (Node 24+, macOS/Ubuntu → use WSL2 Ubuntu on this Windows machine). `alexa-ai configure`, `alexa-ai new mcp`, `alexa-ai deploy`, `alexa-ai submit`.
 - AWS: hosting; Bedrock + Strands for eval tier C (AWS Builder mini-challenge requires Bedrock/AgentCore/Strands/Kiro/SageMaker).

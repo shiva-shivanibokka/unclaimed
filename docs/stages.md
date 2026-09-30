@@ -11,8 +11,8 @@ Stages overlap on purpose. The riskiest unknowns are answered first. Each stage 
 | 1 | Engine service | Oct 1 – Oct 4 | 10 sample households return correct results, with latency measured |
 | 2 | Dictionary and coverage | Oct 3 – Oct 8 | The coverage test passes: every input sorted into ask / derive / assume / out-of-scope |
 | 3 | Question Engine + eval tiers A and B | Oct 6 – Oct 11 | The first scorecard exists; false "you qualify" = 0 on tier B |
-| 4 | MCP server + Alexa+ integration | Oct 9 – Oct 15 | A full screening works end to end in Alexa+ (simulator + real Echo) |
-| 5 | Action plans + screen (MCP App) | Oct 12 – Oct 18 | Every result links to a verified plan card that renders on the Echo Show |
+| 4 | MCP server + Alexa+ simulator | Oct 9 – Oct 15 | A full screening works end to end by voice in the Unclaimed Alexa+ simulator (web app) against the deployed MCP server |
+| 5 | Action plans + screen (MCP App) | Oct 12 – Oct 18 | Every result links to a verified plan card that renders in the simulator's Echo Show frame |
 | 6 | Harden and polish | Oct 17 – Oct 21 | The scorecard is stable; a fresh clone runs from the README; friction log written |
 | 7 | Demo and submit | Oct 20 – Oct 23 | Submitted on Devpost (Alexa+ track + AWS Builder mini-challenge) |
 
@@ -24,7 +24,8 @@ Stages overlap on purpose. The riskiest unknowns are answered first. Each stage 
 - [ ] Amazon developer account; install the `alexa-ai` CLI; read the Alexa+ MCP quickstart (account done; IAM user `alexa-ai-tools` created, AWS account 810995308352, but Amazon's `AddOn3PDeveloperToolsRead` role denies our account: the add-on tooling is allowlist-only. The track only requires a self-hosted MCP server (spec 2025-11-25+, Streamable HTTP) or a simulated Alexa+ web app. See friction log)
 - [ ] Repo skeleton, license, CI (skeleton + AGPL license public at https://github.com/shiva-shivanibokka/unclaimed; CI not yet)
 - [ ] "Hello" MCP server (TypeScript, Streamable HTTP) deployed on AWS (built and smoke-tested locally Sep 30: warm calls 2–7 ms; not yet deployed)
-- [ ] Test in the Alexa+ web simulator (and on a real Echo if available)
+- [x] Decide the demo path (Sep 30): no Amazon device and no add-on access, so we submit a **self-hosted MCP server** (verified: negotiates protocol `2025-11-25` over Streamable HTTP) **plus a simulated Alexa+ experience** (web app), both allowed by the Alexa+ track rules. If Amazon allowlists account 810995308352 later, we also deploy the same server as a real add-on
+- [ ] Ask Amazon for add-on allowlisting (office hours / Developer Community forum). Optional, never on the critical path
 - [ ] **Answer:** is the 500 ms round-trip limit enforced as a timeout? On which calls?
   - Docs (MCP quickstart): "Your MCP server must meet a round-trip query response latency of less than 500 ms." No page says whether it's a hard timeout, a certification check, or which MCP methods it covers.
   - To test live: the `hello` tool takes `delay_ms`; call it from the simulator at 300 / 600 / 1500 / 5000 ms and record which ones fail.
@@ -59,7 +60,8 @@ Stages overlap on purpose. The riskiest unknowns are answered first. Each stage 
 - [ ] Tools: start_screening, answer, get_results, get_plan
 - [ ] Answer schemas (amount + frequency + before/after taxes), validation, conversion, read-back
 - [ ] Sign-in (only if required)
-- [ ] Deploy; simulator + device testing
+- [ ] Deploy the MCP server publicly (free, no login: judges must be able to test it)
+- [ ] Unclaimed Alexa+ simulator (web app): browser speech in/out, Echo Show-style frame, a Strands agent on Bedrock acting as the Alexa+ orchestrator and calling our MCP server over Streamable HTTP; rate-limited so public judge access can't run up the Bedrock bill
 - [ ] Tier C: 40–60 simulated conversations
 
 ## Stage 5: Action plans + screen (Oct 12 – Oct 18)
@@ -73,7 +75,7 @@ Stages overlap on purpose. The riskiest unknowns are answered first. Each stage 
 
 ## Prize strategy
 - Primary track: Alexa+ (1st place includes the Amazon team meeting)
-- Mini-challenge 1: AWS Builder. It requires Bedrock / AgentCore / Strands / Kiro / SageMaker with documented integration (plain hosting does not count). Plan: Tier C test harness = Strands agent on Bedrock that emulates the Alexa+ orchestrator + a simulated person; consider hosting the MCP server on AgentCore Runtime if latency allows.
+- Mini-challenge 1: AWS Builder. It requires Bedrock / AgentCore / Strands / Kiro / SageMaker with documented integration (plain hosting does not count). Plan: the same Strands agent on Bedrock powers both the public simulator and the Tier C test harness (plus an LLM playing the person); consider hosting the MCP server on AgentCore Runtime if latency allows.
 - Mini-challenge 2: Open Source. It requires a NEW additional open-source project or a PR to a public repo. Plan: publish the Question Engine as a standalone library (generic calculator interface), and/or upstream fixes to PolicyEngine-US.
 - One project can win at most 1 track prize + 1 mini-challenge prize; entering both mini-challenges doubles the chances.
 
