@@ -4,6 +4,25 @@
 **Deadline:** Oct 23, 2026, 12:00 PM PDT (target submit: evening of Oct 22).
 **Read first:** `docs/architecture.md`, `docs/stages.md`. Devpost story draft: `docs/devpost-story.md`.
 
+## First tasks for Claude Code (do these in order, confirm each with the user)
+1. **Publish to GitHub.** The repo exists locally with commits on `main` but has no remote yet. Using the user's `gh` CLI (already authenticated on this Windows machine):
+   ```powershell
+   cd "C:\Users\sbokk\HACKATHONS\AMAZON_DEV_HACKATHON_2026\benefits-screener"
+   git status            # must be clean; if .git/index.lock exists and no git process is running, delete it
+   gh repo create unclaimed --public --source . --remote origin --push --description "Alexa+ benefits screener: asks only the questions that change the answer, calculates with PolicyEngine-US, hands off a step-by-step plan"
+   ```
+   Then add topics: `gh repo edit --add-topic alexa-plus,mcp,agentic-ai,policyengine,hackathon`. Report the repo URL to the user.
+   The public repo is required for Devpost (and for the Open Source mini-challenge, the license must be visible).
+2. **Check WSL.** `wsl -l -v` → expect Ubuntu, VERSION 2. The Alexa+ CLI supports macOS/Ubuntu only, so run Alexa tooling inside WSL (e.g. `wsl -d Ubuntu -- bash -lc "..."`). The repo is at `/mnt/c/Users/sbokk/HACKATHONS/AMAZON_DEV_HACKATHON_2026/benefits-screener` from inside WSL.
+3. **Stage 0** (see `docs/stages.md`): in WSL install Node 24 and `npm i -g @alexa-ai/cli`; `alexa-ai configure` (the user logs in with their Amazon Developer account in the browser); build the hello MCP server in `mcp-server/`; deploy to AWS; test in the Alexa+ web simulator. Record answers to: is the 500 ms limit enforced as a timeout, and is OAuth mandatory for an add-on that stores no user data? Write both in `docs/stages.md`.
+4. After every stage: commit, push, and update the checkboxes in `docs/stages.md`.
+
+## Accounts status (Sep 30, 2026)
+- Devpost: registered; project "Unclaimed: A Benefits Screener for Alexa+" started (draft)
+- Amazon Developer account: created (Sole Proprietorship)
+- AWS: signing up on the **Paid** plan ($200 credits; add a $25 budget alert). Hackathon AWS credits form: submitted/pending
+- GitHub: `gh` authenticated on Windows; repo `unclaimed` to be created (task 1)
+
 ## Non-negotiables
 - The AI phrases questions; **code does all arithmetic** and all eligibility decisions (PolicyEngine-US, pinned).
 - **No database, and store nothing about the person.** The household draft travels inside each tool call.
