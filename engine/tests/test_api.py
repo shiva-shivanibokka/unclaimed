@@ -54,6 +54,9 @@ def test_programs_point_at_real_engine_variables():
     for p in PROGRAMS:
         assert p.variable in system.variables, p.id
         assert p.eligibility is None or p.eligibility in system.variables, p.id
+        assert p.explain, f"{p.id} has no explain variables"
+        for v in p.explain:
+            assert v in system.variables, (p.id, v)
         assert set(p.states) <= set(SUPPORTED_STATES), p.id
 
 

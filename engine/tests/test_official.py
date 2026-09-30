@@ -119,5 +119,38 @@ def test_children_covered_when_parents_are_over_the_adult_limit():
     assert covered == {"c"}
 
 
+def facts(result):
+    return {f["variable"]: f for f in result["explain"]}
+
+
+def test_explain_snap_high_income_fails_gross_test():
+    r = screen("IL", [adult("a", inc=120_000), adult("b", rel="spouse"), kid("c", 4), kid("d", 8)], COOK)
+    f = facts(r["snap"])
+    assert f["meets_snap_gross_income_test"]["value"] is False
+    assert f["snap_max_allotment"]["value"] == 994  # USDA FY2026, 4 people
+    assert f["snap_max_allotment"]["label"] and f["snap_max_allotment"]["unit"] == "currency-USD"
+
+
+def test_explain_eitc_maximum_matches_irs():
+    r = screen("CA", [adult("a", inc=20_000), kid("c", 3), kid("d", 7), kid("e", 10)], SF)
+    f = facts(r["eitc"])
+    assert f["eitc_maximum"]["value"] == 8_231 and f["eitc_eligible"]["value"] is True
+
+
+def test_explain_medicaid_income_level_vs_138_percent():
+    # Expansion limit is 138% FPL: $15k is under it, $60k is over it, for one adult.
+    low = facts(screen("CA", [adult("a", inc=15_000)], SF)["medicaid"])["medicaid_income_level"]["by_person"]["a"]
+    high = facts(screen("CA", [adult("a", inc=60_000)], SF)["medicaid"])["medicaid_income_level"]["by_person"]["a"]
+    assert low < 1.38 < high
+
+
+def test_discount_eligible_even_when_bill_unknown():
+    # Lifeline: income up to 135% FPL (47 CFR 54.409(a)(1)). The discount is capped by the
+    # phone bill, which we haven't asked, so the amount is $0, but the household qualifies.
+    r = screen("CA", [adult("a", inc=10_000, weekly_hours_worked=20)], SF)["lifeline"]
+    assert r["eligible"] and r["amount"] == 0
+    assert not screen("CA", [adult("a", inc=80_000)], SF)["lifeline"]["eligible"]
+
+
 def test_wic_pregnant_low_income():
     assert screen("CA", [adult("a", inc=12_000, is_pregnant=True)], SF)["wic"]["eligible"]

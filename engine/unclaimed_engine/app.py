@@ -53,7 +53,7 @@ def health() -> dict:
 def programs() -> list[dict]:
     """The one program list: the MCP server, simulator and plan cards read it from here."""
     return [{"id": p.id, "name": p.name, "per": p.per, "states": list(p.states),
-             "coverage": p.eligibility is not None} for p in PROGRAMS]
+             "coverage": p.coverage} for p in PROGRAMS]
 
 
 @app.post("/calculate")
