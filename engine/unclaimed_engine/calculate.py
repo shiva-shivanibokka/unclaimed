@@ -81,6 +81,31 @@ def build_situation(h: Household, year: str, county: str | None = None) -> tuple
     return situation, assumptions
 
 
+def _plain(value):
+    """numpy / enum values -> JSON: bools, rounded numbers, enum names."""
+    if hasattr(value, "name"):
+        return value.name
+    if isinstance(value, (bool, int, float)) or hasattr(value, "item"):
+        value = value.item() if hasattr(value, "item") else value
+        return round(value, 4) if isinstance(value, float) else value
+    return str(value)
+
+
+def _explain(sim: Simulation, variable: str, year: str, month: str, person_ids: list[str]) -> dict:
+    """One fact behind a result. Label, unit, entity and period all come from PolicyEngine."""
+    meta = system.variables[variable]
+    period = month if meta.definition_period == "month" else year
+    values = sim.calculate(variable, period)
+    if hasattr(values, "decode"):  # EnumArray -> Enum members, not indices
+        values = values.decode()
+    fact = {"variable": variable, "label": meta.label, "unit": meta.unit, "period": meta.definition_period}
+    if meta.entity.key == "person":
+        fact["by_person"] = {pid: _plain(v) for pid, v in zip(person_ids, values)}
+    else:
+        fact["value"] = _plain(values[0])  # one household, so one group entity of each kind
+    return fact
+
+
 def _program_result(sim: Simulation, program: Program, year: str, month: str, person_ids: list[str]) -> dict:
     period = month if sim.tax_benefit_system.variables[program.variable].definition_period == "month" else year
     total = float(sim.calculate(program.variable, period).sum())
@@ -93,12 +118,16 @@ def _program_result(sim: Simulation, program: Program, year: str, month: str, pe
         "monthly_value": round(monthly, 2),
     }
     if program.eligibility:
-        flags = sim.calculate(program.eligibility, year)
-        result["eligible_people"] = [pid for pid, ok in zip(person_ids, flags) if ok]
-        result["eligible"] = bool(result["eligible_people"])
-        result.pop("amount")  # value of coverage, not money paid to the person
+        meta = system.variables[program.eligibility]
+        flags = sim.calculate(program.eligibility, month if meta.definition_period == "month" else year)
+        if meta.entity.key == "person":
+            result["eligible_people"] = [pid for pid, ok in zip(person_ids, flags) if ok]
+        result["eligible"] = bool(flags.any())
     else:
         result["eligible"] = total > 0
+    if program.coverage:
+        result.pop("amount")  # value of coverage, not money paid to the person
+    result["explain"] = [_explain(sim, v, year, month, person_ids) for v in program.explain]
     return result
 
 

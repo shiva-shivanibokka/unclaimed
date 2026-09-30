@@ -39,13 +39,14 @@ Decisions and answers (Sep 30):
 - [x] FastAPI service wrapping PolicyEngine-US (pinned `policyengine-us==2.18.2`); warm on startup (5.7 s). Runs in WSL/Linux (Windows path-length limit)
 - [x] Household schema (people, ages, relationships, income, hours worked, pregnancy, disability, immigration, rent, child care, state, county); unknown fields are reported as `assumptions`
 - [x] Program list for CA + IL: SNAP/CalFresh, WIC, school meals, Lifeline, SSI, EITC, CTC, ACA credit, Medicaid/Medi-Cal, CHIP, CalWORKs, CalEITC, YCTC, CARE, FERA, CA child care, IL TANF, IL EITC, IL CTC, IL LIHEAP, IL CCAP. CA LIHEAP isn't modeled by the engine → plan card only
-- [x] Correctness vs. official figures (28 tests total with API, ZIP and consistency checks) (USDA SNAP FY2026 max allotments + benefit formula, IRS 2026 EITC maxima, CTC incl. refundable phase-in, IL EITC = 20% of federal, Medicaid expansion, children's coverage, WIC, the H.R.1 SNAP work rule, API validation)
+- [x] Correctness vs. official figures (32 tests total with API, ZIP, explain and consistency checks) (USDA SNAP FY2026 max allotments + benefit formula, IRS 2026 EITC maxima, CTC incl. refundable phase-in, IL EITC = 20% of federal, Medicaid expansion, children's coverage, WIC, the H.R.1 SNAP work rule, API validation)
 - [x] Latency measured: full screening ~430 ms median warm, ~1.1 s worst; per-program costs in `engine/README.md`
-- [ ] "Why you qualify" reasons from the engine's intermediate values
+- [x] "Why you qualify" facts: per program, the engine's own eligibility tests and figures (labels and units from PolicyEngine; the AI phrases them). Eligibility comes from the engine's flag where one fully decides it, so "qualifies, amount depends on your bill" is no longer shown as "not eligible"
 - [x] ZIP → county crosswalk: HUD USPS 2026 Q2, weighted by residential addresses (`engine/data/zip_county.csv`, rebuilt by `scripts/build_zip_county.py` with `HUD_API_TOKEN`). Auto-assign when one county has ≥ 95% of residences; otherwise return candidates to ask (58 CA / 250 IL ZIPs)
 
 Findings that change later stages:
 - The SNAP work rule for adults 18–64 without dependents makes **weekly hours worked** a must-ask question (Stage 2), and results must mention the 3-month allowance the engine ignores.
+- Discount amounts (Lifeline, CARE/FERA, child care) depend on bills the engine silently defaults to $0; Stage 2's coverage checker must surface them.
 - A full screening is ~430 ms, so Stage 3's what-ifs must be batched and computed ahead to fit the 500 ms turn target.
 
 ## Stage 2: Dictionary and coverage (Oct 3 – Oct 8)
