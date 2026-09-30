@@ -17,7 +17,10 @@ Stages overlap on purpose. The riskiest unknowns are answered first. Each stage 
 | 7 | Demo and submit | Oct 20 – Oct 23 | Submitted on Devpost (Alexa+ track + AWS Builder mini-challenge) |
 
 ## Stage 0: Setup and de-risk (Sep 30 – Oct 2)
-- [ ] Join the hackathon on Devpost
+- [x] Join the hackathon on Devpost (done Sep 30)
+- [ ] Create the Devpost project (draft) and pick the Alexa+ track + both mini-challenges
+- [ ] Windows: install WSL2 + Ubuntu (the Alexa+ CLI supports macOS/Ubuntu only); Node 24+ inside Ubuntu
+- [ ] AWS account + request hackathon AWS credits (https://forms.gle/GaHFxSbBQNG9Kti6A); enable Amazon Bedrock model access
 - [ ] Amazon developer account; install the `alexa-ai` CLI; read the Alexa+ MCP quickstart
 - [ ] Repo skeleton, license, CI
 - [ ] "Hello" MCP server (TypeScript, Streamable HTTP) deployed on AWS
@@ -63,6 +66,12 @@ Stages overlap on purpose. The riskiest unknowns are answered first. Each stage 
 ## Stage 6: Harden and polish (Oct 17 – Oct 21)
 - [ ] Fix the scorecard's worst cases; latency; error handling
 - [ ] Friction log complete; README; architecture doc final
+
+## Prize strategy
+- Primary track: Alexa+ (1st place includes the Amazon team meeting)
+- Mini-challenge 1: AWS Builder. It requires Bedrock / AgentCore / Strands / Kiro / SageMaker with documented integration (plain hosting does not count). Plan: Tier C test harness = Strands agent on Bedrock that emulates the Alexa+ orchestrator + a simulated person; consider hosting the MCP server on AgentCore Runtime if latency allows.
+- Mini-challenge 2: Open Source. It requires a NEW additional open-source project or a PR to a public repo. Plan: publish the Question Engine as a standalone library (generic calculator interface), and/or upstream fixes to PolicyEngine-US.
+- One project can win at most 1 track prize + 1 mini-challenge prize; entering both mini-challenges doubles the chances.
 
 ## Stage 7: Demo and submit (Oct 20 – Oct 23)
 - [ ] Demo video under 3 minutes (strongest moment first)
