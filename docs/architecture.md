@@ -1,7 +1,7 @@
 # Architecture
 
 ## Layers (frontend → service → engine)
-1. **Frontend:** Alexa+ voice + Echo Show MCP App UI (result cards, document checklist, QR handoff)
+1. **Frontend:** Alexa+ voice + Echo Show MCP App UI (result cards, document checklist, QR handoff). For the hackathon demo this runs in our simulated Alexa+ web app (a Strands agent on Bedrock as the orchestrator), because add-on tooling is allowlist-only
 2. **Service:** MCP server (TypeScript, Streamable HTTP, MCP spec 2025-11-25), stateless. The household draft travels inside tool arguments and results. Validates answers, converts units, reads answers back.
 3. **Engine side:** Python (FastAPI), always warm on AWS:
    - **Question Engine**: the brain we own
