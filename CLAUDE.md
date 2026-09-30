@@ -22,6 +22,7 @@
    - Host the simulator + MCP server publicly with a rate limit: judges can't be expected to bring their own Bedrock access.
    - No real-Echo bridge: the user owns no Amazon device, and it would be voice-only.
 4. After every stage: commit, push, and update the checkboxes in `docs/stages.md`.
+5. **Adversarial review after every stage (standing rule).** Before starting the next stage, an independent reviewer (a fresh subagent with no stake in the code) tries to break the stage: wrong policy results, hidden engine defaults, single-source violations, circular tests, edge cases, security, over-engineering. Verify each finding, fix the real ones, record the outcome in `docs/stages.md`, commit. A stage is done only when it's built, tested, reviewed, and the fixes are committed.
 
 ## Accounts status (Sep 30, 2026)
 - Devpost: registered; project "Unclaimed: A Benefits Screener for Alexa+" started (draft)
@@ -44,7 +45,7 @@
 ## Stack
 - `mcp-server/`: TypeScript, MCP spec 2025-11-25, Streamable HTTP, remote URL, target < 500 ms per response. MCP Apps for Echo Show UI.
 - **Demo path (decided Sep 30):** the user has no Amazon device and Alexa+ add-on tooling is allowlist-only (our AWS account is denied). Submission = self-hosted MCP server + a simulated Alexa+ web app (a Strands agent on Bedrock as the orchestrator, browser speech, Echo Show-style frame). Both are allowed by the track rules. The simulator must be public, free, and need no login for judges; rate-limit it. The add-on is a bonus only if Amazon grants access.
-- `engine/`: Python 3.11+, FastAPI, `policyengine-us`. Always warm (cold start ~14 s + ~5 s first calc per program; ~1 GB RAM).
+- `engine/`: Python 3.11+, FastAPI, `policyengine-us` (**not installed on this machine yet**; pin `policyengine-us==2.18.2`, the version our measurements used; install in a venv inside WSL). Reference scripts: `engine/research/`. Always warm (cold start ~14 s + ~5 s first calc per program; ~1 GB RAM).
 - Alexa+ tooling (`@alexa-ai/cli`, MCP Toolkit, Web Simulator) is **partner-only; not available to us**. We follow its published MCP requirements and demo through our own `simulator/`.
 - AWS: hosting; Bedrock + Strands for eval tier C (AWS Builder mini-challenge requires Bedrock/AgentCore/Strands/Kiro/SageMaker).
 
