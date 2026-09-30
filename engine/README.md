@@ -1,9 +1,59 @@
 # engine
 
-Python (FastAPI) service, always warm.
+Python service that runs [PolicyEngine-US](https://github.com/PolicyEngine/policyengine-us) (pinned: `policyengine-us==2.18.2`) for one household and reports every in-scope program for CA and IL. The code does all the arithmetic and makes every eligibility decision; the AI only phrases questions.
 
-- `question_engine/`: candidates → batched what-ifs → score → ask or stop
-- PolicyEngine-US wrapper, pinned version
-- ZIP → county crosswalk
+- `unclaimed_engine/household.py`: input schema, already in engine units (yearly income; the MCP server converts from paychecks)
+- `unclaimed_engine/programs.py`: the programs we screen for, mapped to PolicyEngine variables
+- `unclaimed_engine/calculate.py`: household → PolicyEngine situation → per-program results + assumptions
+- `unclaimed_engine/app.py`: FastAPI (`GET /health`, `POST /calculate`), warmed up at startup
+- `tests/`: results vs. official published figures (USDA, IRS, state law), and the API contract
+- `scripts/measure_latency.py`: warm latency per household shape and per program
 
-Built in Stages 1 and 3.
+The Question Engine (`question_engine/`) arrives in Stage 3.
+
+## Run (Linux / WSL)
+
+PolicyEngine-US has file paths longer than Windows' 260-character limit, so on Windows run it inside WSL. Keep the virtualenv on the Linux filesystem, which is much faster than `/mnt/c`:
+
+```bash
+export UV_PROJECT_ENVIRONMENT=~/.venvs/unclaimed-engine
+uv sync
+uv run pytest                                   # ~25 s, most of it the engine's cold start
+uv run uvicorn unclaimed_engine.app:app --port 8000
+uv run python scripts/measure_latency.py
+```
+
+```bash
+curl -s localhost:8000/calculate -H 'content-type: application/json' -d '{
+  "state": "CA", "county": "LOS_ANGELES_COUNTY_CA", "rent": 21600,
+  "people": [
+    {"id": "you", "relationship": "head", "age": 34, "employment_income": 32000},
+    {"id": "kid1", "relationship": "child", "age": 4},
+    {"id": "kid2", "relationship": "child", "age": 9}
+  ]}'
+```
+
+## Contract
+
+- **Known vs. unknown.** Every optional field is a value or `null`/missing. Unknown fields aren't sent to PolicyEngine, which would silently default them (0, false, citizen, the first county in the state). The defaults actually used come back in `assumptions`, so nothing is assumed invisibly. "Declined" is tracked by the caller (Stage 2).
+- **Periods.** Screening date `as_of` (default today). Monthly programs are calculated for that month, yearly ones for that calendar year (tax credits = the return filed the next spring).
+- **Amounts.** `amount` is per `per` (tax credits per year, everything else per month); `monthly_value` puts every program on one scale for the Question Engine. Medicaid and CHIP report `eligible_people` rather than dollars, because the engine's value is the cost of coverage, not cash.
+- **Household shape (v1).** One head, an optional spouse, and children, in one tax unit. Other adults (grandparents, roommates) aren't supported yet.
+- **Privacy.** Nothing is stored; logs carry only the state, the number of people and the timing.
+
+## Measured (Sep 30, 2026; i7-13700HX, WSL2, warm)
+
+| | |
+|---|---|
+| Warm-up (cold start + first calculation of each program) | 5.7 s |
+| Full screening, 6 household shapes, median | 414–456 ms |
+| Full screening, worst of 5 runs | ~1.1 s (about one run in five spikes) |
+| Single program in a fresh simulation | EITC / CalEITC / YCTC ≤ 5 ms · SNAP 129 ms · CTC, ACA, Medicaid, CHIP ~210 ms · CARE / FERA / Lifeline ~350 ms |
+
+A full screening doesn't fit a 500 ms turn budget on its own once the Question Engine adds what-ifs, so Stage 3 needs batching (many variants in one simulation) and computing ahead while the person answers.
+
+## Known engine limitations (handled in wording and plans, not hidden)
+
+- **SNAP work rule (H.R.1).** Adults 18–64 without dependents must work 20 h/week (`weekly_hours_worked`). The engine treats a non-working adult as ineligible right away, but the law allows 3 countable months of SNAP in 36 before that (7 CFR 273.24(b)). The result must say "you can likely get SNAP for up to 3 months" rather than "not eligible".
+- **Cash aid counts as SNAP income.** A zero-income family gets CalWORKs / TANF, which lowers SNAP. This is correct, but it assumes they receive the cash aid.
+- **California LIHEAP** is not modeled (only Riverside County's), so it appears in plans, not in calculations.
