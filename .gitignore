@@ -1,0 +1,23 @@
+# Node
+node_modules/
+dist/
+*.tsbuildinfo
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+# Env and secrets
+.env
+.env.*
+!.env.example
+# Eval outputs
+eval/results/
+# OS / editors
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
