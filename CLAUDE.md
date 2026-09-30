@@ -14,12 +14,16 @@
    Then add topics: `gh repo edit --add-topic alexa-plus,mcp,agentic-ai,policyengine,hackathon`. Report the repo URL to the user.
    The public repo is required for Devpost (and for the Open Source mini-challenge, the license must be visible).
 2. **Check WSL.** `wsl -l -v` → expect Ubuntu, VERSION 2. The Alexa+ CLI supports macOS/Ubuntu only, so run Alexa tooling inside WSL (e.g. `wsl -d Ubuntu -- bash -lc "..."`). The repo is at `/mnt/c/Users/sbokk/HACKATHONS/AMAZON_DEV_HACKATHON_2026/benefits-screener` from inside WSL.
-3. **Stage 0** (see `docs/stages.md`): in WSL install Node 24 and the Alexa AI CLI. `@alexa-ai/cli` is **not on public npm**: it comes from Amazon's private CodeArtifact registry, reached by assuming Amazon's role `arn:aws:iam::372468808636:role/AddOn3PDeveloperToolsRead` from an IAM user in our AWS account (profiles `alexa-ai-user` → `alexa-ai`, region us-west-2), then `aws codeartifact login --tool npm --domain alexa-ai --repository npm-packages --domain-owner 372468808636 --region us-west-2 --namespace @alexa-ai --profile alexa-ai` (token lasts 12 h), then `npm i -g @alexa-ai/cli`. Full steps: https://developer.amazon.com/docs/alexaplus/add-ons/set-up-your-development-environment.html. Never install the unrelated public `alexa-ai` package. Then `alexa-ai configure` (the user logs in with their Amazon Developer account in the browser); build the hello MCP server in `mcp-server/`; deploy to AWS; test in the Alexa+ web simulator. Record answers to: is the 500 ms limit enforced as a timeout, and is OAuth mandatory for an add-on that stores no user data? Write both in `docs/stages.md`.
+3. **Stage 0 (revised Sep 30).** Official hackathon FAQ: participants do **NOT** get Alexa+ developer tools (MCP Toolkit, `alexa-ai` CLI, Alexa+ Web Simulator are partner-only). Required path: a **self-hosted MCP server** per the rules + **our own web-based Alexa+ simulator** to demo it. Hosting is optional ("a locally runnable public repo plus your demo video is enough"). So Stage 0 is:
+   - Hello MCP server in `mcp-server/` (TypeScript, Streamable HTTP, MCP 2025-11-25), still built to Alexa+'s published requirements (so it's ready for real Alexa+).
+   - Hello version of our **Alexa+ simulator** in `simulator/`: a web page with an Echo Show–style frame, push-to-talk voice (browser speech-to-text + text-to-speech), and an MCP client whose "brain" is a **Strands agent on Amazon Bedrock** (this also satisfies the AWS Builder mini-challenge). Later it renders our MCP App UI.
+   - Measure end-to-end latency per turn and record it.
+   - Optional real-device path: [KayLerch/alexa-skill-mcp-bridge](https://github.com/KayLerch/alexa-skill-mcp-bridge) exposes an MCP server on a physical Echo through a classic Alexa Skill (open to everyone via the Amazon Developer account) + a Strands agent on Bedrock AgentCore Runtime. Voice only (no screens in v1). Evaluate in Stage 4.
 4. After every stage: commit, push, and update the checkboxes in `docs/stages.md`.
 
 ## Accounts status (Sep 30, 2026)
 - Devpost: registered; project "Unclaimed: A Benefits Screener for Alexa+" started (draft)
-- Amazon Developer account: created (Sole Proprietorship)
+- Amazon Developer account: created (Sole Proprietorship). Useful for the optional real-Echo path (classic Alexa Skills Kit); Alexa+ add-on tools are not granted to hackathon participants.
 - AWS: account created on the **Paid** plan ($200 credits). Region: **us-east-1**. Hackathon AWS credits form: pending.
   - Never use root credentials or put keys in the repo. Access via IAM Identity Center (SSO) or an IAM admin user; CLI profile name: `unclaimed`. In WSL: install AWS CLI v2, then `aws configure sso --profile unclaimed` (or `aws configure --profile unclaimed`), and verify with `aws sts get-caller-identity --profile unclaimed`.
   - Before deploying, confirm the $25 budget alert exists (`aws budgets describe-budgets`) and that Bedrock model access is enabled in us-east-1.
@@ -38,7 +42,7 @@
 - `mcp-server/`: TypeScript, MCP spec 2025-11-25, Streamable HTTP, remote URL, target < 500 ms per response. MCP Apps for Echo Show UI.
 - **Demo path (decided Sep 30):** the user has no Amazon device and Alexa+ add-on tooling is allowlist-only (our AWS account is denied). Submission = self-hosted MCP server + a simulated Alexa+ web app (a Strands agent on Bedrock as the orchestrator, browser speech, Echo Show-style frame). Both are allowed by the track rules. The simulator must be public, free, and need no login for judges; rate-limit it. The add-on is a bonus only if Amazon grants access.
 - `engine/`: Python 3.11+, FastAPI, `policyengine-us`. Always warm (cold start ~14 s + ~5 s first calc per program; ~1 GB RAM).
-- Alexa+ tooling: `@alexa-ai/cli` (Node 24+, macOS/Ubuntu → use WSL2 Ubuntu on this Windows machine). `alexa-ai configure`, `alexa-ai new mcp`, `alexa-ai deploy`, `alexa-ai submit`.
+- Alexa+ tooling (`@alexa-ai/cli`, MCP Toolkit, Web Simulator) is **partner-only; not available to us**. We follow its published MCP requirements and demo through our own `simulator/`.
 - AWS: hosting; Bedrock + Strands for eval tier C (AWS Builder mini-challenge requires Bedrock/AgentCore/Strands/Kiro/SageMaker).
 
 ## Question Engine (core IP)
