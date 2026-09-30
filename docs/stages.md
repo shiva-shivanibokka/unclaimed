@@ -19,14 +19,18 @@ Stages overlap on purpose. The riskiest unknowns are answered first. Each stage 
 ## Stage 0: Setup and de-risk (Sep 30 – Oct 2)
 - [x] Join the hackathon on Devpost (done Sep 30)
 - [ ] Create the Devpost project (draft) and pick the Alexa+ track + both mini-challenges
-- [ ] Windows: install WSL2 + Ubuntu (the Alexa+ CLI supports macOS/Ubuntu only); Node 24+ inside Ubuntu
-- [ ] AWS account + request hackathon AWS credits (https://forms.gle/GaHFxSbBQNG9Kti6A); enable Amazon Bedrock model access
-- [ ] Amazon developer account; install the `alexa-ai` CLI; read the Alexa+ MCP quickstart
-- [ ] Repo skeleton, license, CI
-- [ ] "Hello" MCP server (TypeScript, Streamable HTTP) deployed on AWS
+- [x] Windows: install WSL2 + Ubuntu (the Alexa+ CLI supports macOS/Ubuntu only); Node 24+ inside Ubuntu (Ubuntu 26.04, Node 24.21 via nvm, AWS CLI 2.37; Sep 30)
+- [ ] AWS account + request hackathon AWS credits (https://forms.gle/GaHFxSbBQNG9Kti6A); enable Amazon Bedrock model access (account created, us-east-1; credits pending; Bedrock not yet checked)
+- [ ] Amazon developer account; install the `alexa-ai` CLI; read the Alexa+ MCP quickstart (account done; CLI blocked on the IAM user + CodeArtifact setup, see friction log)
+- [ ] Repo skeleton, license, CI (skeleton + AGPL license public at https://github.com/shiva-shivanibokka/unclaimed; CI not yet)
+- [ ] "Hello" MCP server (TypeScript, Streamable HTTP) deployed on AWS (built and smoke-tested locally Sep 30: warm calls 2–7 ms; not yet deployed)
 - [ ] Test in the Alexa+ web simulator (and on a real Echo if available)
 - [ ] **Answer:** is the 500 ms round-trip limit enforced as a timeout? On which calls?
+  - Docs (MCP quickstart): "Your MCP server must meet a round-trip query response latency of less than 500 ms." No page says whether it's a hard timeout, a certification check, or which MCP methods it covers.
+  - To test live: the `hello` tool takes `delay_ms`; call it from the simulator at 300 / 600 / 1500 / 5000 ms and record which ones fail.
 - [ ] **Answer:** is OAuth sign-in mandatory for an add-on that stores no user data?
+  - Docs answer: **no user sign-in needed.** "Account linking is optional"; only enable it "if your tools genuinely require user identity" (MCP Account Linking page). The quickstart's "Required: OAuth 2.1 ... PKCE" applies only if you do enable linking.
+  - Still open: Tier 1 service auth (`client_credentials`, M2M) is described as "if you have a private MCP Server". Confirm on first deploy that a public, auth-less server is accepted (`alexa-ai new mcp` asks "Does your Add-on require account linking? (Y/N)" → answer N).
 - [ ] Log every friction point in `docs/friction-log.md`
 
 ## Stage 1: Engine service (Oct 1 – Oct 4)

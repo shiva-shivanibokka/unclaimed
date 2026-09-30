@@ -14,7 +14,7 @@
    Then add topics: `gh repo edit --add-topic alexa-plus,mcp,agentic-ai,policyengine,hackathon`. Report the repo URL to the user.
    The public repo is required for Devpost (and for the Open Source mini-challenge, the license must be visible).
 2. **Check WSL.** `wsl -l -v` → expect Ubuntu, VERSION 2. The Alexa+ CLI supports macOS/Ubuntu only, so run Alexa tooling inside WSL (e.g. `wsl -d Ubuntu -- bash -lc "..."`). The repo is at `/mnt/c/Users/sbokk/HACKATHONS/AMAZON_DEV_HACKATHON_2026/benefits-screener` from inside WSL.
-3. **Stage 0** (see `docs/stages.md`): in WSL install Node 24 and `npm i -g @alexa-ai/cli`; `alexa-ai configure` (the user logs in with their Amazon Developer account in the browser); build the hello MCP server in `mcp-server/`; deploy to AWS; test in the Alexa+ web simulator. Record answers to: is the 500 ms limit enforced as a timeout, and is OAuth mandatory for an add-on that stores no user data? Write both in `docs/stages.md`.
+3. **Stage 0** (see `docs/stages.md`): in WSL install Node 24 and the Alexa AI CLI. `@alexa-ai/cli` is **not on public npm**: it comes from Amazon's private CodeArtifact registry, reached by assuming Amazon's role `arn:aws:iam::372468808636:role/AddOn3PDeveloperToolsRead` from an IAM user in our AWS account (profiles `alexa-ai-user` → `alexa-ai`, region us-west-2), then `aws codeartifact login --tool npm --domain alexa-ai --repository npm-packages --domain-owner 372468808636 --region us-west-2 --namespace @alexa-ai --profile alexa-ai` (token lasts 12 h), then `npm i -g @alexa-ai/cli`. Full steps: https://developer.amazon.com/docs/alexaplus/add-ons/set-up-your-development-environment.html. Never install the unrelated public `alexa-ai` package. Then `alexa-ai configure` (the user logs in with their Amazon Developer account in the browser); build the hello MCP server in `mcp-server/`; deploy to AWS; test in the Alexa+ web simulator. Record answers to: is the 500 ms limit enforced as a timeout, and is OAuth mandatory for an add-on that stores no user data? Write both in `docs/stages.md`.
 4. After every stage: commit, push, and update the checkboxes in `docs/stages.md`.
 
 ## Accounts status (Sep 30, 2026)
@@ -23,7 +23,8 @@
 - AWS: account created on the **Paid** plan ($200 credits). Region: **us-east-1**. Hackathon AWS credits form: pending.
   - Never use root credentials or put keys in the repo. Access via IAM Identity Center (SSO) or an IAM admin user; CLI profile name: `unclaimed`. In WSL: install AWS CLI v2, then `aws configure sso --profile unclaimed` (or `aws configure --profile unclaimed`), and verify with `aws sts get-caller-identity --profile unclaimed`.
   - Before deploying, confirm the $25 budget alert exists (`aws budgets describe-budgets`) and that Bedrock model access is enabled in us-east-1.
-- GitHub: `gh` authenticated on Windows; repo `unclaimed` to be created (task 1)
+- GitHub: public repo https://github.com/shiva-shivanibokka/unclaimed (personal account `shiva-shivanibokka`, which is the active `gh` account). This is a personal project: never use or switch to the `shivanibokka-confer` account.
+- WSL Ubuntu 26.04 (WSL2): Node 24 via nvm (`source ~/.nvm/nvm.sh` in non-interactive shells, or the Windows npm leaks in via PATH), AWS CLI v2 at `~/.local/bin/aws`.
 
 ## Non-negotiables
 - The AI phrases questions; **code does all arithmetic** and all eligibility decisions (PolicyEngine-US, pinned).
