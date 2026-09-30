@@ -52,6 +52,21 @@
 ## Question Engine (core IP)
 After each answer: list candidates (dictionary `applies_when`/`requires`) → batched what-if runs (low vs high value) → score = (w·flips + Δ$) / cost → stop if no flip and < ~$25/mo, else ask the top question. No hard cap; after ~10 questions offer "estimate now or continue". Build it against a generic calculator interface (it will be reused for a mortgage document interview and published as a separate open-source library).
 
+## Research scripts → tests (added Sep 30)
+`engine/research/` holds the planning-session scripts (see its README). They are exploratory: they print, they don't assert. Turn their findings into automated tests, and add your own:
+- **Engine-behavior guards** (new file, e.g. `engine/tests/test_engine_behavior.py`). These pin quirks our design depends on, so a PolicyEngine upgrade that changes them fails loudly:
+  - Missing county silently becomes the first county in the state (CA → Alameda, IL → Adams); missing immigration status → citizen; missing numeric inputs → 0. Our layer must never send a household to the engine with these unset by accident.
+  - Period units: `employment_income`, `rent` yearly; `snap`, `wic` monthly; `eitc`, `ctc`, `medicaid` yearly.
+  - County changes results (ACA credit, single 55-year-old, $45K: LA ≠ Alameda ≠ Modoc), so the ZIP→county step is load-bearing.
+  - Batching: `axes` variants return one result per variant, in order.
+  These are behavior checks, not correctness checks. Keep them separate from `test_official.py`, whose expectations must stay official figures with citations (per the single-source rule).
+- **Question Engine tests** (Stage 3), based on `followup_sensitivity.py`: for the CA/LA parent + kids 4 and 9 household, at $48K child care must rank above savings (it flips SNAP; savings changes nothing in CA), and job health insurance must matter at $48K but not at $32K. Assert rankings and flips, not exact dollar amounts.
+- **Performance budget tests** (marked slow / optional in CI): warm single-household calc and a batched what-if round, compared against the 500 ms target; record the numbers in `docs/stages.md`.
+- Keep `engine/research/` as-is for provenance; don't import it from production code.
+
+## Working alongside the planning session
+The user also runs a Claude (Cowork) planning chat that can read and write this folder. It edits only docs/CLAUDE.md, and only when asked. Before editing any doc, run `git status` and pull in or keep others' changes; never overwrite completed checkboxes in `docs/stages.md`.
+
 ## Git
 - Commit messages end with the attribution lines in use in this repo's history.
 - Log every friction with Amazon tools in `docs/friction-log.md` (up to 10% judging bonus).
