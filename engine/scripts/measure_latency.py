@@ -6,21 +6,20 @@ Run: uv run python scripts/measure_latency.py
 import statistics
 import sys
 import time
+from datetime import date
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from policyengine_us import Simulation  # noqa: E402
 
-from unclaimed_engine.calculate import build_situation, calculate  # noqa: E402
+from unclaimed_engine.calculate import build_situation, calculate, period_for, periods  # noqa: E402
 from unclaimed_engine.household import Household  # noqa: E402
 from unclaimed_engine.programs import PROGRAMS  # noqa: E402
 
-AS_OF = "2026-09-15"
-
 
 def hh(state, county, *people, **kw):
-    return Household(state=state, county=county, as_of=AS_OF, people=list(people), **kw)
+    return Household(state=state, county=county, people=list(people), **kw)  # as_of = today
 
 
 def p(i, rel, age, inc=0, **kw):
@@ -57,14 +56,14 @@ def main(reps: int = 5) -> None:
         print(f"{name:40s} {statistics.median(runs):7.0f}ms {max(runs):7.0f}ms")
 
     h = SHAPES["CA parent + 2 kids, $32k, rent"]
+    year, month = periods(date.today())
     print(f"\n{'program (fresh simulation, CA parent + 2 kids)':48s} {'median':>8s}")
     for prog in (x for x in PROGRAMS if "CA" in x.states):
         runs = []
         for _ in range(reps):
-            sim = Simulation(situation=build_situation(h, "2026")[0])
-            period = "2026-09" if sim.tax_benefit_system.variables[prog.variable].definition_period == "month" else "2026"
+            sim = Simulation(situation=build_situation(h, year)[0])
             t = time.perf_counter()
-            sim.calculate(prog.variable, period)
+            sim.calculate(prog.variable, period_for(prog.variable, year, month))
             runs.append(ms(t))
         print(f"{prog.id:48s} {statistics.median(runs):7.0f}ms")
 

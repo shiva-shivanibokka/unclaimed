@@ -36,23 +36,27 @@ curl -s localhost:8000/calculate -H 'content-type: application/json' -d '{
 
 ## Contract
 
-- **Known vs. unknown.** Every optional field is a value or `null`/missing. Unknown fields aren't sent to PolicyEngine, which would silently default them (0, false, citizen, the first county in the state). The defaults actually used come back in `assumptions`, so nothing is assumed invisibly. "Declined" is tracked by the caller (Stage 2).
+- **Known vs. unknown.** Every optional field is a value or `null`/missing. Unknown fields aren't sent to PolicyEngine, which would silently default them. The defaults actually used come back in `assumptions`, read from PolicyEngine (including the county it falls back to), so nothing is assumed invisibly. One answer can feed several engine inputs: `is_disabled` also sets SSI's separate disability test. "Declined" is tracked by the caller (Stage 2).
 - **Periods.** Screening date `as_of` (default today). Monthly programs are calculated for that month, yearly ones for that calendar year (tax credits = the return filed the next spring).
 - **Eligibility.** Where PolicyEngine has a flag that fully decides eligibility (income tests included), `eligible` comes from it; otherwise `eligible` means amount > 0 (tax credits, SSI, ACA credit, whose flags skip the income phase-out). So a household can be `eligible` with `amount` 0 when the amount depends on a bill we haven't asked (Lifeline, CARE, child care).
 - **Why (`explain`).** Each program returns the engine facts behind its result: eligibility tests passed or failed, income as a share of the poverty line, maximum benefits, limits. `label`, `unit` and `period` come from PolicyEngine; person-level facts come `by_person`. The engine never writes sentences: the AI phrases these facts for the person, so nothing is retyped.
 - **Amounts.** `amount` is per `per` (tax credits per year, everything else per month); `monthly_value` puts every program on one scale for the Question Engine. Medicaid and CHIP report `eligible_people` rather than dollars, because the engine's value is the cost of coverage, not cash.
 - **County.** A given `county` wins. Otherwise the ZIP is used: if one county holds ≥ 95% of the ZIP's residential addresses it is used, else `county` is null and `county_candidates` lists the options to ask about. Refresh the data each quarter: `HUD_API_TOKEN=... uv run python scripts/build_zip_county.py`.
 - **Single source of truth.** Allowed immigration statuses, county names and the defaults reported in `assumptions` are read from PolicyEngine at startup, not copied. Supported states are defined once, in `programs.py`. Other components read `/programs` and `/openapi.json` rather than re-typing them.
-- **Household shape (v1).** One head, an optional spouse, and children, in one tax unit. Other adults (grandparents, roommates) aren't supported yet.
+- **Household shape (v1).** One head, an optional spouse, and children (each younger than the head). Tax roles come from `relationship`, never from PolicyEngine's age-based guess (which would make an 18-year-old the spouse). Children under 19, or disabled, are dependents; older children file their own return, which is stated in `assumptions` (we don't ask about full-time students yet, so this can only understate the parents' credits). Other adults (grandparents, roommates) aren't supported yet.
+- **Limits.** `as_of` within one year of today (the range the official-figure tests cover; outside it the engine errors or extrapolates). Money fields within ±$10M. A given `county` must contain the given `zip`.
+- **Overload.** At most `UNCLAIMED_MAX_IN_FLIGHT` (default 8) calculations running or waiting; beyond that, 503 at once. `ms` is compute time, `wait_ms` the time spent queued. `/health` stays responsive under load. Engine failures return a generic 503 and log only the error type.
 - **Privacy.** Nothing is stored; logs carry only the state, the number of people and the timing.
 
-## Measured (Sep 30, 2026; i7-13700HX, WSL2, warm)
+## Measured (Sep 30, 2026, after the Stage 1 review fixes; i7-13700HX, WSL2, warm)
+
+This table is the only place these numbers live; other docs link here.
 
 | | |
 |---|---|
-| Warm-up (cold start + first calculation of each program) | 5.7 s |
-| Full screening incl. `explain`, 6 household shapes, median | 419–457 ms |
-| Full screening, worst of 5 runs | ~1.1 s (about one run in five spikes) |
+| Warm-up (first calculation of each program, after import) | 5.1 s |
+| Full screening incl. `explain`, 6 household shapes, median | 330–369 ms |
+| Full screening, worst of 5 runs | ~0.9 s (about one run in five spikes) |
 | Single program in a fresh simulation | EITC / CalEITC / YCTC ≤ 5 ms · SNAP 129 ms · CTC, ACA, Medicaid, CHIP ~210 ms · CARE / FERA / Lifeline ~350 ms |
 
 A full screening doesn't fit a 500 ms turn budget on its own once the Question Engine adds what-ifs, so Stage 3 needs batching (many variants in one simulation) and computing ahead while the person answers.

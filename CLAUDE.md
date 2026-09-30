@@ -45,7 +45,7 @@
 ## Stack
 - `mcp-server/`: TypeScript, MCP spec 2025-11-25, Streamable HTTP, remote URL, target < 500 ms per response. MCP Apps for Echo Show UI.
 - **Demo path (decided Sep 30):** the user has no Amazon device and Alexa+ add-on tooling is allowlist-only (our AWS account is denied). Submission = self-hosted MCP server + a simulated Alexa+ web app (a Strands agent on Bedrock as the orchestrator, browser speech, Echo Show-style frame). Both are allowed by the track rules. The simulator must be public, free, and need no login for judges; rate-limit it. The add-on is a bonus only if Amazon grants access.
-- `engine/`: Python 3.11+, FastAPI, `policyengine-us` (pinned `policyengine-us==2.18.2` in `engine/pyproject.toml`, managed with uv). Reference scripts: `engine/research/`. Always warm (cold start ~14 s + ~5 s first calc per program; ~1 GB RAM).
+- `engine/`: Python 3.11+, FastAPI, `policyengine-us` (pinned in `engine/pyproject.toml` / `engine/uv.lock`, managed with uv, run in WSL). Always warm; measured numbers live only in `engine/README.md`. Reference scripts: `engine/research/`.
 - Alexa+ tooling (`@alexa-ai/cli`, MCP Toolkit, Web Simulator) is **partner-only; not available to us**. We follow its published MCP requirements and demo through our own `simulator/`.
 - AWS: hosting; Bedrock + Strands for eval tier C (AWS Builder mini-challenge requires Bedrock/AgentCore/Strands/Kiro/SageMaker).
 
@@ -56,7 +56,8 @@ After each answer: list candidates (dictionary `applies_when`/`requires`) → ba
 `engine/research/` holds the planning-session scripts (see its README). They are exploratory: they print, they don't assert. Turn their findings into automated tests, and add your own:
 - **Engine-behavior guards** (new file, e.g. `engine/tests/test_engine_behavior.py`). These pin quirks our design depends on, so a PolicyEngine upgrade that changes them fails loudly:
   - Missing county silently becomes the first county in the state (CA → Alameda, IL → Adams); missing immigration status → citizen; missing numeric inputs → 0. Our layer must never send a household to the engine with these unset by accident.
-  - Period units: `employment_income`, `rent` yearly; `snap`, `wic` monthly; `eitc`, `ctc`, `medicaid` yearly.
+  - Period units: income and rent inputs yearly; `snap`, `wic` monthly; `eitc`, `ctc`, `medicaid` yearly.
+  - Input variables: the research scripts set `employment_income`, `rent`, `childcare_expenses`, which are calculated variables (setting them overrides the engine's formula). Tests use our engine's real inputs (`employment_income_before_lsr`, `pre_subsidy_rent`, `spm_unit_pre_subsidy_childcare_expenses`) via `unclaimed_engine`, never the scripts' `hh()`.
   - County changes results (ACA credit, single 55-year-old, $45K: LA ≠ Alameda ≠ Modoc), so the ZIP→county step is load-bearing.
   - Batching: `axes` variants return one result per variant, in order.
   These are behavior checks, not correctness checks. Keep them separate from `test_official.py`, whose expectations must stay official figures with citations (per the single-source rule).

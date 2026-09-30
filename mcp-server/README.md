@@ -15,5 +15,7 @@ npm run smoke                   # in another shell: initialize, tools/list, 3x h
 npm run smoke -- https://<deployed-host>/mcp
 ```
 
-Stage 0 tool: `hello` (`name?`, `delay_ms?`). `delay_ms` is a test-only knob to find out how Alexa+ enforces the 500 ms limit.
+Stage 0 tool: `hello` (`name?`). Config (environment):
+- `MCP_ALLOWED_ORIGINS`: comma-separated browser origins allowed to call `/mcp` (e.g. the simulator). Requests with any other `Origin` get 403, as the MCP transport spec requires; requests without `Origin` (server-to-server) are unaffected.
+- `UNCLAIMED_LATENCY_PROBE=1`: adds a test-only `delay_ms` argument to `hello`, for measuring how a client handles slow responses. Off by default so the model never sees it.
 Responses are plain JSON (`enableJsonResponse`), not SSE; `GET`/`DELETE /mcp` return 405 because the server keeps no sessions.

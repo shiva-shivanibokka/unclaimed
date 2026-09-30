@@ -10,6 +10,12 @@ Sources:
 - Illinois EITC = 20% of the federal EITC for tax years 2023+ (35 ILCS 5/212(a)).
 - Medicaid expansion adults: income up to 138% FPL (CA and IL both expanded).
 - WIC: pregnant women with income up to 185% FPL are categorically in scope.
+- EITC phase-in 34% (1 child) and phase-out 21.06% (2 children): IRC 32(b)(1).
+- Qualifying child: under 19 at year end (IRC 152(c)(3)(A)).
+- SSI federal benefit rate 2026, individual: $994/month (SSA 2026 COLA).
+- SNAP deductions FY2026: 20% earned income deduction (7 CFR 273.9(d)(2)), standard deduction
+  $209 for 1-3 people (USDA FNS COLA page above).
+- School meals: reduced price between 130% and 185% FPL (USDA Income Eligibility Guidelines).
 """
 
 import math
@@ -37,6 +43,13 @@ def screen(state, people, county, **kw):
 SF, COOK = "SAN_FRANCISCO_COUNTY_CA", "COOK_COUNTY_IL"
 adult = lambda i, age=30, inc=0, rel="head", **kw: {"id": i, "relationship": rel, "age": age, "employment_income": inc, **kw}
 kid = lambda i, age: {"id": i, "relationship": "child", "age": age, "employment_income": 0}
+
+
+def test_snap_hand_computed_one_worker():
+    # IL (no automatic utility allowance), no rent: $1,000/month earned
+    # net = 1000 - 20% (200) - standard deduction (209) = 591; benefit = 298 - ceil(0.3 * 591) = 120
+    r = screen("IL", [adult("a", inc=12_000, weekly_hours_worked=30)], COOK)
+    assert r["snap"]["amount"] == 120
 
 
 def snap_parts(state, people, county):
@@ -94,6 +107,35 @@ def test_illinois_eitc_is_20_percent_of_federal():
     r = screen("IL", [adult("a", inc=20_000), kid("c", 3), kid("d", 7), kid("e", 10)], COOK)
     assert r["eitc"]["amount"] == 8_231
     assert r["il_eitc"]["amount"] == pytest.approx(0.20 * 8_231, abs=1)
+
+
+def test_18_year_old_is_a_qualifying_child_not_a_spouse():
+    # Single parent, $25,000, children 18 and 10: two qualifying children, head of household.
+    # 2 children, phase-out from $23,890 at 21.06%: 7,316 - 0.2106 x (25,000 - 23,890) = 7,082.23
+    r = screen("CA", [adult("a", age=40, inc=25_000), kid("c", 18), kid("d", 10)], SF)
+    assert r["eitc"]["amount"] == pytest.approx(7_316 - 0.2106 * (25_000 - 23_890), abs=1)
+
+
+def test_adult_child_files_own_return():
+    # IL head earning $12,000 with a 6-year-old and a 25-year-old who earns $40,000.
+    # The adult child files alone (childless EITC fully phased out at $40k), so the head keeps
+    # the 1-child phase-in credit: 34% x 12,000 = 4,080.
+    r = screen("IL", [adult("a", age=45, inc=12_000), kid("c", 6),
+                      {"id": "d", "relationship": "child", "age": 25, "employment_income": 40_000}], COOK)
+    assert r["eitc"]["amount"] == pytest.approx(0.34 * 12_000, abs=1)
+
+
+def test_ssi_disabled_adult_no_income():
+    r = screen("IL", [adult("a", age=40, inc=0, is_disabled=True)], COOK)
+    assert r["ssi"]["amount"] == 994
+
+
+def test_school_meals_reduced_price_tier():
+    # Family of 3 at $45,000 is ~165% FPL: reduced price, not free. $150,000: neither.
+    fam = lambda inc: [adult("a", age=35, inc=inc), adult("b", age=35, rel="spouse"), kid("c", 8)]
+    mid = screen("IL", fam(45_000), COOK)["school_meals"]
+    assert mid["eligible"] and facts(mid)["school_meal_tier"]["value"] == "REDUCED"
+    assert not screen("IL", fam(150_000), COOK)["school_meals"]["eligible"]
 
 
 def test_ctc_full_credit_married_two_children():

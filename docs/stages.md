@@ -36,18 +36,29 @@ Decisions and answers (Sep 30):
 - Add-on tooling: our AWS account is denied by Amazon's role (allowlist-only), and the hackathon FAQ says participants won't get it. Not on any path.
 
 ## Stage 1: Engine service (Oct 1 – Oct 4)
-- [x] FastAPI service wrapping PolicyEngine-US (pinned `policyengine-us==2.18.2`); warm on startup (5.7 s). Runs in WSL/Linux (Windows path-length limit)
+- [x] FastAPI service wrapping PolicyEngine-US (version pinned in `engine/uv.lock`); warm on startup. Runs in WSL/Linux (Windows path-length limit)
 - [x] Household schema (people, ages, relationships, income, hours worked, pregnancy, disability, immigration, rent, child care, state, county); unknown fields are reported as `assumptions`
 - [x] Program list for CA + IL: SNAP/CalFresh, WIC, school meals, Lifeline, SSI, EITC, CTC, ACA credit, Medicaid/Medi-Cal, CHIP, CalWORKs, CalEITC, YCTC, CARE, FERA, CA child care, IL TANF, IL EITC, IL CTC, IL LIHEAP, IL CCAP. CA LIHEAP isn't modeled by the engine → plan card only
 - [x] Correctness vs. official figures (32 tests total with API, ZIP, explain and consistency checks) (USDA SNAP FY2026 max allotments + benefit formula, IRS 2026 EITC maxima, CTC incl. refundable phase-in, IL EITC = 20% of federal, Medicaid expansion, children's coverage, WIC, the H.R.1 SNAP work rule, API validation)
-- [x] Latency measured: full screening ~430 ms median warm, ~1.1 s worst; per-program costs in `engine/README.md`
+- [x] Latency measured: numbers in `engine/README.md`
 - [x] "Why you qualify" facts: per program, the engine's own eligibility tests and figures (labels and units from PolicyEngine; the AI phrases them). Eligibility comes from the engine's flag where one fully decides it, so "qualifies, amount depends on your bill" is no longer shown as "not eligible"
 - [x] ZIP → county crosswalk: HUD USPS 2026 Q2, weighted by residential addresses (`engine/data/zip_county.csv`, rebuilt by `scripts/build_zip_county.py` with `HUD_API_TOKEN`). Auto-assign when one county has ≥ 95% of residences; otherwise return candidates to ask (58 CA / 250 IL ZIPs)
 
 Findings that change later stages:
 - The SNAP work rule for adults 18–64 without dependents makes **weekly hours worked** a must-ask question (Stage 2), and results must mention the 3-month allowance the engine ignores.
 - Discount amounts (Lifeline, CARE/FERA, child care) depend on bills the engine silently defaults to $0; Stage 2's coverage checker must surface them.
-- A full screening is ~430 ms, so Stage 3's what-ifs must be batched and computed ahead to fit the 500 ms turn target.
+- A full screening already uses most of the 500 ms turn target (see `engine/README.md`), so Stage 3's what-ifs must be batched and computed ahead.
+
+### Stage 0–1 adversarial review (Sep 30)
+Independent reviewer (fresh subagent): 2 blockers, 3 majors, 9 minors, all verified and fixed; 46 engine tests pass.
+- **Blocker:** tax roles were guessed by PolicyEngine from age, so an 18-year-old child became the spouse (EITC $4,427 instead of $7,082) and a 25-year-old earning child was merged into the parents' return. Now set from `relationship`; adults 19+ file their own return (stated assumption).
+- **Blocker:** `is_disabled` didn't reach SSI's separate disability input (defaulted False): a disabled adult with no income showed $0 SSI. Now $994 (2026 federal rate).
+- **Major:** school meals counted only the free tier. Now free + reduced.
+- **Major:** `as_of` unbounded: 1990 → 500, 2099 → extrapolated benefits. Now within one year of today.
+- **Major:** sync `/health` starved under load (9 s) and requests queued without limit. Now async health, bounded in-flight with 503, compute vs. wait time.
+- **Minor:** MCP server accepted any `Origin` (spec violation), returned HTML on bad JSON, exposed the `delay_ms` test knob to the model. Fixed (allow-list via `MCP_ALLOWED_ORIGINS`; JSON-RPC parse error; probe behind `UNCLAIMED_LATENCY_PROBE=1`).
+- **Minor:** absurd incomes → NaN (now ±$10M limits); county not checked against ZIP (now must contain it); IL households saw "CalFresh" (per-state names); default county hidden (now named, read from the engine); partly circular SNAP test (added a hand-computed IL case: $120); duplicated numbers and version pins in docs and code (one home each).
+- Checked and held up: USDA/IRS figures, IL EITC/CTC, period math, ZIP data integrity (no cross-state gaps in HUD's national file), no personal data in logs, MCP 2025-11-25 transport.
 
 ## Stage 2: Dictionary and coverage (Oct 3 – Oct 8)
 - [ ] Trace-based coverage checker over generated CA + IL households

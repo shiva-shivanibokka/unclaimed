@@ -7,6 +7,15 @@ import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/
 import { z } from "zod";
 
 const PORT = Number(process.env.PORT ?? 8080);
+// Browser origins allowed to call /mcp (comma-separated), e.g. the simulator's URL.
+// Requests without an Origin header (server-to-server, like Alexa+) are unaffected.
+// The MCP transport spec (2025-11-25) requires rejecting an invalid Origin.
+const ALLOWED_ORIGINS = new Set(
+  (process.env.MCP_ALLOWED_ORIGINS ?? "").split(",").map((o) => o.trim()).filter(Boolean),
+);
+// Test-only latency probe on the hello tool. Off unless explicitly enabled, so the model
+// never sees a delay knob in production.
+const LATENCY_PROBE = process.env.UNCLAIMED_LATENCY_PROBE === "1";
 // Upper bound for the latency probe, so the knob can't be used to tie up the server.
 const MAX_DELAY_MS = 10_000;
 
@@ -22,24 +31,26 @@ function buildServer(): McpServer {
         "Use when the person asks to test or say hello to Unclaimed.",
       inputSchema: {
         name: z.string().max(80).optional().describe("First name to greet, if the person gave one"),
-        delay_ms: z
-          .number()
-          .int()
-          .min(0)
-          .max(MAX_DELAY_MS)
-          .optional()
-          .describe("Test only: wait this many milliseconds before answering (latency probe)"),
+        ...(LATENCY_PROBE && {
+          delay_ms: z
+            .number()
+            .int()
+            .min(0)
+            .max(MAX_DELAY_MS)
+            .optional()
+            .describe("Test only: wait this many milliseconds before answering (latency probe)"),
+        }),
       },
     },
-    async ({ name, delay_ms }) => {
-      if (delay_ms) await new Promise((r) => setTimeout(r, delay_ms));
+    async ({ name, delay_ms }: { name?: string; delay_ms?: number }) => {
+      if (LATENCY_PROBE && delay_ms) await new Promise((r) => setTimeout(r, delay_ms));
       const who = name ? `, ${name}` : "";
       const text =
-        `Hello${who}! This is Unclaimed. I can check which benefits your household may be missing, ` +
-        `like CalFresh, SNAP, WIC, or tax credits. Soon I'll ask a few short questions to find out.`;
+        `Hello${who}! This is Unclaimed. I can check which benefits your household may be missing. ` +
+        `Soon I'll ask a few short questions to find out.`;
       return {
         content: [{ type: "text", text }],
-        structuredContent: { greeting: text, delayed_ms: delay_ms ?? 0 },
+        structuredContent: { greeting: text },
       };
     },
   );
@@ -48,6 +59,15 @@ function buildServer(): McpServer {
 }
 
 const app = express();
+
+app.use("/mcp", (req, res, next) => {
+  const origin = req.headers.origin;
+  if (origin && !ALLOWED_ORIGINS.has(origin)) {
+    res.status(403).json({ jsonrpc: "2.0", error: { code: -32000, message: "Origin not allowed" }, id: null });
+    return;
+  }
+  next();
+});
 app.use(express.json({ limit: "256kb" }));
 
 app.get("/health", (_req, res) => {
@@ -93,6 +113,15 @@ const methodNotAllowed = (_req: express.Request, res: express.Response) => {
 };
 app.get("/mcp", methodNotAllowed);
 app.delete("/mcp", methodNotAllowed);
+
+// Malformed JSON: answer as JSON-RPC (parse error), not Express's HTML error page.
+app.use((err: unknown, _req: express.Request, res: express.Response, next: express.NextFunction) => {
+  if (err instanceof SyntaxError) {
+    res.status(400).json({ jsonrpc: "2.0", error: { code: -32700, message: "Parse error" }, id: null });
+    return;
+  }
+  next(err);
+});
 
 app.listen(PORT, () => {
   console.log(`unclaimed mcp-server listening on :${PORT}/mcp`);

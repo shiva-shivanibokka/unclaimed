@@ -35,19 +35,19 @@ The coverage checker traces thousands of generated CA + IL households. The build
 
 Entry fields: `id`, `engine_field`, `entity`, `definition`, `ask`, `answer` schema, `convert`, `what_if_range`, `applies_when`, `requires`, `cost` (1 easy … 5 sensitive), `clarifiers`.
 
-## Engine facts (measured on policyengine-us 2.18.2; Stage 1 pins 2.18.2, whose re-measured numbers are in `engine/README.md`)
-- 6,185 variables, 925 of them inputs. Anything not provided silently falls back to a default: usually 0/false, but county defaults to the first county in the state (Alameda CA / Adams IL) and immigration status defaults to citizen.
-- Income inputs are yearly; SNAP and WIC outputs are monthly. Medicaid/CHIP output is the value of coverage, not cash.
-- Cold start ~14s (+~5s on the first calculation of each program), so the engine must be always-on, not serverless.
-- Warm, one household: EITC/CTC ~70 ms; SNAP ~350 ms; ACA ~500 ms; Medicaid 0.8–3 s; all programs ~0.6–0.9 s.
-- Batching: 25 income variants in 0.3 s; 32 households in ~0.8 s.
-- Tracing: a CA single parent + 2 kids read 283 defaulted inputs.
-- County matters: ACA credit for a single 55-year-old at $45K is $6,610 in LA, $10,912 in Alameda (the default) and $13,221 in Modoc.
-- Example follow-up sensitivity (CA, LA, parent + kids 4 and 9): at $48K, child care flips SNAP from $0 to $4,920 and job insurance flips the ACA credit from $3,084 to $0. At $32K, job insurance changes nothing.
+## Engine behavior our design depends on
+Measured numbers (latency, warm-up) live only in `engine/README.md`, measured on the pinned version on our machine. This section lists behavior, not measurements.
+- 6,185 variables, 925 of them inputs. Anything not provided silently falls back to a default: usually 0/false, but county defaults to the first county in the state and immigration status defaults to citizen. Our layer reports every such default as an assumption.
+- Some obvious-looking variables are calculated, not inputs: set `employment_income_before_lsr`, `pre_subsidy_rent`, `spm_unit_pre_subsidy_childcare_expenses`, not `employment_income`, `rent`, `childcare_expenses` (setting those overrides the engine's own formula).
+- Tax roles default to an age-based guess (oldest adults become head and spouse), so we always set them from the stated relationships.
+- Units: income inputs are yearly; SNAP and WIC are monthly; Medicaid/CHIP output is the value of coverage, not cash.
+- Cold start is seconds long, so the engine must be always-on, not serverless.
+- County changes results (ACA credit, CalWORKs), so ZIP → county is load-bearing.
+- Planning-session findings (`engine/research/`, a different machine, and using the calculated variables above as inputs), to be re-verified with our engine's inputs in Stage 2 and 3 tests: batching many variants in one simulation is far cheaper than separate runs; a CA single parent + 2 kids reads ~283 defaulted inputs; at $48K in LA, child care flips SNAP and job-based insurance flips the ACA credit, while at $32K job insurance changes nothing.
 
 ## Alexa+ constraints
-- Round-trip response under 500 ms ("must"; scope to be confirmed in Stage 0)
-- OAuth 2.1 + PKCE appears required (to be confirmed in Stage 0)
+Stage 0 answers (sign-in not needed; the 500 ms limit's wording and how we treat it) are recorded once, in `docs/stages.md`.
+- Round-trip response under 500 ms ("must", per the MCP quickstart)
 - Client capabilities: roots only (no elicitation, sampling or push notifications)
 - MCP Apps supported for screen UI; US only
 

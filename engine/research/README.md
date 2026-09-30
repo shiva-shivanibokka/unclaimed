@@ -1,6 +1,6 @@
 # engine/research
 
-Throwaway scripts from the Sept 30 planning session. They produced the numbers in `docs/architecture.md`. They were run against **policyengine-us 2.18.2** on Python 3.11 in a temporary sandbox, not on this machine.
+Throwaway scripts from the Sept 30 planning session, kept unchanged for provenance. Production code and tests must not import them. They produced the numbers in `docs/architecture.md`. They were run against **policyengine-us 2.18.2** on Python 3.11 in a temporary sandbox, not on this machine.
 
 | Script | What it shows |
 |---|---|
@@ -11,7 +11,9 @@ Throwaway scripts from the Sept 30 planning session. They produced the numbers i
 | `trace_defaulted_inputs.py` | Tracing shows 283 inputs the engine read but we never provided |
 | `followup_sensitivity.py` | What-if sensitivity of follow-up questions (child care, pregnancy, job insurance, savings, …): the core Question Engine idea |
 
-Run from this folder after installing the engine (Python 3.11+):
+**Caveats.** They set `employment_income`, `rent` and `childcare_expenses` directly; those are calculated variables in PolicyEngine (the inputs are `employment_income_before_lsr`, `pre_subsidy_rent`, `spm_unit_pre_subsidy_childcare_expenses`), so setting them overrides the engine's own formula. Treat their numbers as leads to re-verify, not facts. Timings are from a different machine; this project's measurements are in `../README.md`.
+
+To run them here, use the engine's environment (see `../README.md`; WSL, uv). Original instructions:
 
 ```bash
 python3 -m venv .venv && source .venv/bin/activate
