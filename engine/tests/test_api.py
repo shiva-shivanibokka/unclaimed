@@ -24,10 +24,13 @@ def test_unknowns_are_reported_as_assumptions(client):
     })
     assert r.status_code == 200
     body = r.json()
-    assert {"a.immigration_status=CITIZEN", "rent=0", "a.weekly_hours_worked=0"} <= set(body["assumptions"])
+    got = {(a["person"], a["question"]): (a["value"], a["status"]) for a in body["assumptions"]}
+    assert got[("a", "immigration_status")] == ("CITIZEN", "unknown")
+    assert got[(None, "rent")] == (0, "unknown")
+    assert got[("a", "weekly_hours_worked")] == (0, "unknown")
     # The county the engine fell back to is named (read from the engine), not hidden.
-    county = [x for x in body["assumptions"] if x.startswith("county=")]
-    assert len(county) == 1 and county[0].split("=")[1].split()[0] in COUNTIES
+    assert got[(None, "county")][0] in COUNTIES
+    assert body["statements"]  # assumptions said out loud on the results screen
     ids = {p["id"] for p in body["programs"]}
     assert "il_eitc" in ids and "ca_eitc" not in ids  # only the household's state
 
@@ -42,7 +45,7 @@ HEAD = [{"id": "a", "relationship": "head", "age": 40, "employment_income": 30_0
 def test_zip_to_county(client, state, zip_code, county, candidates):
     body = client.post("/calculate", json={"state": state, "zip": zip_code, "people": HEAD}).json()
     assert body["county"] == county and body["county_candidates"] == candidates
-    assert any(a.startswith("county=") for a in body["assumptions"]) == (county is None)
+    assert any(a["question"] == "county" for a in body["assumptions"]) == (county is None)
 
 
 @pytest.mark.parametrize("zip_code", ["60011", "60015"])  # 30% and 5% of residents in Cook
@@ -79,6 +82,20 @@ def test_programs_point_at_real_engine_variables():
         assert set(p.states) <= set(SUPPORTED_STATES), p.id
 
 
+def test_declined_is_reported_as_declined(client):
+    body = client.post("/calculate", json={"state": "IL", "people": HEAD, "declined": ["a.immigration_status", "rent"]}).json()
+    status = {(a["person"], a["question"]): a["status"] for a in body["assumptions"]}
+    assert status[("a", "immigration_status")] == "declined" and status[(None, "rent")] == "declined"
+    assert status[("a", "is_pregnant")] == "unknown"
+
+
+def test_dictionary_endpoint(client):
+    body = client.get("/dictionary").json()
+    q = {x["id"]: x for x in body["questions"]}
+    assert "CITIZEN" in q["immigration_status"]["options"]  # enum options come from the engine
+    assert q["employment_income"]["core"] and body["statements"]
+
+
 def test_programs_list(client):
     ids = {p["id"] for p in client.get("/programs").json()}
     assert {"snap", "eitc", "medicaid", "ca_eitc", "il_eitc"} <= ids
@@ -94,6 +111,9 @@ def test_programs_list(client):
     {"state": "CA", "people": [{"id": "a", "relationship": "head", "age": 30},
                                {"id": "b", "relationship": "child", "age": 70}]},  # child older than head
     {"state": "CA", "county": "SAN_FRANCISCO_CA", "people": HEAD},  # not a county name
+    {"state": "CA", "people": HEAD, "declined": ["a.not_a_question"]},
+    {"state": "CA", "people": HEAD, "declined": ["a.employment_income"]},  # answered and declined
+    {"state": "CA", "people": HEAD, "declined": ["immigration_status"]},  # person question without a person
     {"state": "CA", "people": [{"id": "a", "relationship": "head", "age": 40, "immigration_status": "ALIEN"}]},
     {"state": "TX", "people": [{"id": "a", "relationship": "head", "age": 40}]},
     {"state": "CA", "people": [{"id": "a", "relationship": "child", "age": 4}]},  # no head

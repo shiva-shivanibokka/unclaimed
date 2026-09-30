@@ -61,10 +61,17 @@ Independent reviewer (fresh subagent): 2 blockers, 3 majors, 9 minors, all verif
 - Checked and held up: USDA/IRS figures, IL EITC/CTC, period math, ZIP data integrity (no cross-state gaps in HUD's national file), no personal data in logs, MCP 2025-11-25 transport.
 
 ## Stage 2: Dictionary and coverage (Oct 3 – Oct 8)
-- [ ] Trace-based coverage checker over generated CA + IL households
-- [ ] Classify every read input: ask / derive / assume / out-of-scope
-- [ ] Dictionary entries for the 5 core questions and every "ask" follow-up
-- [ ] Assumptions list (shown to the user on the results screen)
+- [x] Trace-based coverage checker over generated CA + IL households: 112 households (7 shapes × 4 incomes × 2 states, each unanswered and fully answered) read 318 engine inputs; `test_coverage.py` fails on any unclassified input
+- [x] Classify every read input (as of Sep 30; `dictionary/dictionary.yaml` is the live source): 43 questions setting 45 inputs, 16 derived from structure, 256 assumed (8 groups, each with a statement), 7 out of scope. Evidence: `sensitivity_scan.py` found 158 inputs that change a result for some household; those are asked or assumed out loud
+- [x] Dictionary entries for the 5 core questions (ZIP and household are structure; pay, other income (17 income types asked as one group), housing) and every follow-up, with definition, phrasing guidance, answer type and units, what-if range, applies_when, requires, cost, clarifiers
+- [x] Assumptions list: each unanswered question comes back as `{question, person, value, status}`; the `assumed` groups' statements come back for the results screen
+- [x] Single source: the engine's API schema is generated from `dictionary/dictionary.yaml`; `GET /dictionary` serves it to the MCP server and Question Engine; enum options come from the engine; ZIP data uses PolicyEngine's own county FIPS table (rebuilt file identical to the Census-based one)
+- [x] Known / unknown / declined: `declined` answers are calculated as unknown and reported as declined
+
+Findings:
+- Hidden defaults fixed by deriving them: `state_fips` defaulted to California's code (6) for Illinois households; `is_household_head`, `own_children_in_household`, tax unit IDs and `county_fips` defaulted wrong. None changed a result in the grid today, but they're now correct by construction.
+- Full-time students under 24 are now dependents (IRC 152), replacing the Stage 1 stated assumption.
+- Tracing is slow per household, so the sensitivity scan batches ~300 variants of a household into one simulation (all 42 households in minutes instead of ~7 hours). Stage 3's what-ifs should use the same batching.
 
 ## Stage 3: Question Engine + eval tiers A and B (Oct 6 – Oct 11)
 - [ ] Candidate listing (applies_when, requires)
