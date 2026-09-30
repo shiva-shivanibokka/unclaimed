@@ -5,10 +5,11 @@ import threading
 import time
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 
 from .calculate import calculate
 from .household import Household
+from .programs import PROGRAMS, SUPPORTED_STATES
 
 log = logging.getLogger("unclaimed.engine")
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
@@ -19,11 +20,11 @@ _lock = threading.Lock()
 _ready = False
 
 WARMUP = [
-    Household(state=s, county=c, people=[
+    Household(state=s, people=[
         {"id": "a", "relationship": "head", "age": 35, "employment_income": 20_000},
         {"id": "c", "relationship": "child", "age": 3},
     ])
-    for s, c in (("CA", "LOS_ANGELES_COUNTY_CA"), ("IL", "COOK_COUNTY_IL"))
+    for s in SUPPORTED_STATES
 ]
 
 
@@ -48,11 +49,21 @@ def health() -> dict:
     return {"ok": True, "ready": _ready}
 
 
+@app.get("/programs")
+def programs() -> list[dict]:
+    """The one program list: the MCP server, simulator and plan cards read it from here."""
+    return [{"id": p.id, "name": p.name, "per": p.per, "states": list(p.states),
+             "coverage": p.eligibility is not None} for p in PROGRAMS]
+
+
 @app.post("/calculate")
 def calculate_endpoint(household: Household) -> dict:
     t = time.perf_counter()
-    with _lock:
-        result = calculate(household)
+    try:
+        with _lock:
+            result = calculate(household)
+    except ValueError as e:  # e.g. a ZIP with no residents in the given state
+        raise HTTPException(status_code=422, detail=str(e)) from e
     ms = round((time.perf_counter() - t) * 1000)
     # Anonymous metrics only: never log the household itself.
     log.info("calculate state=%s people=%d ms=%d", household.state, len(household.people), ms)
