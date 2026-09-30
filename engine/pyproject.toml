@@ -8,6 +8,7 @@ dependencies = [
     "policyengine-us==2.18.2",
     "fastapi>=0.115",
     "uvicorn>=0.32",
+    "pyyaml>=6",
 ]
 
 [dependency-groups]
@@ -20,3 +21,4 @@ package = false
 testpaths = ["tests"]
 pythonpath = ["."]
 filterwarnings = ["ignore::DeprecationWarning", "ignore::FutureWarning", "ignore::UserWarning"]
+markers = ["slow: traces the engine over the coverage grid (skip with -m 'not slow')"]

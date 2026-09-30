@@ -9,22 +9,18 @@ Run: uv run python scripts/build_zip_county.py
 """
 
 import csv
-import io
 import json
 import os
-import re
 import sys
 import urllib.request
 from pathlib import Path
 
-from policyengine_us import CountryTaxBenefitSystem
-
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from unclaimed_engine.programs import SUPPORTED_STATES as STATES  # noqa: E402
 
+from unclaimed_engine.geo import fips_to_county  # noqa: E402  (PolicyEngine's own FIPS table)
+
 HUD = "https://www.huduser.gov/hudapi/public/usps?type=2&query={state}"
-# Census list of counties with FIPS codes, to turn HUD's FIPS into PolicyEngine's county names.
-CENSUS_COUNTIES = "https://www2.census.gov/geo/docs/reference/codes2020/national_county2020.txt"
 OUT = Path(__file__).resolve().parents[1] / "data" / "zip_county.csv"
 
 
@@ -39,24 +35,14 @@ def main() -> None:
     if not token:
         sys.exit("HUD_API_TOKEN is not set")
 
-    counties = CountryTaxBenefitSystem().variables["county"].possible_values
-    known = {c.name for c in counties}
-    fips_to_county = {}
-    rows = csv.DictReader(io.StringIO(get(CENSUS_COUNTIES).decode("utf-8-sig")), delimiter="|")
-    for r in rows:
-        if r["STATE"] in STATES:
-            name = re.sub(r"[^A-Z0-9 ]", "", r["COUNTYNAME"].upper()).replace(" ", "_") + "_" + r["STATE"]
-            if name not in known:
-                sys.exit(f"no PolicyEngine county for {r['COUNTYNAME']}, {r['STATE']} ({name})")
-            fips_to_county[r["STATEFP"] + r["COUNTYFP"]] = name
-
+    counties = fips_to_county()
     out, meta = [], None
     for state in STATES:
         data = json.loads(get(HUD.format(state=state), {"Authorization": f"Bearer {token}"}))["data"]
         meta = meta or f"{data['year']}Q{data['quarter']}"
         for r in data["results"]:
             if r["res_ratio"] > 0:
-                out.append((r["zip"], fips_to_county[r["geoid"]], round(r["res_ratio"], 4)))
+                out.append((r["zip"], counties[r["geoid"]], round(r["res_ratio"], 4)))
 
     out.sort()
     OUT.parent.mkdir(exist_ok=True)

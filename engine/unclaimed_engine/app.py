@@ -5,10 +5,12 @@ import os
 import threading
 import time
 from contextlib import asynccontextmanager
+from dataclasses import asdict
 
 from fastapi import FastAPI, HTTPException
 
 from .calculate import calculate
+from .dictionary import load
 from .household import Household
 from .programs import PROGRAMS, SUPPORTED_STATES
 
@@ -60,6 +62,18 @@ def programs() -> list[dict]:
     """The one program list: the MCP server, simulator and plan cards read it from here."""
     return [{"id": p.id, "name": p.name, "state_names": dict(p.state_names), "per": p.per,
              "states": list(p.states), "coverage": p.coverage} for p in PROGRAMS]
+
+
+@app.get("/dictionary")
+def dictionary() -> dict:
+    """The questions we can ask (the Question Engine and MCP server read them from here),
+    with enum options resolved from the engine, and the assumption statements."""
+    d = load()
+    return {
+        "questions": [asdict(q) | ({"options": list(q.options)} if q.answer["type"] == "enum" else {})
+                      for q in d.questions],
+        "statements": [g.statement for g in d.assumed if g.statement],
+    }
 
 
 @app.post("/calculate")

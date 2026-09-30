@@ -1,0 +1,641 @@
+# The dictionary: the single source for every fact Unclaimed can be told, and for how
+# every PolicyEngine input our programs read is handled. Loaded and validated by
+# engine/unclaimed_engine/dictionary.py; the engine's API schema is generated from it.
+#
+# Every engine input the in-scope programs read (engine/unclaimed_engine/coverage.py)
+# is in exactly one bucket: a question's `engine` list, `derived`, `assumed`, or
+# `out_of_scope`. engine/tests/test_coverage.py enforces this.
+#
+# Evidence: engine/scripts/sensitivity_scan.py sets each input to a realistic value
+# across CA + IL households and records which program results change. Inputs that change
+# results for real households are asked, or assumed with a statement shown to the person.
+#
+# Units: answers arrive in engine units (money = US dollars per year). `person_units`
+# lists how the person may say it; the MCP server converts. Allowed values of enum answers
+# come from the engine variable itself, never listed here.
+#
+# applies_when keys: person questions {age_min, age_max, states}; household questions
+# {any_child_under, any_age_at_least, any_age_min_or_disabled, states}.
+
+questions:
+
+  # ---- Core 1: ZIP (structure: `zip`, resolved to county by the engine) ---------------
+  # ---- Core 2: who lives with you (structure: people, relationship, age) --------------
+
+  # ---- Core 3: pay before taxes -------------------------------------------------------
+  - id: employment_income
+    entity: person
+    core: true
+    engine: [employment_income_before_lsr]
+    definition: Wages, salary and tips from jobs, before taxes and deductions.
+    ask: Ask what each working adult earns from jobs before taxes, in whatever way they know it (per paycheck and how often, or per hour and hours).
+    answer: {type: money, unit: USD per year, person_units: [hour, week, two_weeks, half_month, month, year], basis: before_tax}
+    what_if: [0, 60000]
+    applies_when: {age_min: 14}
+    cost: 2
+    clarifiers:
+      - Include tips, overtime and bonuses.
+      - If they only know take-home pay, use it and say the result is an estimate.
+
+  - id: weekly_hours_worked
+    entity: person
+    engine: [weekly_hours_worked_before_lsr]
+    definition: Average hours worked per week across all jobs.
+    ask: Ask roughly how many hours a week they work.
+    answer: {type: number, unit: hours per week, min: 0, max: 100}
+    what_if: [0, 30]
+    applies_when: {age_min: 18, age_max: 64}
+    requires: [employment_income]
+    cost: 1
+    clarifiers:
+      - SNAP requires adults 18-64 without dependents to work 20 hours a week.
+
+  # ---- Core 4: other income (asked together; map what they say to these) -------------
+  - id: self_employment_income
+    entity: person
+    core: true
+    group: other_income
+    engine: [self_employment_income_before_lsr]
+    definition: Net profit from self-employment, gig or business work (income minus business expenses).
+    ask: Ask whether they do any self-employed or gig work, and roughly what they clear after expenses.
+    answer: {type: money, unit: USD per year, person_units: [week, month, year], negative: true}
+    what_if: [0, 20000]
+    applies_when: {age_min: 14}
+    cost: 2
+    clarifiers:
+      - Rideshare, delivery, cleaning, childcare in their home, selling goods.
+
+  - id: unemployment_compensation
+    entity: person
+    group: other_income
+    engine: [unemployment_compensation]
+    definition: Unemployment insurance benefits.
+    ask: Ask whether anyone gets unemployment benefits, and how much.
+    answer: {type: money, unit: USD per year, person_units: [week, two_weeks, month, year]}
+    what_if: [0, 12000]
+    applies_when: {age_min: 16}
+    cost: 1
+
+  - id: social_security_retirement
+    entity: person
+    group: other_income
+    engine: [social_security_retirement]
+    definition: Social Security retirement benefits.
+    ask: Ask whether anyone gets Social Security, which kind, and how much a month.
+    answer: {type: money, unit: USD per year, person_units: [month, year]}
+    what_if: [0, 18000]
+    applies_when: {age_min: 62}
+    cost: 1
+
+  - id: social_security_disability
+    entity: person
+    group: other_income
+    engine: [social_security_disability]
+    definition: Social Security Disability Insurance (SSDI) benefits.
+    ask: Ask whether anyone gets Social Security disability (SSDI), and how much a month.
+    answer: {type: money, unit: USD per year, person_units: [month, year]}
+    what_if: [0, 18000]
+    applies_when: {age_min: 18}
+    cost: 2
+    clarifiers:
+      - SSDI is not SSI. SSI is asked with benefits they already get.
+
+  - id: social_security_survivors
+    entity: person
+    group: other_income
+    engine: [social_security_survivors]
+    definition: Social Security survivors benefits (after a parent or spouse died).
+    ask: Ask whether anyone gets Social Security survivor benefits.
+    answer: {type: money, unit: USD per year, person_units: [month, year]}
+    what_if: [0, 12000]
+    cost: 2
+
+  - id: social_security_dependents
+    entity: person
+    group: other_income
+    engine: [social_security_dependents]
+    definition: Social Security benefits paid to someone as the dependent of a retired or disabled worker.
+    ask: Ask whether a child or spouse gets Social Security because of a parent's or spouse's record.
+    answer: {type: money, unit: USD per year, person_units: [month, year]}
+    what_if: [0, 6000]
+    cost: 2
+
+  - id: child_support_received
+    entity: person
+    group: other_income
+    engine: [child_support_received]
+    definition: Child support actually received.
+    ask: Ask whether they receive child support, and how much they actually get.
+    answer: {type: money, unit: USD per year, person_units: [month, year]}
+    what_if: [0, 6000]
+    applies_when: {age_min: 16}
+    cost: 2
+
+  - id: alimony_income
+    entity: person
+    group: other_income
+    engine: [alimony_income]
+    definition: Alimony or spousal support received.
+    ask: Ask whether they receive alimony or spousal support.
+    answer: {type: money, unit: USD per year, person_units: [month, year]}
+    what_if: [0, 12000]
+    applies_when: {age_min: 18}
+    cost: 2
+
+  - id: pension_income
+    entity: person
+    group: other_income
+    engine: [taxable_private_pension_income]
+    definition: Pension or annuity payments from a former employer, private or government.
+    ask: Ask whether anyone gets a pension.
+    answer: {type: money, unit: USD per year, person_units: [month, year]}
+    what_if: [0, 15000]
+    applies_when: {age_min: 40}
+    cost: 1
+
+  - id: retirement_withdrawals
+    entity: person
+    group: other_income
+    engine: [taxable_ira_distributions]
+    definition: Money taken out of an IRA, 401(k) or similar retirement account.
+    ask: Ask whether anyone took money out of a retirement account this year.
+    answer: {type: money, unit: USD per year, person_units: [year]}
+    what_if: [0, 10000]
+    applies_when: {age_min: 18}
+    cost: 2
+
+  - id: interest_dividends
+    entity: person
+    group: other_income
+    engine: [taxable_interest_income]
+    definition: Interest and dividends from bank accounts and investments.
+    ask: Ask whether they earn interest or dividends worth mentioning.
+    answer: {type: money, unit: USD per year, person_units: [year]}
+    what_if: [0, 2000]
+    applies_when: {age_min: 18}
+    cost: 2
+
+  - id: rental_income
+    entity: person
+    group: other_income
+    engine: [rental_income]
+    definition: Net income from renting out property or rooms (rent received minus expenses).
+    ask: Ask whether they rent out a room or property.
+    answer: {type: money, unit: USD per year, person_units: [month, year], negative: true}
+    what_if: [0, 12000]
+    applies_when: {age_min: 18}
+    cost: 2
+
+  - id: veterans_benefits
+    entity: person
+    group: other_income
+    engine: [veterans_benefits]
+    definition: VA disability compensation or pension.
+    ask: Ask whether anyone gets VA benefits.
+    answer: {type: money, unit: USD per year, person_units: [month, year]}
+    what_if: [0, 12000]
+    applies_when: {age_min: 18}
+    cost: 2
+
+  - id: workers_compensation
+    entity: person
+    group: other_income
+    engine: [workers_compensation]
+    definition: Workers' compensation payments for a work injury.
+    ask: Ask whether anyone gets workers' comp.
+    answer: {type: money, unit: USD per year, person_units: [week, month, year]}
+    what_if: [0, 12000]
+    applies_when: {age_min: 16}
+    cost: 2
+
+  - id: disability_benefits
+    entity: person
+    group: other_income
+    engine: [disability_benefits]
+    definition: Disability payments from private insurance or an employer plan (not Social Security, not VA).
+    ask: Ask whether anyone gets disability insurance payments.
+    answer: {type: money, unit: USD per year, person_units: [week, month, year]}
+    what_if: [0, 12000]
+    applies_when: {age_min: 16}
+    cost: 2
+
+  - id: ca_state_disability_insurance
+    entity: person
+    group: other_income
+    engine: [ca_state_disability_insurance]
+    definition: California State Disability Insurance (SDI) or Paid Family Leave payments.
+    ask: Ask whether anyone gets California SDI or paid family leave.
+    answer: {type: money, unit: USD per year, person_units: [week, month, year]}
+    what_if: [0, 12000]
+    applies_when: {age_min: 16, states: [CA]}
+    cost: 2
+
+  - id: general_assistance
+    entity: person
+    group: other_income
+    engine: [general_assistance]
+    definition: County General Assistance or General Relief cash.
+    ask: Ask whether anyone gets county General Assistance or General Relief.
+    answer: {type: money, unit: USD per year, person_units: [month, year]}
+    what_if: [0, 3000]
+    applies_when: {age_min: 18}
+    cost: 2
+
+  # ---- Core 5: housing cost -----------------------------------------------------------
+  - id: housing_tenure
+    entity: household
+    core: true
+    group: housing
+    engine: [spm_unit_tenure_type]
+    definition: Whether the household rents, or owns with or without a mortgage.
+    ask: Ask whether they rent or own their home.
+    answer: {type: enum}
+    what_if: [RENTER, OWNER_WITH_MORTGAGE]
+    cost: 1
+
+  - id: rent
+    entity: household
+    core: true
+    group: housing
+    engine: [pre_subsidy_rent]
+    definition: Rent the household pays, before any housing assistance.
+    ask: Ask what the household pays in rent.
+    answer: {type: money, unit: USD per year, person_units: [month, year]}
+    what_if: [0, 24000]
+    cost: 1
+
+  - id: mortgage_payments
+    entity: household
+    group: housing
+    engine: [mortgage_payments]
+    definition: Mortgage payments, including property taxes and home insurance if paid with it.
+    ask: For homeowners, ask what they pay for the mortgage, property taxes and insurance.
+    answer: {type: money, unit: USD per year, person_units: [month, year]}
+    what_if: [0, 24000]
+    requires: [housing_tenure]
+    cost: 2
+
+  # ---- Utilities ----------------------------------------------------------------------
+  - id: heating_type
+    entity: household
+    group: utilities
+    engine: [heating_type]
+    definition: The fuel used most to heat the home.
+    ask: Ask what they mainly heat their home with.
+    answer: {type: enum}
+    what_if: [NONE, NATURAL_GAS]
+    cost: 1
+    clarifiers:
+      - A heating or cooling cost qualifies a household for SNAP's full utility allowance.
+
+  - id: heat_included_in_rent
+    entity: household
+    group: utilities
+    engine: [heat_expense_included_in_rent]
+    definition: Heat is included in the rent rather than paid separately.
+    ask: Ask whether heat is included in their rent.
+    answer: {type: bool}
+    what_if: [false, true]
+    requires: [heating_type]
+    cost: 1
+
+  - id: pays_for_cooling
+    entity: household
+    group: utilities
+    engine: [has_cooling_expense]
+    definition: Pays for air conditioning or other cooling separately from rent.
+    ask: Ask whether they pay for air conditioning.
+    answer: {type: bool}
+    what_if: [false, true]
+    cost: 1
+
+  - id: electricity_bill
+    entity: household
+    group: utilities
+    engine: [pre_subsidy_electricity_expense]
+    definition: Electricity bill, before any discount.
+    ask: Ask roughly what their electric bill is.
+    answer: {type: money, unit: USD per year, person_units: [month, year]}
+    what_if: [0, 2400]
+    cost: 1
+    clarifiers:
+      - Sets the size of the CARE and FERA discounts in California.
+
+  - id: phone_bill
+    entity: household
+    group: utilities
+    engine: [phone_cost]
+    definition: Phone bill (landline or cell).
+    ask: Ask what they pay for phone service.
+    answer: {type: money, unit: USD per year, person_units: [month, year]}
+    what_if: [0, 1200]
+    cost: 1
+    clarifiers:
+      - Sets the size of the Lifeline discount.
+
+  - id: internet_bill
+    entity: household
+    group: utilities
+    engine: [broadband_cost]
+    definition: Home internet bill.
+    ask: Ask what they pay for home internet.
+    answer: {type: money, unit: USD per year, person_units: [month, year]}
+    what_if: [0, 900]
+    cost: 1
+
+  # ---- Circumstances ------------------------------------------------------------------
+  - id: is_pregnant
+    entity: person
+    engine: [is_pregnant]
+    definition: Currently pregnant.
+    ask: Ask whether anyone in the household is pregnant.
+    answer: {type: bool}
+    what_if: [false, true]
+    applies_when: {age_min: 12, age_max: 55}
+    cost: 3
+
+  - id: is_disabled
+    entity: person
+    engine: [is_disabled, meets_ssi_disability_criteria]
+    definition: Has a physical or mental condition expected to last a year or more that keeps them from working, or limits the work they can do.
+    ask: Ask whether anyone has a disability or long-term health condition that keeps them from working.
+    answer: {type: bool}
+    what_if: [false, true]
+    cost: 3
+    clarifiers:
+      - Also counts as SSI's disability test, which PolicyEngine keeps as a separate input.
+
+  - id: is_blind
+    entity: person
+    engine: [is_blind]
+    definition: Legally blind.
+    ask: Ask together with disability whether anyone is legally blind.
+    answer: {type: bool}
+    what_if: [false, true]
+    cost: 3
+
+  - id: immigration_status
+    entity: person
+    engine: [immigration_status, immigration_status_str]
+    definition: Current U.S. immigration status.
+    ask: Only if it could change a result, ask gently about immigration status, and say that the answer isn't stored or shared.
+    answer: {type: enum}
+    what_if: [CITIZEN, UNDOCUMENTED]
+    cost: 5
+    clarifiers:
+      - Never required; "prefer not to say" is fine and is recorded as declined.
+
+  - id: is_full_time_college_student
+    entity: person
+    engine: [is_full_time_college_student]
+    definition: Enrolled full-time in college, university or a vocational program.
+    ask: Ask whether anyone 18 or older is a full-time student.
+    answer: {type: bool}
+    what_if: [false, true]
+    applies_when: {age_min: 18, age_max: 49}
+    cost: 1
+    clarifiers:
+      - A full-time student aged 19-23 can still be claimed as a dependent child.
+
+  - id: has_job_health_insurance
+    entity: person
+    engine: [has_esi]
+    definition: Covered by health insurance through their own or a family member's job.
+    ask: Ask whether anyone has health insurance through a job.
+    answer: {type: bool}
+    what_if: [false, true]
+    cost: 1
+
+  - id: savings
+    entity: person
+    engine: [bank_account_assets]
+    definition: Money in checking, savings and money market accounts, and cash on hand.
+    ask: Ask roughly how much the household has in the bank and in cash.
+    answer: {type: money, unit: USD, person_units: [total]}
+    what_if: [0, 15000]
+    applies_when: {age_min: 18}
+    cost: 3
+    clarifiers:
+      - A balance, not a yearly amount.
+
+  # ---- Expenses -----------------------------------------------------------------------
+  - id: childcare_expenses
+    entity: household
+    engine: [spm_unit_pre_subsidy_childcare_expenses]
+    definition: What the household pays out of pocket for child care so adults can work or study.
+    ask: Ask what they pay for child care.
+    answer: {type: money, unit: USD per year, person_units: [week, month, year]}
+    what_if: [0, 12000]
+    applies_when: {any_child_under: 13}
+    cost: 2
+
+  - id: child_support_paid
+    entity: person
+    engine: [child_support_expense]
+    definition: Court-ordered child support paid to someone outside the household.
+    ask: Ask whether anyone pays child support to someone outside the home.
+    answer: {type: money, unit: USD per year, person_units: [month, year]}
+    what_if: [0, 6000]
+    applies_when: {age_min: 18}
+    cost: 2
+
+  - id: medical_expenses
+    entity: household
+    engine: [other_medical_expenses]
+    definition: Out-of-pocket medical costs of household members aged 60+ or disabled (not covered by insurance).
+    ask: For households with someone 60+ or disabled, ask about their out-of-pocket medical costs.
+    answer: {type: money, unit: USD per year, person_units: [month, year]}
+    what_if: [0, 3000]
+    applies_when: {any_age_min_or_disabled: 60}
+    cost: 2
+
+  # ---- Benefits already received ------------------------------------------------------
+  - id: receives_ssi
+    entity: person
+    group: current_benefits
+    engine: [receives_ssi]
+    definition: Currently receives SSI.
+    ask: Ask which benefits the household already gets.
+    answer: {type: bool}
+    what_if: [false, true]
+    cost: 1
+
+  - id: receives_medicaid
+    entity: person
+    group: current_benefits
+    engine: [receives_medicaid]
+    definition: Currently has Medicaid (Medi-Cal in California).
+    ask: Ask which benefits the household already gets.
+    answer: {type: bool}
+    what_if: [false, true]
+    cost: 1
+
+  - id: receives_tanf
+    entity: household
+    group: current_benefits
+    engine: [receives_tanf]
+    definition: Currently receives cash aid (CalWORKs in California, TANF in Illinois).
+    ask: Ask which benefits the household already gets.
+    answer: {type: bool}
+    what_if: [false, true]
+    cost: 1
+
+  - id: receives_snap
+    entity: household
+    group: current_benefits
+    engine: [receives_snap]
+    definition: Currently receives SNAP (CalFresh in California).
+    ask: Ask which benefits the household already gets.
+    answer: {type: bool}
+    what_if: [false, true]
+    cost: 1
+
+  - id: receives_housing_assistance
+    entity: household
+    group: current_benefits
+    engine: [receives_housing_assistance]
+    definition: Currently receives housing assistance (Section 8 voucher, public housing).
+    ask: Ask which benefits the household already gets.
+    answer: {type: bool}
+    what_if: [false, true]
+    cost: 1
+
+# Set by our code from the household's structure (and, for tenant_pays_utilities, from
+# an answer). Each has an implementation in engine/unclaimed_engine/calculate.py
+# (DERIVERS); tests check both directions.
+derived:
+  age: stated for each person (structure)
+  state_code: the household's state
+  county: the given county, or from the ZIP (HUD crosswalk)
+  zip_code: the given ZIP
+  county_fips: from the county, via PolicyEngine's own county table
+  state_fips: from the state, via PolicyEngine's own county table
+  is_tax_unit_head: from relationship (head; adult children not claimed file their own return)
+  is_tax_unit_spouse: from relationship
+  is_tax_unit_dependent: children under 19, full-time students under 24, or disabled
+  tax_unit_id: each tax unit's position
+  medicaid_claiming_tax_unit_id: the tax unit that claims the person
+  is_household_head: from relationship
+  is_related_to_head_or_spouse: everyone in a v1 household is related (head, spouse, children)
+  own_children_in_household: number of children, for the head and spouse
+  cohabitating_spouses: a spouse lives in the household
+  tenant_pays_utilities: not when heat is included in the rent
+
+assumed:
+  - reason: Screening estimates what the household would get by applying.
+    statement: These estimates assume you apply for each program you qualify for, and file a tax return to get tax credits.
+    engine: [takes_up_snap_if_eligible, takes_up_ssi_if_eligible, takes_up_tanf_if_eligible, takes_up_wic_if_eligible,
+             takes_up_eitc, takes_up_medicaid_if_eligible, takes_up_medicare_if_eligible, takes_up_head_start_if_eligible,
+             takes_up_early_head_start_if_eligible, takes_up_housing_assistance_if_eligible,
+             would_file_if_eligible_for_refundable_credit, would_file_taxes_voluntarily]
+
+  - reason: Rare for this audience; the other-income question invites them to mention anything else.
+    statement: We assumed no income beyond what you told us (for example investment sales, a business partnership, farm income, or gambling winnings).
+    engine: [debt_relief, estate_income, farm_operations_income, farm_rent_income, financial_assistance, gambling_winnings,
+             gi_cash_assistance, illicit_income, keogh_distributions, long_term_capital_gains_before_response,
+             long_term_capital_gains_on_collectibles, long_term_capital_gains_on_small_business_stock, military_service_income,
+             miscellaneous_income, non_qualified_dividend_income, qualified_dividend_income, non_sch_d_capital_gains,
+             other_net_gain, partnership_income, partnership_self_employment_net_earnings, passive_partnership_s_corp_income,
+             qualified_reit_and_ptp_income, railroad_benefits, s_corp_income, salt_refund_income, short_term_capital_gains,
+             sstb_self_employment_income_before_lsr, strike_benefits, survivor_benefits, tax_exempt_401k_distributions,
+             tax_exempt_403b_distributions, tax_exempt_interest_income, tax_exempt_ira_distributions,
+             tax_exempt_private_pension_income, tax_exempt_public_pension_income, tax_exempt_sep_distributions,
+             taxable_401k_distributions, taxable_403b_distributions, taxable_public_pension_income, taxable_roth_conversions,
+             taxable_sep_distributions, total_disability_payments, educational_assistance, months_receiving_social_security_disability]
+
+  - reason: Asset limits apply to few of these programs in CA and IL; savings is asked.
+    statement: We assumed no investments, and no vehicles or property that count toward asset limits, beyond the savings you told us about.
+    engine: [bond_assets, stock_assets, spm_unit_assets, primary_residence_value, household_vehicles_owned,
+             household_vehicles_value, il_aabd_vehicle_is_essential]
+
+  - reason: Job-based coverage is asked; other coverage is uncommon among people applying.
+    statement: We assumed no one has other health coverage, or an offer of affordable job-based insurance, beyond what you told us.
+    engine: [has_champva_health_coverage_at_interview, has_chip_health_coverage_at_interview,
+             has_health_coverage_other_than_chip, has_marketplace_health_coverage_at_interview,
+             has_medicaid_health_coverage_at_interview, has_non_marketplace_direct_purchase_health_coverage_at_interview,
+             has_other_means_tested_health_coverage_at_interview, has_tricare_health_coverage_at_interview,
+             has_va_health_coverage_at_interview, offered_aca_disqualifying_esi, is_medicaid_1115_mec_adult,
+             health_insurance_premiums, health_insurance_premiums_without_medicare_part_b, pre_tax_health_insurance_premiums,
+             medicaid_tax_dependent_exception_non_custodial_parent]
+
+  - reason: Uncommon situations; asking about each would make the interview long for everyone.
+    statement: We assumed no other special circumstances (for example military service, foster care, a recent birth, a program you're already enrolled in, or living in a care facility) beyond what you told us.
+    engine: [is_breastfeeding, is_wic_fully_breastfeeding, wic_breastfeeding_infant_count, wic_infant_feeding_category,
+             under_12_months_postpartum, under_60_days_postpartum, is_wic_at_nutritional_risk, is_female, is_homeless,
+             is_in_foster_care, was_in_foster_care, is_runaway_child, is_migratory_child, is_military,
+             is_permanently_disabled_veteran, is_surviving_child_of_disabled_veteran, is_surviving_spouse_of_disabled_veteran,
+             is_surviving_spouse, is_separated, is_permanently_and_totally_disabled, retired_on_total_disability,
+             is_incapable_of_self_care, is_in_substance_use_treatment_program, has_felony_drug_conviction,
+             is_under_court_supervision, is_on_tribal_land, fdpir, is_part_time_college_student,
+             is_federal_work_study_participant, is_in_secondary_school, is_self_employed,
+             claimed_as_dependent_on_another_return, divorce_year, ssn_card_type, years_since_us_entry,
+             has_applied_for_unemployment_compensation, is_complying_with_tanf_work_requirements,
+             receives_or_needs_protective_services, receives_wic, was_calworks_recipient, months_since_calworks_exit,
+             il_ccap_enrolled, il_ccap_non_parent_relative_child_only_tanf, il_ccap_protective_care_override,
+             ca_calworks_child_care_welfare_to_work, ca_in_home_supportive_services, ca_in_medical_care_facility,
+             in_out_of_home_care_facility, living_arrangements_allow_for_food_preparation, is_rural,
+             ssi_lives_in_another_persons_household, ssi_lives_in_medical_treatment_facility,
+             ssi_medicaid_pays_majority_of_care, ssi_others_pay_all_meals, ssi_qualifying_quarters_earnings,
+             ssi_receives_food_from_others, ssi_receives_outside_shelter_support,
+             ssi_receives_shelter_from_others_in_household, ssi_shelter_support_value, hours_worked_last_week,
+             childcare_attending_days_per_month, childcare_days_per_week, childcare_hours_per_day,
+             childcare_provider_type_group, ca_calworks_child_care_factor_category,
+             ca_calworks_child_care_provider_category, ca_calworks_child_care_time_category,
+             head_start_applies_housing_cost_adjustment, head_start_uses_discretionary_income_limit,
+             il_liheap_eligible_for_crisis_assistance, pre_subsidy_care_expenses, bedrooms, is_sro,
+             housing_designated_welfare]
+
+  - reason: SNAP work-program status is rare and set by the SNAP office.
+    statement: We assumed adults aren't in a SNAP work program or excused from SNAP's work rule for another reason.
+    engine: [is_snap_abawd_discretionary_exempt, is_snap_abawd_indian_exempt, is_snap_work_program_participant,
+             is_snap_work_registration_noncompliant, is_snap_workfare_participant, weekly_snap_work_program_hours,
+             is_snap_employment_training_student, is_snap_work_incentive_student]
+
+  - reason: The main utility bills are asked; the rest mostly adjust SNAP deductions slightly.
+    statement: Utility and housing costs only include the bills you told us about.
+    engine: [gas_expense, water_expense, sewage_expense, trash_expense, coal_expense, wood_expense, bottled_gas_expense,
+             fuel_oil_expense, other_heating_fuel_expense, cooking_fuel_expense, heating_cooling_expense,
+             heating_expense_person, homeowners_association_fees, homeowners_insurance, real_estate_taxes]
+
+  - reason: Tax-return details only adjust how much of a non-refundable credit can be used.
+    statement: Tax credit estimates assume a simple tax return (standard deduction, no special deductions or other credits).
+    engine: [american_opportunity_credit_claimed_prior_years, attends_eligible_educational_institution_for_american_opportunity_credit,
+             attends_eligible_educational_institution_for_lifetime_learning_credit,
+             has_american_opportunity_credit_1098_t_or_exception, has_american_opportunity_credit_institution_ein,
+             has_completed_first_four_years_of_postsecondary_education, has_lifetime_learning_credit_1098_t_or_exception,
+             is_barred_from_american_opportunity_credit_due_to_improper_claims,
+             is_enrolled_at_least_half_time_for_american_opportunity_credit,
+             is_nonresident_alien_for_american_opportunity_credit, is_nonresident_alien_for_lifetime_learning_credit,
+             is_pursuing_credential_for_american_opportunity_credit, alimony_expense, business_is_qualified, business_is_sstb,
+             casualty_loss, charitable_cash_donations, charitable_non_cash_donations,
+             charitable_non_cash_donations_non_50_pct_orgs, early_withdrawal_penalty, educator_expense,
+             estate_income_would_be_qualified, farm_operations_income_would_be_qualified, farm_rent_income_would_be_qualified,
+             partnership_s_corp_income_would_be_qualified, rental_income_would_be_qualified,
+             self_employment_income_would_be_qualified, sstb_self_employment_income_would_be_qualified,
+             excess_payroll_tax_withheld, first_home_mortgage_balance, first_home_mortgage_interest,
+             first_home_mortgage_origination_year, second_home_mortgage_balance, second_home_mortgage_interest,
+             second_home_mortgage_origination_year, home_mortgage_interest, foreign_earned_income_exclusion,
+             foreign_tax_credit_potential, form_4972_lumpsum_distributions, fuel_cell_property_capacity,
+             fuel_cell_property_expenditures, geothermal_heat_pump_property_expenditures, solar_electric_property_expenditures,
+             solar_water_heating_property_expenditures, small_wind_energy_property_expenditures,
+             qualified_battery_storage_technology_expenditures, gambling_losses, health_savings_account_ald,
+             health_savings_account_payroll_contributions, investment_income_elected_form_4952, investment_income_form_4952,
+             investment_interest_expense, purchased_qualifying_new_clean_vehicle, purchased_qualifying_used_clean_vehicle,
+             qualified_adoption_assistance_expense, qualified_passenger_vehicle_loan_interest, qualified_retirement_penalty,
+             qualified_tuition_expenses, recapture_of_investment_credit, refundable_payroll_tax_credit,
+             roth_401k_contributions_desired, roth_403b_contributions_desired, roth_ira_contributions_desired,
+             traditional_401k_contributions_desired, traditional_403b_contributions_desired,
+             traditional_ira_contributions_desired, self_employed_pension_contributions_desired, separate_filer_itemizes,
+             snap_self_employment_income_expense, sstb_unadjusted_basis_qualified_property,
+             sstb_w2_wages_from_qualified_business, student_loan_interest, treasury_tipped_occupation_code,
+             unadjusted_basis_qualified_property, unrecaptured_section_1250_gain, unreported_payroll_tax,
+             us_bonds_for_higher_ed, w2_wages_from_qualified_business, tip_income, fsla_overtime_premium,
+             dependent_care_employer_benefits]
+
+out_of_scope:
+  - reason: Local taxes and income from places outside California and Illinois.
+    engine: [mo_kansas_city_earnings_tax_taxable_earnings, mo_st_louis_earnings_tax_credit,
+             mo_st_louis_earnings_tax_taxable_earnings, pa_philadelphia_wage_tax_taxable_wages, puerto_rico_income,
+             specified_possession_income]
+  - reason: Survey weight for population estimates; meaningless for one household.
+    engine: [household_weight]

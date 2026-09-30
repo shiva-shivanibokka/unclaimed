@@ -6,10 +6,34 @@ from collections import defaultdict
 from functools import cache
 from pathlib import Path
 
+from policyengine_us.system import system
+from policyengine_us.tools.geography.county_helpers import load_county_fips_dataset, map_county_string_to_enum
+
 DATA = Path(__file__).resolve().parents[1] / "data" / "zip_county.csv"
 # Use the top county without asking when it holds at least this share of the ZIP's
 # residential addresses; otherwise the caller asks which county.
 AUTO_ASSIGN = 0.95
+
+
+@cache
+def fips_to_county() -> dict[str, str]:
+    """County FIPS -> PolicyEngine county name, from PolicyEngine's own county table (the
+    same one its county formula uses), so the two can't disagree."""
+    ds = load_county_fips_dataset()
+    counties = list(system.variables["county"].possible_values)  # enum indices -> members
+    indices = map_county_string_to_enum(ds["county_name"], ds["state"])
+    return {fips: counties[i].name for fips, i in zip(ds["county_fips"], indices)}
+
+
+@cache
+def county_fips(county: str) -> str:
+    return next(f for f, c in fips_to_county().items() if c == county)
+
+
+@cache
+def state_fips(state: str) -> int:
+    """State FIPS code, from the same PolicyEngine county table."""
+    return int(next(f for f, c in fips_to_county().items() if c.endswith(f"_{state}"))[:2])
 
 
 @cache
