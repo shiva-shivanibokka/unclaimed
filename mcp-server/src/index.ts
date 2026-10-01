@@ -70,8 +70,27 @@ function buildServer(): Server {
   return server;
 }
 
-const app = express();
+// Public and without sign-in, so each client is limited (a screening is ~30-50 calls).
+const REQUESTS_PER_IP_PER_MINUTE = Number(process.env.MCP_REQUESTS_PER_IP_PER_MINUTE ?? 300);
+const windows = new Map<string, { start: number; count: number }>();
+function rateLimit(req: express.Request, res: express.Response, next: express.NextFunction) {
+  const now = Date.now();
+  const ip = req.ip ?? "?";
+  const w = windows.get(ip);
+  if (!w || now - w.start >= 60_000) windows.set(ip, { start: now, count: 1 });
+  else if (++w.count > REQUESTS_PER_IP_PER_MINUTE) {
+    res.status(429).set("Retry-After", "60").json({ jsonrpc: "2.0", error: { code: -32000, message: "Too many requests" }, id: null });
+    return;
+  }
+  if (windows.size > 10_000) for (const [k, v] of windows) if (now - v.start >= 60_000) windows.delete(k);
+  next();
+}
 
+const app = express();
+// Behind one load balancer (AWS): the client is the address it reports, not the balancer's.
+app.set("trust proxy", Number(process.env.TRUSTED_PROXIES ?? 0)); // 1 in AWS (infra/deploy.sh)
+
+app.use("/mcp", rateLimit);
 app.use("/mcp", (req, res, next) => {
   const origin = req.headers.origin;
   if (origin && !ALLOWED_ORIGINS.has(origin)) {

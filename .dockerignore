@@ -1,0 +1,13 @@
+# Build context is the repo root for the engine image (it needs dictionary/).
+**/node_modules
+**/.venv
+**/__pycache__
+**/dist
+.git
+eval
+docs
+engine/research
+engine/tests
+engine/scripts
+simulator
+mcp-server
