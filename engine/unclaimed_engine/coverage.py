@@ -20,8 +20,9 @@ def _person(i, rel, age, inc, **kw):
     return {"id": i, "relationship": rel, "age": age, "employment_income": inc, **kw}
 
 
-# Household shapes chosen to reach every program branch: children of each age band, a
-# couple, a senior, disability, pregnancy, an adult child filing on their own.
+# Household shapes chosen to reach every program branch: children of each age band
+# (including an infant), couples, seniors (one on SSI), disability (adult and child),
+# pregnancy, adult children (filing alone, or a student), non-citizens, a homeowner.
 SHAPES = {
     "single": lambda inc: [_person("a", "head", 30, inc, weekly_hours_worked=30)],
     "parent_2kids": lambda inc: [_person("a", "head", 34, inc), _person("b", "child", 4, 0), _person("c", "child", 9, 0)],
@@ -31,7 +32,18 @@ SHAPES = {
     "disabled": lambda inc: [_person("a", "head", 45, inc, is_disabled=True)],
     "pregnant": lambda inc: [_person("a", "head", 24, inc, is_pregnant=True)],
     "adult_child": lambda inc: [_person("a", "head", 50, inc), _person("b", "child", 21, 15_000)],
+    "student_child": lambda inc: [_person("a", "head", 50, inc),
+                                  _person("b", "child", 20, 6_000, is_full_time_college_student=True)],
+    "infant": lambda inc: [_person("a", "head", 26, inc), _person("b", "child", 0, 0)],
+    "senior_couple_ssi": lambda inc: [_person("a", "head", 72, inc, receives_ssi=True), _person("b", "spouse", 68, 0)],
+    "disabled_child": lambda inc: [_person("a", "head", 40, inc), _person("b", "child", 10, 0, is_disabled=True)],
+    "lpr_family": lambda inc: [_person("a", "head", 35, inc, immigration_status="LEGAL_PERMANENT_RESIDENT", years_in_us=2),
+                               _person("b", "child", 6, 0)],
+    "undocumented_family": lambda inc: [_person("a", "head", 35, inc, immigration_status="UNDOCUMENTED"),
+                                        _person("b", "child", 6, 0, immigration_status="CITIZEN")],
 }
+# Shapes that are homeowners rather than renters.
+OWNERS = {"senior_couple_ssi"}
 INCOMES = (0, 15_000, 35_000, 70_000)
 
 
@@ -47,7 +59,9 @@ def _answered(people: list[dict]) -> tuple[list[dict], dict]:
 def grid(incomes=INCOMES):
     """(label, Household) for every state x shape x income, unanswered and fully answered."""
     for state, (shape, make), inc in itertools.product(SUPPORTED_STATES, SHAPES.items(), incomes):
-        yield f"{state}/{shape}/{inc}", Household(state=state, people=make(inc), rent=12_000, childcare_expenses=0)
+        housing = ({"housing_tenure": "OWNER_WITH_MORTGAGE", "mortgage_payments": 9_000} if shape in OWNERS
+                   else {"rent": 12_000})
+        yield f"{state}/{shape}/{inc}", Household(state=state, people=make(inc), childcare_expenses=0, **housing)
         people, answers = _answered(make(inc))
         yield f"{state}/{shape}/{inc}/answered", Household(state=state, people=people, **answers)
 

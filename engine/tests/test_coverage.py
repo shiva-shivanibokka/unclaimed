@@ -1,6 +1,6 @@
 """Every PolicyEngine input our programs read is classified in the dictionary (asked,
 derived, assumed, or out of scope), so nothing is silently defaulted without a decision.
-Traces the engine over the coverage grid (slow: about two minutes)."""
+Traces the engine over the coverage grid (slow: about 13 minutes)."""
 
 import pytest
 
@@ -10,6 +10,6 @@ from unclaimed_engine.dictionary import load
 
 @pytest.mark.slow
 def test_every_input_read_is_classified():
-    read = traced_inputs(grid(incomes=(0, 35_000)))
+    read = traced_inputs(grid(incomes=(0, 15_000, 35_000)))
     unclassified = sorted(set(read) - set(load().buckets()))
     assert not unclassified, f"{len(unclassified)} inputs read but not in the dictionary: {unclassified}"

@@ -11,13 +11,16 @@ from .geo import counties_for_zip, county_fips, resolve_county, state_fips
 from .household import Household
 from .programs import PROGRAMS, Program
 
-# A child can be claimed as a qualifying child when under 19, or under 24 if a full-time
-# student (IRC 152(c)(3)(A)), or at any age when permanently disabled.
-QUALIFYING_CHILD_AGE = 19
-QUALIFYING_STUDENT_AGE = 24
 DICTIONARY = load()
-GROUPS = {"tax_unit": "tax_units", "spm_unit": "spm_units", "family": "families",
-          "marital_unit": "marital_units", "household": "households"}
+# Entity key -> the situation's group name (e.g. tax_unit -> tax_units), from the engine.
+GROUPS = {e.key: e.plural for e in system.entities}
+# Federal tax credits need an SSN valid for work (IRC 32(m), 24(h)(7)); PolicyEngine reads
+# that from ssn_card_type, not immigration_status. Our decision, defined once: citizens
+# have a citizen's SSN, undocumented people have none, and every other status in the
+# engine's list (permanent residents, refugees, asylees, DACA, TPS, parolees, ...) is
+# authorized to work and so can hold an SSN valid for work.
+SSN_CARD_FOR_STATUS = {"CITIZEN": "CITIZEN", "UNDOCUMENTED": "NONE"}
+SSN_CARD_OTHERWISE = "NON_CITIZEN_VALID_EAD"
 
 
 def periods(as_of: date) -> tuple[str, str]:
@@ -63,10 +66,13 @@ class _Structure:
     own_filers: tuple[str, ...]  # adult children, filing their own return
 
     @classmethod
-    def of(cls, h: Household, county: str | None) -> "_Structure":
+    def of(cls, h: Household, county: str | None, year: str) -> "_Structure":
+        # Qualifying child: under 19, under 24 if a full-time student (IRC 152(c)(3)(A)), or
+        # disabled at any age. The ages are the engine's own parameters for the year.
+        ages = system.parameters.gov.irs.dependent.ineligible_age(f"{year}-01-01")
         kids = [p for p in h.people if p.relationship == "child"]
-        dependents = tuple(p.id for p in kids if p.age < QUALIFYING_CHILD_AGE or p.is_disabled
-                           or (p.age < QUALIFYING_STUDENT_AGE and p.is_full_time_college_student))
+        dependents = tuple(p.id for p in kids if p.age < ages.non_student or p.is_disabled
+                           or (p.age < ages.student and p.is_full_time_college_student))
         return cls(h, county,
                    head=next(p.id for p in h.people if p.relationship == "head"),
                    spouse=tuple(p.id for p in h.people if p.relationship == "spouse"),
@@ -83,7 +89,8 @@ class _Structure:
         return {"tax_unit": [self.head, *self.spouse, *self.dependents]} | {f"tax_unit_{i}": [i] for i in self.own_filers}
 
     def tax_unit_of(self, pid: str) -> int:
-        return next(n for n, members in enumerate(self.tax_units.values()) if pid in members)
+        """The person's tax unit ID. IDs start at 1: the engine reads 0 as "no claiming unit"."""
+        return next(n for n, members in enumerate(self.tax_units.values(), start=1) if pid in members)
 
 
 # How our code sets each `derived` input in the dictionary. Person inputs return
@@ -100,14 +107,20 @@ DERIVERS = {
     "is_tax_unit_dependent": lambda s: {i: i in s.dependents for i in s.ids},
     "county_fips": lambda s: county_fips(s.county) if s.county else None,
     "state_fips": lambda s: state_fips(s.h.state),
-    "tax_unit_id": lambda s: {name: n for n, name in enumerate(s.tax_units)},
+    "tax_unit_id": lambda s: {name: n for n, name in enumerate(s.tax_units, start=1)},
     "medicaid_claiming_tax_unit_id": lambda s: {i: s.tax_unit_of(i) for i in s.ids},
     "is_household_head": lambda s: {i: i == s.head for i in s.ids},
     "is_related_to_head_or_spouse": lambda s: {i: True for i in s.ids},
     "own_children_in_household": lambda s: {
         i: sum(p.relationship == "child" for p in s.h.people) if i in (s.head, *s.spouse) else 0 for i in s.ids},
     "cohabitating_spouses": lambda s: bool(s.spouse),
-    "tenant_pays_utilities": lambda s: None if s.h.heat_included_in_rent is None else not s.h.heat_included_in_rent,
+    "tenant_pays_utilities": lambda s: (
+        None if s.h.electricity_bill is None and s.h.gas_bill is None
+        else bool(s.h.electricity_bill) or bool(s.h.gas_bill)),
+    "ssn_card_type": lambda s: {
+        p.id: SSN_CARD_FOR_STATUS.get(p.immigration_status, SSN_CARD_OTHERWISE)
+        for p in s.h.people if p.immigration_status is not None},
+    "living_arrangements_allow_for_food_preparation": lambda s: True,
 }
 
 
@@ -115,7 +128,7 @@ def build_situation(h: Household, year: str, county: str | None = None) -> tuple
     """PolicyEngine situation for one household, plus what was assumed for each unanswered
     question: {question, person, value (the engine's default), status: unknown|declined}.
     `county` overrides h.county (used when it was resolved from the ZIP)."""
-    s = _Structure.of(h, county or h.county)
+    s = _Structure.of(h, county or h.county, year)
     declined = set(h.declined)
     assumptions: list[dict] = []
     people: dict[str, dict] = {pid: {} for pid in s.ids}
@@ -143,7 +156,10 @@ def build_situation(h: Household, year: str, county: str | None = None) -> tuple
                 continue
             for var in q.engine:
                 entity = system.variables[var].entity.key
-                target = people[pid or s.head] if entity == "person" else main[entity]
+                if entity != "person":
+                    target = main[entity]
+                else:  # a household answer on a per-person input goes where the dictionary says
+                    target = people[pid] if pid else people[{"head": s.head}[q.on_person]]
                 _put(target, var, year, value, money=q.answer["type"] == "money")
 
     for var, derive in DERIVERS.items():

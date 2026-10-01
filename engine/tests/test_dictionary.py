@@ -24,6 +24,20 @@ def test_api_schema_is_generated_from_the_dictionary():
     assert household_fields == {q.id for q in d.questions if q.entity == "household"}
 
 
+def test_household_answer_on_a_person_input_needs_a_placement(tmp_path):
+    import pytest
+    bad = tmp_path / "d.yaml"
+    bad.write_text("""questions:
+  - {id: x, entity: household, engine: [pre_subsidy_rent], definition: d, ask: a,
+     answer: {type: money, unit: u, person_units: [year]}, what_if: [0, 1], cost: 1}
+derived: {}
+assumed: []
+out_of_scope: []
+""")
+    with pytest.raises(ValueError, match="on_person"):
+        load.__wrapped__(bad)
+
+
 def test_questions_are_complete():
     for q in load().questions:
         assert q.definition and q.ask, q.id

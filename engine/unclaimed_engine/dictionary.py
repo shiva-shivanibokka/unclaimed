@@ -24,9 +24,14 @@ ANSWER_TYPES = ("money", "bool", "number", "enum")
 # Conditions a question can depend on (evaluated by the Question Engine, Stage 3).
 # Person questions: the person's age. Household questions: who is in the household.
 APPLIES_WHEN = {
-    "person": {"age_min", "age_max", "states"},
+    "person": {"age_min", "age_max", "age_min_or_disabled", "non_citizen", "states"},
     "household": {"any_child_under", "any_age_at_least", "any_age_min_or_disabled", "states"},
 }
+# Enum members that mean "not given" in the engine: never offered as an answer, so an
+# unknown can't arrive disguised as a known value.
+UNSET_OPTIONS = {"UNSPECIFIED", "UNKNOWN"}
+# Where a household answer goes when its engine input is per person.
+PLACEMENTS = {"head"}
 
 
 @dataclass(frozen=True)
@@ -44,11 +49,14 @@ class Question:
     clarifiers: tuple[str, ...] = ()
     group: str | None = None  # asked together (e.g. "other_income")
     core: bool = False  # one of the five core questions
+    # A household answer whose engine input is per person goes on this person ("head").
+    # Required in that case, so no answer is ever placed on someone by accident.
+    on_person: str | None = None
 
     @property
     def options(self) -> tuple[str, ...]:
         """Allowed values of an enum answer, read from the engine variable's enum."""
-        return tuple(v.name for v in system.variables[self.engine[0]].possible_values)
+        return tuple(v.name for v in system.variables[self.engine[0]].possible_values if v.name not in UNSET_OPTIONS)
 
 
 @dataclass(frozen=True)
@@ -105,6 +113,8 @@ def _check(d: Dictionary) -> None:
             engine_entity = system.variables[var].entity.key
             if q.entity == "person" and engine_entity != "person":
                 raise ValueError(f"{q.id} is per person but {var} is per {engine_entity}")
+            if q.entity == "household" and engine_entity == "person" and q.on_person not in PLACEMENTS:
+                raise ValueError(f"{q.id} is per household but {var} is per person: set on_person")
 
 
 @cache

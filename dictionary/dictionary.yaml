@@ -14,8 +14,8 @@
 # lists how the person may say it; the MCP server converts. Allowed values of enum answers
 # come from the engine variable itself, never listed here.
 #
-# applies_when keys: person questions {age_min, age_max, states}; household questions
-# {any_child_under, any_age_at_least, any_age_min_or_disabled, states}.
+# applies_when keys and on_person placements are defined (and validated) in
+# engine/unclaimed_engine/dictionary.py.
 
 questions:
 
@@ -258,6 +258,7 @@ questions:
     core: true
     group: housing
     engine: [pre_subsidy_rent]
+    on_person: head
     definition: Rent the household pays, before any housing assistance.
     ask: Ask what the household pays in rent.
     answer: {type: money, unit: USD per year, person_units: [month, year]}
@@ -268,12 +269,37 @@ questions:
     entity: household
     group: housing
     engine: [mortgage_payments]
-    definition: Mortgage payments, including property taxes and home insurance if paid with it.
-    ask: For homeowners, ask what they pay for the mortgage, property taxes and insurance.
+    definition: Mortgage principal and interest payments (property taxes and home insurance are asked separately).
+    ask: For homeowners with a mortgage, ask what the mortgage payment is.
     answer: {type: money, unit: USD per year, person_units: [month, year]}
     what_if: [0, 24000]
     requires: [housing_tenure]
     cost: 2
+    clarifiers:
+      - If taxes and insurance are bundled into the payment, ask for the split, or put the bundle here and 0 for those.
+
+  - id: property_taxes
+    entity: household
+    group: housing
+    engine: [real_estate_taxes]
+    on_person: head
+    definition: Property taxes on the home.
+    ask: For homeowners, ask what they pay in property taxes.
+    answer: {type: money, unit: USD per year, person_units: [month, year]}
+    what_if: [0, 6000]
+    requires: [housing_tenure]
+    cost: 2
+
+  - id: home_insurance
+    entity: household
+    group: housing
+    engine: [homeowners_insurance]
+    definition: Homeowners insurance premiums.
+    ask: For homeowners, ask what they pay for home insurance.
+    answer: {type: money, unit: USD per year, person_units: [month, year]}
+    what_if: [0, 2400]
+    requires: [housing_tenure]
+    cost: 1
 
   # ---- Utilities ----------------------------------------------------------------------
   - id: heating_type
@@ -320,6 +346,18 @@ questions:
     cost: 1
     clarifiers:
       - Sets the size of the CARE and FERA discounts in California.
+
+  - id: gas_bill
+    entity: household
+    group: utilities
+    engine: [gas_expense]
+    definition: Natural gas bill, before any discount.
+    ask: Ask roughly what their gas bill is.
+    answer: {type: money, unit: USD per year, person_units: [month, year]}
+    what_if: [0, 1800]
+    cost: 1
+    clarifiers:
+      - Sets the size of the CARE gas discount in California.
 
   - id: phone_bill
     entity: household
@@ -384,6 +422,33 @@ questions:
     cost: 5
     clarifiers:
       - Never required; "prefer not to say" is fine and is recorded as declined.
+      - Also decides whether the person has an SSN valid for work, which federal tax credits require (derived).
+
+  - id: years_in_us
+    entity: person
+    engine: [years_since_us_entry]
+    definition: Years since entering the U.S. or getting the current qualified immigration status, whichever is later.
+    ask: For non-citizens, ask how long they've had their current status.
+    answer: {type: number, unit: years, min: 0, max: 100}
+    what_if: [1, 10]
+    applies_when: {non_citizen: true}
+    requires: [immigration_status]
+    cost: 3
+    clarifiers:
+      - Many lawful permanent residents must wait 5 years for Medicaid, SNAP or SSI.
+
+  - id: work_quarters
+    entity: person
+    engine: [ssi_qualifying_quarters_earnings]
+    definition: Quarters (3-month periods) of U.S. work history, counting a spouse's or parents' work where the rules allow.
+    ask: For non-citizen adults, ask roughly how many years they (or their spouse) have worked in the U.S.; each year is 4 quarters.
+    answer: {type: number, unit: quarters, min: 0, max: 400}
+    what_if: [0, 40]
+    applies_when: {non_citizen: true, age_min: 18}
+    requires: [immigration_status]
+    cost: 3
+    clarifiers:
+      - 40 quarters (10 years) of work lets some lawful permanent residents get SSI.
 
   - id: is_full_time_college_student
     entity: person
@@ -397,6 +462,18 @@ questions:
     clarifiers:
       - A full-time student aged 19-23 can still be claimed as a dependent child.
 
+  - id: is_part_time_college_student
+    entity: person
+    engine: [is_part_time_college_student]
+    definition: Enrolled at least half-time (but not full-time) in college, university or a vocational program.
+    ask: If someone 18 or older is in school but not full-time, ask whether it's at least half-time.
+    answer: {type: bool}
+    what_if: [false, true]
+    applies_when: {age_min: 18, age_max: 49}
+    cost: 1
+    clarifiers:
+      - SNAP's student rule applies to anyone enrolled at least half-time.
+
   - id: has_job_health_insurance
     entity: person
     engine: [has_esi]
@@ -407,16 +484,16 @@ questions:
     cost: 1
 
   - id: savings
-    entity: person
+    entity: household
     engine: [bank_account_assets]
+    on_person: head
     definition: Money in checking, savings and money market accounts, and cash on hand.
     ask: Ask roughly how much the household has in the bank and in cash.
     answer: {type: money, unit: USD, person_units: [total]}
     what_if: [0, 15000]
-    applies_when: {age_min: 18}
     cost: 3
     clarifiers:
-      - A balance, not a yearly amount.
+      - A balance for the whole household, not a yearly amount.
 
   # ---- Expenses -----------------------------------------------------------------------
   - id: childcare_expenses
@@ -440,13 +517,13 @@ questions:
     cost: 2
 
   - id: medical_expenses
-    entity: household
+    entity: person
     engine: [other_medical_expenses]
-    definition: Out-of-pocket medical costs of household members aged 60+ or disabled (not covered by insurance).
-    ask: For households with someone 60+ or disabled, ask about their out-of-pocket medical costs.
+    definition: This person's out-of-pocket medical costs (not covered by insurance).
+    ask: For each household member 60 or older or disabled, ask about their out-of-pocket medical costs.
     answer: {type: money, unit: USD per year, person_units: [month, year]}
     what_if: [0, 3000]
-    applies_when: {any_age_min_or_disabled: 60}
+    applies_when: {age_min_or_disabled: 60}
     cost: 2
 
   # ---- Benefits already received ------------------------------------------------------
@@ -508,25 +585,27 @@ derived:
   state_code: the household's state
   county: the given county, or from the ZIP (HUD crosswalk)
   zip_code: the given ZIP
+  ssn_card_type: from immigration_status (citizen -> citizen's SSN; undocumented -> none; other statuses -> SSN valid for work); unknown status follows the engine's citizen default
+  living_arrangements_allow_for_food_preparation: assumed True (the home has a kitchen), stated on the results screen
   county_fips: from the county, via PolicyEngine's own county table
   state_fips: from the state, via PolicyEngine's own county table
   is_tax_unit_head: from relationship (head; adult children not claimed file their own return)
   is_tax_unit_spouse: from relationship
   is_tax_unit_dependent: children under 19, full-time students under 24, or disabled
-  tax_unit_id: each tax unit's position
+  tax_unit_id: each tax unit's position, from 1 (0 means "no claiming unit" to the engine)
   medicaid_claiming_tax_unit_id: the tax unit that claims the person
   is_household_head: from relationship
   is_related_to_head_or_spouse: everyone in a v1 household is related (head, spouse, children)
   own_children_in_household: number of children, for the head and spouse
   cohabitating_spouses: a spouse lives in the household
-  tenant_pays_utilities: not when heat is included in the rent
+  tenant_pays_utilities: pays an electricity or gas bill of their own (unset when neither is known)
 
 assumed:
   - reason: Screening estimates what the household would get by applying.
     statement: These estimates assume you apply for each program you qualify for, and file a tax return to get tax credits.
     engine: [takes_up_snap_if_eligible, takes_up_ssi_if_eligible, takes_up_tanf_if_eligible, takes_up_wic_if_eligible,
              takes_up_eitc, takes_up_medicaid_if_eligible, takes_up_medicare_if_eligible, takes_up_head_start_if_eligible,
-             takes_up_early_head_start_if_eligible, takes_up_housing_assistance_if_eligible,
+             takes_up_early_head_start_if_eligible, takes_up_housing_assistance_if_eligible, takes_up_chip_if_eligible,
              would_file_if_eligible_for_refundable_credit, would_file_taxes_voluntarily]
 
   - reason: Rare for this audience; the other-income question invites them to mention anything else.
@@ -541,7 +620,15 @@ assumed:
              tax_exempt_403b_distributions, tax_exempt_interest_income, tax_exempt_ira_distributions,
              tax_exempt_private_pension_income, tax_exempt_public_pension_income, tax_exempt_sep_distributions,
              taxable_401k_distributions, taxable_403b_distributions, taxable_public_pension_income, taxable_roth_conversions,
-             taxable_sep_distributions, total_disability_payments, educational_assistance, months_receiving_social_security_disability]
+             taxable_sep_distributions, total_disability_payments, educational_assistance]
+
+  - reason: How long someone has received SSDI decides Medicare (after 24 months); rarely known offhand.
+    statement: For anyone on Social Security disability, we assumed they don't have Medicare yet (it starts after 24 months of SSDI).
+    engine: [months_receiving_social_security_disability]
+
+  - reason: WIC requires a nutrition check at the WIC clinic; nearly all applicants are found at nutritional risk.
+    statement: WIC also requires a short nutrition check at the WIC office; we assumed it finds a need, as it does for nearly all applicants.
+    engine: [is_wic_at_nutritional_risk]
 
   - reason: Asset limits apply to few of these programs in CA and IL; savings is asked.
     statement: We assumed no investments, and no vehicles or property that count toward asset limits, beyond the savings you told us about.
@@ -559,23 +646,23 @@ assumed:
              medicaid_tax_dependent_exception_non_custodial_parent]
 
   - reason: Uncommon situations; asking about each would make the interview long for everyone.
-    statement: We assumed no other special circumstances (for example military service, foster care, a recent birth, a program you're already enrolled in, or living in a care facility) beyond what you told us.
+    statement: We assumed your home has a kitchen, and no other special circumstances (for example military service, foster care, a recent birth, a program you're already enrolled in, or living in a care facility) beyond what you told us.
     engine: [is_breastfeeding, is_wic_fully_breastfeeding, wic_breastfeeding_infant_count, wic_infant_feeding_category,
-             under_12_months_postpartum, under_60_days_postpartum, is_wic_at_nutritional_risk, is_female, is_homeless,
+             under_12_months_postpartum, under_60_days_postpartum, is_female, is_homeless,
              is_in_foster_care, was_in_foster_care, is_runaway_child, is_migratory_child, is_military,
              is_permanently_disabled_veteran, is_surviving_child_of_disabled_veteran, is_surviving_spouse_of_disabled_veteran,
              is_surviving_spouse, is_separated, is_permanently_and_totally_disabled, retired_on_total_disability,
              is_incapable_of_self_care, is_in_substance_use_treatment_program, has_felony_drug_conviction,
-             is_under_court_supervision, is_on_tribal_land, fdpir, is_part_time_college_student,
+             is_under_court_supervision, is_on_tribal_land, fdpir,
              is_federal_work_study_participant, is_in_secondary_school, is_self_employed,
-             claimed_as_dependent_on_another_return, divorce_year, ssn_card_type, years_since_us_entry,
+             claimed_as_dependent_on_another_return, divorce_year,
              has_applied_for_unemployment_compensation, is_complying_with_tanf_work_requirements,
              receives_or_needs_protective_services, receives_wic, was_calworks_recipient, months_since_calworks_exit,
              il_ccap_enrolled, il_ccap_non_parent_relative_child_only_tanf, il_ccap_protective_care_override,
              ca_calworks_child_care_welfare_to_work, ca_in_home_supportive_services, ca_in_medical_care_facility,
-             in_out_of_home_care_facility, living_arrangements_allow_for_food_preparation, is_rural,
+             in_out_of_home_care_facility, is_rural,
              ssi_lives_in_another_persons_household, ssi_lives_in_medical_treatment_facility,
-             ssi_medicaid_pays_majority_of_care, ssi_others_pay_all_meals, ssi_qualifying_quarters_earnings,
+             ssi_medicaid_pays_majority_of_care, ssi_others_pay_all_meals,
              ssi_receives_food_from_others, ssi_receives_outside_shelter_support,
              ssi_receives_shelter_from_others_in_household, ssi_shelter_support_value, hours_worked_last_week,
              childcare_attending_days_per_month, childcare_days_per_week, childcare_hours_per_day,
@@ -593,9 +680,9 @@ assumed:
 
   - reason: The main utility bills are asked; the rest mostly adjust SNAP deductions slightly.
     statement: Utility and housing costs only include the bills you told us about.
-    engine: [gas_expense, water_expense, sewage_expense, trash_expense, coal_expense, wood_expense, bottled_gas_expense,
+    engine: [water_expense, sewage_expense, trash_expense, coal_expense, wood_expense, bottled_gas_expense,
              fuel_oil_expense, other_heating_fuel_expense, cooking_fuel_expense, heating_cooling_expense,
-             heating_expense_person, homeowners_association_fees, homeowners_insurance, real_estate_taxes]
+             heating_expense_person, homeowners_association_fees]
 
   - reason: Tax-return details only adjust how much of a non-refundable credit can be used.
     statement: Tax credit estimates assume a simple tax return (standard deduction, no special deductions or other credits).
