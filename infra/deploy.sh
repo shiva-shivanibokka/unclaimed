@@ -13,7 +13,15 @@ set -euo pipefail
 REGION=${AWS_REGION:-us-east-1}
 export AWS_REGION=$REGION AWS_PAGER=""
 AWS=${AWS:-aws}
-DOCKER=${DOCKER:-$(command -v docker || command -v docker.exe)}
+# Docker: in WSL without Docker Desktop's integration, `docker` is a stub; Windows' docker.exe works.
+# SKIP_BUILD=1 reuses the images already pushed for this commit (no Docker needed).
+if [ -z "${SKIP_BUILD:-}" ]; then
+  # In WSL without Docker Desktop's integration, `docker` is a stub; Windows' docker.exe works.
+  if [ -z "${DOCKER:-}" ]; then
+    if docker version >/dev/null 2>&1; then DOCKER=docker; else DOCKER=docker.exe; fi
+  fi
+  $DOCKER version >/dev/null || { echo "Docker isn't running"; exit 1; }
+fi
 ACCOUNT=$($AWS sts get-caller-identity --query Account --output text)
 REGISTRY=$ACCOUNT.dkr.ecr.$REGION.amazonaws.com
 TAG=$(git rev-parse --short HEAD)$(git diff --quiet HEAD -- engine mcp-server simulator dictionary || echo -dirty)
@@ -27,7 +35,7 @@ TURNS_PER_DAY=${TURNS_PER_DAY:-3000}
 say() { printf '\n== %s\n' "$*"; }
 
 say "ECR repositories and images ($TAG)"
-$AWS ecr get-login-password | $DOCKER login --username AWS --password-stdin "$REGISTRY" >/dev/null
+[ -n "${SKIP_BUILD:-}" ] || $AWS ecr get-login-password | $DOCKER login --username AWS --password-stdin "$REGISTRY" >/dev/null
 for name in engine mcp simulator; do
   repo=unclaimed-$name
   $AWS ecr describe-repositories --repository-names "$repo" >/dev/null 2>&1 ||
@@ -36,10 +44,12 @@ for name in engine mcp simulator; do
   $AWS ecr put-lifecycle-policy --repository-name "$repo" --lifecycle-policy-text \
     '{"rules":[{"rulePriority":1,"selection":{"tagStatus":"any","countType":"imageCountMoreThan","countNumber":5},"action":{"type":"expire"}}]}' >/dev/null
 done
-$DOCKER build --platform linux/amd64 -f engine/Dockerfile -t "$REGISTRY/unclaimed-engine:$TAG" .
-$DOCKER build --platform linux/amd64 -t "$REGISTRY/unclaimed-mcp:$TAG" mcp-server
-$DOCKER build --platform linux/amd64 -t "$REGISTRY/unclaimed-simulator:$TAG" simulator
-for name in engine mcp simulator; do $DOCKER push "$REGISTRY/unclaimed-$name:$TAG" >/dev/null; done
+if [ -z "${SKIP_BUILD:-}" ]; then
+  $DOCKER build --platform linux/amd64 -f engine/Dockerfile -t "$REGISTRY/unclaimed-engine:$TAG" .
+  $DOCKER build --platform linux/amd64 -t "$REGISTRY/unclaimed-mcp:$TAG" mcp-server
+  $DOCKER build --platform linux/amd64 -t "$REGISTRY/unclaimed-simulator:$TAG" simulator
+  for name in engine mcp simulator; do $DOCKER push "$REGISTRY/unclaimed-$name:$TAG" >/dev/null; done
+fi
 
 say "IAM roles"
 role() {  # role NAME SERVICE_PRINCIPAL [MANAGED_POLICY_ARN]
@@ -61,14 +71,21 @@ $AWS iam put-role-policy --role-name unclaimed-simulator-task --policy-name bedr
   \"Statement\": [{\"Effect\": \"Allow\", \"Action\": [\"bedrock:InvokeModel\", \"bedrock:InvokeModelWithResponseStream\"],
     \"Resource\": [\"arn:aws:bedrock:$REGION:$ACCOUNT:inference-profile/$MODEL_ID\", \"arn:aws:bedrock:*::foundation-model/$MODEL_NAME\"]}]
 }"
+# ECS's own service-linked role (created once per account, on first use of ECS).
+$AWS iam get-role --role-name AWSServiceRoleForECS >/dev/null 2>&1 || {
+  $AWS iam create-service-linked-role --aws-service-name ecs.amazonaws.com >/dev/null
+  sleep 15  # IAM is eventually consistent: new roles take a moment to be usable
+}
 $AWS logs create-log-group --log-group-name "$LOGS" 2>/dev/null || true
 $AWS logs put-retention-policy --log-group-name "$LOGS" --retention-in-days 14
 $AWS ecs create-cluster --cluster-name "$CLUSTER" >/dev/null
 
 service_arn() { $AWS ecs list-services --cluster "$CLUSTER" --query "serviceArns[?ends_with(@, '/$1')] | [0]" --output text; }
-endpoint() {
-  $AWS ecs describe-express-gateway-service --service-arn "$1" \
-    --query 'service.activeConfigurations[0].ingressPaths[0].endpoint' --output text
+endpoint() {  # https URL of a service (AWS returns the host, sometimes with a scheme)
+  local host
+  host=$($AWS ecs describe-express-gateway-service --service-arn "$1" \
+    --query 'service.activeConfigurations[0].ingressPaths[0].endpoint' --output text)
+  echo "https://${host#https://}"
 }
 
 say "MCP server + engine (one task: the engine is a localhost-only sidecar)"
@@ -93,7 +110,7 @@ if [ "$MCP_ARN" = "None" ]; then
 else
   $AWS ecs update-express-gateway-service --service-arn "$MCP_ARN" --task-definition-arn "$TASKDEF" >/dev/null
 fi
-MCP_URL="https://$(endpoint "$MCP_ARN")/mcp"
+MCP_URL="$(endpoint "$MCP_ARN")/mcp"
 
 say "Simulator"
 SIM_CONTAINER="{\"image\": \"$REGISTRY/unclaimed-simulator:$TAG\", \"containerPort\": 8090,
@@ -112,4 +129,4 @@ fi
 
 say "Done (services take a few minutes to become healthy)"
 echo "MCP server: $MCP_URL"
-echo "Simulator:  https://$(endpoint "$SIM_ARN")"
+echo "Simulator:  $(endpoint "$SIM_ARN")"
