@@ -7,11 +7,11 @@ AWS deployment (us-east-1) with **Amazon ECS Express Mode** (Fargate behind a ma
 | `unclaimed-mcp` | the MCP server (`Main`, port 8080) with the engine as a sidecar in the same task (localhost:8000 only) | the MCP endpoint is public (Alexa+ needs it); the engine is not reachable from outside |
 | `unclaimed-simulator` | the Alexa+ simulator (port 8090) | public, rate limited; the only part allowed to call Bedrock, and only the one model it uses |
 
-Also created: ECR repositories (scan on push, last 5 images kept), IAM roles (task execution, Express infrastructure, the simulator's Bedrock-only task role, ECS's service-linked role), CloudWatch logs (`/ecs/unclaimed`, 14 days). No sign-in, no database, nothing about the person stored.
+Also created: ECR repositories (scan on push, last 5 images kept), IAM roles (task execution, Express infrastructure, the simulator's Bedrock-only task role, and the service-linked roles for ECS, load balancing and autoscaling), CloudWatch logs (`/ecs/unclaimed`, 14 days). No sign-in, no database, nothing about the person stored.
 
 ```bash
 AWS_PROFILE=alexa-ai-user bash infra/deploy.sh               # build, push, deploy (Docker running)
-AWS_PROFILE=alexa-ai-user SKIP_BUILD=1 bash infra/deploy.sh  # redeploy the images already pushed for this commit
+AWS_PROFILE=alexa-ai-user SKIP_BUILD=1 bash infra/deploy.sh  # redeploy the images already pushed (named by the last commit that changed the app)
 ```
 
 Settings (environment, defaults in `deploy.sh`): `SIMULATOR_MODEL_ID`, `TURNS_PER_IP_PER_HOUR`, `TURNS_PER_DAY`.

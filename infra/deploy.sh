@@ -24,7 +24,10 @@ if [ -z "${SKIP_BUILD:-}" ]; then
 fi
 ACCOUNT=$($AWS sts get-caller-identity --query Account --output text)
 REGISTRY=$ACCOUNT.dkr.ecr.$REGION.amazonaws.com
-TAG=$(git rev-parse --short HEAD)$(git diff --quiet HEAD -- engine mcp-server simulator dictionary || echo -dirty)
+# Images are named by the last commit that changed what's in them, so an infra-only commit
+# reuses the images already pushed.
+APP="engine mcp-server simulator dictionary"
+TAG=$(git log -1 --format=%h -- $APP)$(git diff --quiet HEAD -- $APP || echo -dirty)
 CLUSTER=unclaimed
 LOGS=/ecs/unclaimed
 # Our choices for the public demo, defined once here.
@@ -71,11 +74,15 @@ $AWS iam put-role-policy --role-name unclaimed-simulator-task --policy-name bedr
   \"Statement\": [{\"Effect\": \"Allow\", \"Action\": [\"bedrock:InvokeModel\", \"bedrock:InvokeModelWithResponseStream\"],
     \"Resource\": [\"arn:aws:bedrock:$REGION:$ACCOUNT:inference-profile/$MODEL_ID\", \"arn:aws:bedrock:*::foundation-model/$MODEL_NAME\"]}]
 }"
-# ECS's own service-linked role (created once per account, on first use of ECS).
-$AWS iam get-role --role-name AWSServiceRoleForECS >/dev/null 2>&1 || {
-  $AWS iam create-service-linked-role --aws-service-name ecs.amazonaws.com >/dev/null
-  sleep 15  # IAM is eventually consistent: new roles take a moment to be usable
-}
+# Service-linked roles ECS, the load balancer and autoscaling need (once per account).
+# Created up front: if Express Mode creates them itself, its first load balancer can race
+# the new role and fail (seen on this account's first deploy).
+created=""
+for svc in ecs:AWSServiceRoleForECS elasticloadbalancing:AWSServiceRoleForElasticLoadBalancing            ecs.application-autoscaling:AWSServiceRoleForApplicationAutoScaling_ECSService; do
+  $AWS iam get-role --role-name "${svc#*:}" >/dev/null 2>&1 ||
+    { $AWS iam create-service-linked-role --aws-service-name "${svc%%:*}.amazonaws.com" >/dev/null; created=1; }
+done
+[ -n "$created" ] && sleep 20  # IAM is eventually consistent: new roles take a moment to be usable
 $AWS logs create-log-group --log-group-name "$LOGS" 2>/dev/null || true
 $AWS logs put-retention-policy --log-group-name "$LOGS" --retention-in-days 14
 $AWS ecs create-cluster --cluster-name "$CLUSTER" >/dev/null
