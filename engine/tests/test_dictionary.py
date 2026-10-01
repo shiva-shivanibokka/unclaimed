@@ -44,3 +44,39 @@ def test_questions_are_complete():
         assert len(q.what_if) == 2, f"{q.id}: what_if needs a low and a high value"
         if q.answer["type"] == "money":
             assert q.answer.get("unit") and q.answer.get("person_units"), q.id
+
+
+def test_structure_phrasing_covers_the_household_fields_we_ask():
+    # ZIP, county and people are asked like questions; their phrasing lives in the dictionary.
+    s = load().structure
+    assert set(s) == {"zip", "county", "people"} and set(s) <= set(Household.model_fields)
+    assert all(v["definition"] and v["ask"] for v in s.values())
+
+
+def test_phrasing_states_no_program_rules():
+    # The AI repeats phrasing to people, so it must not carry a rule or threshold (an age
+    # limit, a work-hours rule, a waiting period) that can go stale: those live in
+    # PolicyEngine. Numbers allowed only in names and calendar facts.
+    import re
+    allowed = ("401(k)", "Section 8", "3-month", "4 quarters")
+    d = load()
+    texts = [(q.id, t) for q in d.questions for t in (q.definition, q.ask, *q.clarifiers)]
+    texts += [("statement", g.statement) for g in d.assumed if g.statement]
+    texts += [(k, t) for k, v in d.structure.items() for t in v.values()]
+    for qid, text in texts:
+        for name in allowed:
+            text = text.replace(name, "")
+        assert not re.search(r"\d", text), f"{qid}: {text}"
+
+
+def test_gates_are_plausibility_not_program_rules():
+    # applies_when may only say who could have an answer. An age that equals one of
+    # PolicyEngine's eligibility ages is a copied program rule (SNAP elderly age, student ages).
+    from policyengine_us.system import system
+    p = system.parameters
+    rule_ages = {p.gov.usda.elderly_age_threshold("2026-01-01")}
+    rule_ages |= {b.threshold("2026-01-01") for b in p.gov.usda.snap.student.age_threshold.brackets}
+    rule_ages -= {0, 18}  # birth and adulthood: our plausibility lines, not program rules
+    for q in load().questions:
+        ages = {v for k, v in q.applies_when.items() if k.startswith("age_")}
+        assert not ages & rule_ages, f"{q.id}: {ages & rule_ages}"

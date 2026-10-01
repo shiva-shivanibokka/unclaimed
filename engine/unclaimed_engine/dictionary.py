@@ -21,11 +21,10 @@ from policyengine_us.system import system
 
 PATH = Path(__file__).resolve().parents[2] / "dictionary" / "dictionary.yaml"
 ANSWER_TYPES = ("money", "bool", "number", "enum")
-# Conditions a question can depend on (evaluated by the Question Engine, Stage 3).
-# Person questions: the person's age. Household questions: who is in the household.
+# Who could plausibly have an answer (never a program rule; see dictionary.yaml).
 APPLIES_WHEN = {
-    "person": {"age_min", "age_max", "age_min_or_disabled", "non_citizen", "states"},
-    "household": {"any_child_under_or_disabled", "any_age_at_least", "any_age_min_or_disabled", "states"},
+    "person": {"age_min", "age_max", "non_citizen", "states"},
+    "household": {"states"},
 }
 # Enum members that mean "not given" in the engine: never offered as an answer, so an
 # unknown can't arrive disguised as a known value.
@@ -75,6 +74,7 @@ class Dictionary:
     derived: dict[str, str]  # engine variable -> how our code sets it
     assumed: tuple[Group, ...]
     out_of_scope: tuple[Group, ...]
+    structure: dict[str, dict[str, str]]  # zip, county, people -> definition, ask
 
     def question(self, qid: str) -> Question:
         return next(q for q in self.questions if q.id == qid)
@@ -141,6 +141,7 @@ def load(path: Path = PATH) -> Dictionary:
         derived=dict(raw["derived"]),
         assumed=tuple(Group(**{**g, "engine": tuple(g["engine"])}) for g in raw["assumed"]),
         out_of_scope=tuple(Group(**{**g, "engine": tuple(g["engine"])}) for g in raw["out_of_scope"]),
+        structure={k: dict(v) for k, v in raw.get("structure", {}).items()},
     )
     _check(d)
     return d
