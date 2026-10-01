@@ -136,3 +136,23 @@ def test_programs_list(client):
 ])
 def test_rejects_invalid_households(client, bad):
     assert client.post("/calculate", json=bad).status_code == 422
+
+
+def test_declined_is_capped(client):
+    # Each declined answer costs what-ifs on every /calculate; the cap bounds one request.
+    from unclaimed_engine.dictionary import load
+    from unclaimed_engine.household import MAX_DECLINED
+    person = [f"a.{q.id}" for q in load().questions if q.entity == "person"]
+    body = {"state": "CA", "people": [{"id": "a", "relationship": "head", "age": 40}]}
+    assert client.post("/calculate", json={**body, "declined": person[:MAX_DECLINED]}).status_code == 200
+    assert client.post("/calculate", json={**body, "declined": person[:MAX_DECLINED + 1]}).status_code == 422
+
+
+def test_think_ahead_is_keyed_by_the_screening_date():
+    from datetime import date
+    from unclaimed_engine import think_ahead
+    from unclaimed_engine.household import Household
+    h = Household(state="IL", people=[{"id": "a", "relationship": "head", "age": 40}])
+    # No date given means today: a decision cached yesterday (e.g. before the SNAP year
+    # starts on Oct 1) must not be served today.
+    assert think_ahead._key(h).endswith(date.today().isoformat())

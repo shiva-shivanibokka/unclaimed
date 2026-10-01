@@ -7,11 +7,12 @@ from datetime import date
 
 from policyengine_us import Simulation
 
-from .calculate import build_situation, periods, program_values, resolve_county_for
+from .calculate import build_situation, periods, person_flags, program_values, resolve_county_for
 from .household import Household
 from .programs import PROGRAMS
 
 ID_STRIDE = 100  # tax unit IDs per copy; each copy's IDs start at i * ID_STRIDE + 1
+PERSON_SEP = ":"  # per-person outcome keys: "medicaid:b"
 
 
 def merge(situations: list[dict]) -> dict:
@@ -36,15 +37,23 @@ def apply(h: Household, change: dict) -> Household:
     return h.model_copy(update={**household, "people": people})
 
 
-def outcomes(situation: dict, state: str, year: str, month: str, n: int) -> list[dict[str, tuple[bool, float]]]:
-    """Per household in a merged situation: program id -> (eligible, monthly value)."""
+def outcomes(situation: dict, state: str, year: str, month: str, n: int,
+             people: list[str] | None = None) -> list[dict[str, tuple[bool, float]]]:
+    """Per household in a merged situation: program id -> (eligible, monthly value). With
+    `people` (the ids in each copy, all copies the same people), programs decided person by
+    person also get "program:person" -> (eligible, 0): the household can keep qualifying
+    through one person while another one's eligibility changes."""
     sim = Simulation(situation=situation)
     out: list[dict] = [{} for _ in range(n)]
     for p in PROGRAMS:
         if state in p.states:
             monthly, flags = program_values(sim, p, year, month)
+            each = person_flags(sim, p, year, month) if people else None
             for i in range(n):
                 out[i][p.id] = (bool(flags[i]), float(monthly[i]))
+                if each is not None:
+                    for j, pid in enumerate(people):
+                        out[i][f"{p.id}{PERSON_SEP}{pid}"] = (bool(each[i * len(people) + j]), 0.0)
     return out
 
 
@@ -54,4 +63,4 @@ def evaluate(h: Household, changes: list[dict]) -> list[dict[str, tuple[bool, fl
     county, _ = resolve_county_for(h)
     situations = [build_situation(apply(h, c), year, county, id_offset=i * ID_STRIDE)[0]
                   for i, c in enumerate(changes)]
-    return outcomes(merge(situations), h.state, year, month, len(changes))
+    return outcomes(merge(situations), h.state, year, month, len(changes), [p.id for p in h.people])

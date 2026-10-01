@@ -11,6 +11,7 @@ from typing import Any
 import question_engine as qe
 
 from . import batch
+from .calculate import resolve_county_for
 from .dictionary import Question, load
 from .household import Household
 from .programs import PROGRAMS
@@ -50,7 +51,8 @@ def _applies(q: Question, h: Household, person=None) -> bool:
         if w.get("non_citizen") and person.immigration_status in (None, "CITIZEN"):
             return False
         return True
-    if "any_child_under" in w and not any(p.relationship == "child" and p.age < w["any_child_under"] for p in h.people):
+    if "any_child_under_or_disabled" in w and not any(
+            p.relationship == "child" and (p.age < w["any_child_under_or_disabled"] or p.is_disabled) for p in h.people):
         return False
     if "any_age_at_least" in w and not any(p.age >= w["any_age_at_least"] for p in h.people):
         return False
@@ -61,9 +63,14 @@ def _applies(q: Question, h: Household, person=None) -> bool:
 
 
 def _requirements_met(q: Question, h: Household, pid: str | None) -> bool:
+    """Prerequisites answered as required. A declined prerequisite counts as met: if
+    "rent or own?" is declined, still ask the rent ("if you rent")."""
     for rid, allowed in q.requires.items():
         r = DICTIONARY.question(rid)
-        value = _value(h, pid if r.entity == "person" else None, rid)
+        rpid = pid if r.entity == "person" else None
+        if _key(rpid, rid) in h.declined:
+            continue
+        value = _value(h, rpid, rid)
         if value is None or (allowed is None and not value) or (allowed is not None and value not in allowed):
             return False
     return True
@@ -97,8 +104,18 @@ def _candidate(h: Household, pid: str | None, q: Question, open_keys: set) -> qe
     get Social Security?"): `together` holds the same question for everyone else it's open
     for, plus every open question in its group."""
     group = {q.id} | {o.id for o in DICTIONARY.questions if q.group and o.group == q.group}
-    together = tuple(sorted((k for k in open_keys if k[1] in group and k != (pid, q.id)), key=str))
+    together = tuple(_single(p, DICTIONARY.question(t)) for p, t in
+                     sorted((k for k in open_keys if k[1] in group and k != (pid, q.id)), key=str))
     return qe.Candidate(key=(pid, q.id), low=q.what_if[0], high=q.what_if[1], cost=q.cost, together=together)
+
+
+def _single(pid: str | None, q: Question) -> qe.Candidate:
+    return qe.Candidate(key=(pid, q.id), low=q.what_if[0], high=q.what_if[1], cost=q.cost)
+
+
+def _view_key(c: qe.Candidate) -> tuple[str | None, Question]:
+    pid, qid = c.key
+    return pid, DICTIONARY.question(qid)
 
 
 def _asked_count(h: Household) -> int:
@@ -117,30 +134,54 @@ def _question_view(pid: str | None, q: Question) -> dict[str, Any]:
             "answer": q.answer, "clarifiers": list(q.clarifiers)}
 
 
+def _possible_answers(q: Question) -> tuple:
+    """Every option of a multiple choice (an immigration status other than the two extremes
+    can decide a program), else the what-if values."""
+    return q.options if q.answer["type"] == "enum" else tuple(q.what_if)
+
+
 def conditional_on_declined(h: Household) -> dict[str, list[str]]:
-    """Programs whose eligibility depends on a declined answer: program -> declined keys.
-    The result must say "if ...", never a flat "you qualify" (e.g. federal credits when
-    immigration status is declined)."""
-    d = DICTIONARY
+    """Programs whose eligibility, for the household or any one person, depends on a
+    declined answer: program -> declined keys. The result must say "if ...", never a flat
+    "you qualify" (e.g. federal credits when immigration status is declined)."""
     keys = []
     for item in h.declined:
         pid, _, qid = item.rpartition(".")
         keys.append((pid or None, qid))
     if not keys:
         return {}
-    changes = [{k: v} for k in keys for v in d.question(k[1]).what_if]
-    results = batch.evaluate(h, changes)
+    variants = [(k, v) for k in keys for v in _possible_answers(DICTIONARY.question(k[1]))]
+    results = batch.evaluate(h, [{k: v} for k, v in variants])
     out: dict[str, list[str]] = {}
-    for n, k in enumerate(keys):
-        low, high = results[2 * n], results[2 * n + 1]
-        for program in low:
-            if low[program][0] != high[program][0]:
-                out.setdefault(program, []).append(_key(*k))
+    for k in keys:
+        rows = [r for (key, _), r in zip(variants, results) if key == k]
+        for outcome in rows[0]:
+            if len({r[outcome][0] for r in rows}) > 1:
+                program = outcome.split(batch.PERSON_SEP)[0]
+                if _key(*k) not in out.get(program, []):
+                    out.setdefault(program, []).append(_key(*k))
     return out
+
+
+def _county_question(h: Household) -> dict | None:
+    """The ZIP is split between counties (or there's no location): ask before anything
+    else, since every what-if would otherwise run in the engine's default county."""
+    county, candidates = resolve_county_for(h)
+    if county:
+        return None
+    if candidates:
+        return {"question": "county", "person": None, "definition": "The county they live in.",
+                "ask": "Their ZIP code covers more than one county; ask which one they live in.",
+                "answer": {"type": "enum"}, "options": candidates, "clarifiers": []}
+    return {"question": "zip", "person": None, "definition": "Home ZIP code.",
+            "ask": "Ask for their home ZIP code.", "answer": {"type": "text"}, "clarifiers": []}
 
 
 def next_question(h: Household) -> dict:
     """What to ask next (with the questions to ask in the same breath), or stop."""
+    if location := _county_question(h):
+        return {"stop": False, "core": True, "ask": location, "together": [], "asked": _asked_count(h),
+                "offer_estimate": False}
     open_ = open_questions(h)
     open_keys = {(pid, q.id) for pid, q in open_}
     asked = _asked_count(h)
@@ -149,7 +190,7 @@ def next_question(h: Household) -> dict:
         pid, q = core[0]
         c = _candidate(h, pid, q, open_keys)
         return {"stop": False, "core": True, "ask": _question_view(pid, q),
-                "together": [_question_view(p, DICTIONARY.question(t)) for p, t in c.together],
+                "together": [_question_view(*_view_key(t)) for t in c.together],
                 "asked": asked, "offer_estimate": False}
     candidates = [_candidate(h, pid, q, open_keys) for pid, q in open_]
     decision = qe.decide(h, candidates, _Calculator(), flip_weight=FLIP_WEIGHT, stop_below=STOP_BELOW)
@@ -160,5 +201,5 @@ def next_question(h: Household) -> dict:
                 "offer_estimate": False, "top_candidates": why, "conditional": conditional_on_declined(h)}
     pid, qid = decision.ask.key
     return {"stop": False, "core": False, "ask": _question_view(pid, DICTIONARY.question(qid)),
-            "together": [_question_view(p, DICTIONARY.question(t)) for p, t in decision.ask.together],
+            "together": [_question_view(*_view_key(t)) for t in decision.ask.together],
             "asked": asked, "offer_estimate": asked >= ESTIMATE_OFFER_AFTER, "top_candidates": why}

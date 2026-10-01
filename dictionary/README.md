@@ -8,7 +8,7 @@ Every engine input the in-scope programs read is in exactly one:
 
 | Bucket | Meaning | Where it's implemented |
 |---|---|---|
-| `questions` | Asked. Each entry: `id`, `entity` (person/household), `engine` (inputs it sets), `definition`, `ask` (phrasing guidance for the AI), `answer` (type, units, limits), `what_if` (low/high for the Question Engine), `applies_when`, `requires`, `cost` (1 easy … 5 sensitive), `clarifiers`, `group`, `core` | The engine's `Household` / `Person` fields |
+| `questions` | Asked. Each entry: `id`, `entity` (person/household), `engine` (inputs it sets), `definition`, `ask` (phrasing guidance for the AI), `answer` (type, units, limits), `what_if` (none and a realistic maximum for the Question Engine; checked by `test_what_if_ranges.py`), `applies_when`, `requires`, `cost` (1 easy … 5 sensitive), `clarifiers`, `group`, `core` | The engine's `Household` / `Person` fields |
 | `derived` | Set by our code from the household's structure or another answer, or a value we choose over a misleading engine default (e.g. the home has a kitchen) | `DERIVERS` in `engine/unclaimed_engine/calculate.py` |
 | `assumed` | Left at PolicyEngine's default (read from the engine). Groups carry a `statement` said out loud on the results screen, which must be true of the default | Nothing to implement; the default is the engine's |
 | `out_of_scope` | Only relevant to places or data we don't cover | — |

@@ -16,6 +16,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from unclaimed_engine import batch  # noqa: E402
 from unclaimed_engine.dictionary import load  # noqa: E402
+from unclaimed_engine.interview import _applies  # noqa: E402
 
 import simulate  # noqa: E402
 
@@ -37,20 +38,18 @@ DIMENSIONS = {
     "housing": ["renter", "owner"],
     "status": ["CITIZEN", "LEGAL_PERMANENT_RESIDENT", "UNDOCUMENTED"],
     "hours": [0, 20, 40],
-    "childcare": [0, 8_000],
+    "childcare": [0, 8_000, 24_000],
     "savings": [0, 15_000],
     "other_income": [None, "social_security_retirement", "unemployment_compensation", "child_support_received"],
     "disabled": [False, True],
+    # Values above the what-if highs, mixed-status and disabled spouses, declined answers,
+    # pregnancy and utilities: what an early stop is most likely to get wrong.
+    "deduction": [None, ("child_support_paid", 15_000), ("medical_expenses", 12_000)],
+    "spouse": ["same", "UNDOCUMENTED", "disabled"],
+    "declines": [None, "p1.immigration_status", "housing_tenure"],
+    "pregnant": [False, True],
+    "utilities": [False, True],
 }
-
-
-def _possible(qid: str, age: int) -> bool:
-    """Only give answers that can exist at this age, per the dictionary (no Social Security
-    retirement at 30); anything else is a household that can't happen."""
-    if qid in ("id", "relationship", "age"):
-        return True
-    w = load().question(qid).applies_when
-    return w.get("age_min", 0) <= age <= w.get("age_max", 200)
 
 
 def _case(cid: str, v: dict) -> dict:
@@ -60,22 +59,48 @@ def _case(cid: str, v: dict) -> dict:
         p = {"id": f"p{n}", "relationship": rel, "age": age}
         if rel != "child":
             p["immigration_status"] = v["status"]
-            if v["status"] != "CITIZEN":
-                p |= {"years_in_us": 3, "work_quarters": 12}
+        if rel == "spouse" and v["spouse"] != "same":
+            p |= {"is_disabled": True} if v["spouse"] == "disabled" else {"immigration_status": v["spouse"]}
+        if p.get("immigration_status", "CITIZEN") != "CITIZEN":
+            p |= {"years_in_us": 3, "work_quarters": 12}
         if n == 0:
             p |= {"employment_income": v["earnings"], "weekly_hours_worked": v["hours"] if v["earnings"] else 0,
-                  "is_disabled": v["disabled"]}
+                  "is_disabled": v["disabled"], "is_pregnant": v["pregnant"]}
             if v["other_income"]:
                 p[v["other_income"]] = 6_000
+            if v["deduction"]:
+                p[v["deduction"][0]] = v["deduction"][1]
         if rel == "child" and age >= 18:
             p |= {"is_full_time_college_student": True, "employment_income": 5_000, "weekly_hours_worked": 10}
-        people.append({k: x for k, x in p.items() if _possible(k, age)})
+        people.append(p)
     household = {"savings": v["savings"]}
     household |= ({"rent": 14_400} if v["housing"] == "renter"
                   else {"housing_tenure": "OWNER_WITH_MORTGAGE", "mortgage_payments": 12_000, "property_taxes": 3_000})
     if any(rel == "child" and age < 13 for rel, age in SHAPES[v["shape"]]):
         household["childcare_expenses"] = v["childcare"]
-    return {"id": cid, "state": state, "county": county, "people": people, "household": household}
+    if v["utilities"]:
+        household |= {"heating_type": "NATURAL_GAS", "electricity_bill": 2_400, "gas_bill": 1_200, "phone_bill": 600}
+    case = {"id": cid, "state": state, "county": county, "people": _possible(state, county, people),
+            "household": household}
+    if v["declines"] and _declinable(case, v["declines"]):
+        case["declines"] = [v["declines"]]
+    return case
+
+
+def _possible(state: str, county: str, people: list[dict]) -> list[dict]:
+    """Only the answers that can exist for each person, per the dictionary's applies_when
+    (no Social Security retirement at 30, no pregnancy at 70): anything else describes a
+    household that can't happen."""
+    full = batch.apply(simulate._start({"state": state, "county": county, "people": people}),
+                       {(p["id"], k): x for p in people for k, x in p.items() if k not in simulate.STRUCTURE})
+    by_id = {p.id: p for p in full.people}
+    return [{k: x for k, x in p.items()
+             if k in simulate.STRUCTURE or _applies(load().question(k), full, by_id[p["id"]])} for p in people]
+
+
+def _declinable(case: dict, key: str) -> bool:
+    pid, _, qid = key.rpartition(".")
+    return not pid or any(p["id"] == pid for p in case["people"])
 
 
 def pairwise() -> list[dict]:
@@ -109,7 +134,8 @@ def cutoffs(step: int = 500, top: int = 120_000) -> list[dict]:
     out = []
     for (state, county), shape in itertools.product([("CA", "LOS_ANGELES_COUNTY_CA"), ("IL", "COOK_COUNTY_IL")], SHAPES):
         base = {"where": (state, county), "shape": shape, "earnings": 0, "housing": "renter", "status": "CITIZEN",
-                "hours": 40, "childcare": 0, "savings": 0, "other_income": None, "disabled": False}
+                "hours": 40, "childcare": 0, "savings": 0, "other_income": None, "disabled": False,
+                "deduction": None, "spouse": "same", "declines": None, "pregnant": False, "utilities": False}
         case = _case("probe", base)
         full = batch.apply(simulate._start(case), simulate._truth(case))
         grid = list(range(0, top + 1, step))

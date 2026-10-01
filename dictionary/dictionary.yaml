@@ -14,6 +14,10 @@
 # lists how the person may say it; the MCP server converts. Allowed values of enum answers
 # come from the engine variable itself, never listed here.
 #
+# what_if: [none, realistic maximum]. The Question Engine only tries these two values, so
+# the maximum must reach every amount that can flip a program for a plausible household;
+# engine/tests/test_what_if_ranges.py checks it (no flip between the maximum and twice it).
+#
 # applies_when keys and on_person placements are defined (and validated) in
 # engine/unclaimed_engine/dictionary.py.
 
@@ -59,7 +63,7 @@ questions:
     definition: Net profit from self-employment, gig or business work (income minus business expenses).
     ask: Ask whether they do any self-employed or gig work, and roughly what they clear after expenses.
     answer: {type: money, unit: USD per year, person_units: [week, month, year], negative: true}
-    what_if: [0, 20000]
+    what_if: [0, 60000]
     applies_when: {age_min: 14}
     cost: 2
     clarifiers:
@@ -72,7 +76,7 @@ questions:
     definition: Unemployment insurance benefits.
     ask: Ask whether anyone gets unemployment benefits, and how much.
     answer: {type: money, unit: USD per year, person_units: [week, two_weeks, month, year]}
-    what_if: [0, 12000]
+    what_if: [0, 60000]
     applies_when: {age_min: 16}
     cost: 1
 
@@ -83,7 +87,7 @@ questions:
     definition: Social Security retirement benefits.
     ask: Ask whether anyone gets Social Security, which kind, and how much a month.
     answer: {type: money, unit: USD per year, person_units: [month, year]}
-    what_if: [0, 18000]
+    what_if: [0, 60000]
     applies_when: {age_min: 62}
     cost: 1
 
@@ -94,7 +98,7 @@ questions:
     definition: Social Security Disability Insurance (SSDI) benefits.
     ask: Ask whether anyone gets Social Security disability (SSDI), and how much a month.
     answer: {type: money, unit: USD per year, person_units: [month, year]}
-    what_if: [0, 18000]
+    what_if: [0, 60000]
     applies_when: {age_min: 18}
     cost: 2
     clarifiers:
@@ -107,7 +111,7 @@ questions:
     definition: Social Security survivors benefits (after a parent or spouse died).
     ask: Ask whether anyone gets Social Security survivor benefits.
     answer: {type: money, unit: USD per year, person_units: [month, year]}
-    what_if: [0, 12000]
+    what_if: [0, 60000]
     cost: 2
 
   - id: social_security_dependents
@@ -117,7 +121,7 @@ questions:
     definition: Social Security benefits paid to someone as the dependent of a retired or disabled worker.
     ask: Ask whether a child or spouse gets Social Security because of a parent's or spouse's record.
     answer: {type: money, unit: USD per year, person_units: [month, year]}
-    what_if: [0, 6000]
+    what_if: [0, 60000]
     cost: 2
 
   - id: child_support_received
@@ -127,7 +131,7 @@ questions:
     definition: Child support actually received.
     ask: Ask whether they receive child support, and how much they actually get.
     answer: {type: money, unit: USD per year, person_units: [month, year]}
-    what_if: [0, 6000]
+    what_if: [0, 60000]
     applies_when: {age_min: 16}
     cost: 2
 
@@ -138,7 +142,7 @@ questions:
     definition: Alimony or spousal support received.
     ask: Ask whether they receive alimony or spousal support.
     answer: {type: money, unit: USD per year, person_units: [month, year]}
-    what_if: [0, 12000]
+    what_if: [0, 60000]
     applies_when: {age_min: 18}
     cost: 2
 
@@ -149,7 +153,7 @@ questions:
     definition: Pension or annuity payments from a former employer, private or government.
     ask: Ask whether anyone gets a pension.
     answer: {type: money, unit: USD per year, person_units: [month, year]}
-    what_if: [0, 15000]
+    what_if: [0, 60000]
     applies_when: {age_min: 40}
     cost: 1
 
@@ -160,7 +164,7 @@ questions:
     definition: Money taken out of an IRA, 401(k) or similar retirement account.
     ask: Ask whether anyone took money out of a retirement account this year.
     answer: {type: money, unit: USD per year, person_units: [year]}
-    what_if: [0, 10000]
+    what_if: [0, 60000]
     applies_when: {age_min: 18}
     cost: 2
 
@@ -171,7 +175,7 @@ questions:
     definition: Interest and dividends from bank accounts and investments.
     ask: Ask whether they earn interest or dividends worth mentioning.
     answer: {type: money, unit: USD per year, person_units: [year]}
-    what_if: [0, 2000]
+    what_if: [0, 60000]
     applies_when: {age_min: 18}
     cost: 2
 
@@ -182,7 +186,7 @@ questions:
     definition: Net income from renting out property or rooms (rent received minus expenses).
     ask: Ask whether they rent out a room or property.
     answer: {type: money, unit: USD per year, person_units: [month, year], negative: true}
-    what_if: [0, 12000]
+    what_if: [0, 60000]
     applies_when: {age_min: 18}
     cost: 2
 
@@ -193,7 +197,7 @@ questions:
     definition: VA disability compensation or pension.
     ask: Ask whether anyone gets VA benefits.
     answer: {type: money, unit: USD per year, person_units: [month, year]}
-    what_if: [0, 12000]
+    what_if: [0, 60000]
     applies_when: {age_min: 18}
     cost: 2
 
@@ -204,7 +208,7 @@ questions:
     definition: Workers' compensation payments for a work injury.
     ask: Ask whether anyone gets workers' comp.
     answer: {type: money, unit: USD per year, person_units: [week, month, year]}
-    what_if: [0, 12000]
+    what_if: [0, 60000]
     applies_when: {age_min: 16}
     cost: 2
 
@@ -215,7 +219,7 @@ questions:
     definition: Disability payments from private insurance or an employer plan (not Social Security, not VA).
     ask: Ask whether anyone gets disability insurance payments.
     answer: {type: money, unit: USD per year, person_units: [week, month, year]}
-    what_if: [0, 12000]
+    what_if: [0, 60000]
     applies_when: {age_min: 16}
     cost: 2
 
@@ -226,7 +230,7 @@ questions:
     definition: California State Disability Insurance (SDI) or Paid Family Leave payments.
     ask: Ask whether anyone gets California SDI or paid family leave.
     answer: {type: money, unit: USD per year, person_units: [week, month, year]}
-    what_if: [0, 12000]
+    what_if: [0, 60000]
     applies_when: {age_min: 16, states: [CA]}
     cost: 2
 
@@ -237,7 +241,7 @@ questions:
     definition: County General Assistance or General Relief cash.
     ask: Ask whether anyone gets county General Assistance or General Relief.
     answer: {type: money, unit: USD per year, person_units: [month, year]}
-    what_if: [0, 3000]
+    what_if: [0, 60000]
     applies_when: {age_min: 18}
     cost: 2
 
@@ -305,6 +309,7 @@ questions:
   # ---- Utilities ----------------------------------------------------------------------
   - id: heating_type
     entity: household
+    group: home_energy
     group: utilities
     engine: [heating_type]
     definition: The fuel used most to heat the home.
@@ -328,6 +333,7 @@ questions:
 
   - id: pays_for_cooling
     entity: household
+    group: home_energy
     group: utilities
     engine: [has_cooling_expense]
     definition: Pays for air conditioning or other cooling separately from rent.
@@ -338,6 +344,7 @@ questions:
 
   - id: electricity_bill
     entity: household
+    group: home_energy
     group: utilities
     engine: [pre_subsidy_electricity_expense]
     definition: Electricity bill, before any discount.
@@ -350,6 +357,7 @@ questions:
 
   - id: gas_bill
     entity: household
+    group: home_energy
     group: utilities
     engine: [gas_expense]
     definition: Natural gas bill, before any discount.
@@ -493,7 +501,7 @@ questions:
     definition: Money in checking, savings and money market accounts, and cash on hand.
     ask: Ask roughly how much the household has in the bank and in cash.
     answer: {type: money, unit: USD, person_units: [total]}
-    what_if: [0, 15000]
+    what_if: [0, 200000]
     cost: 3
     clarifiers:
       - A balance for the whole household, not a yearly amount.
@@ -505,8 +513,8 @@ questions:
     definition: What the household pays out of pocket for child care so adults can work or study.
     ask: Ask what they pay for child care.
     answer: {type: money, unit: USD per year, person_units: [week, month, year]}
-    what_if: [0, 12000]
-    applies_when: {any_child_under: 13}
+    what_if: [0, 24000]
+    applies_when: {any_child_under_or_disabled: 13}
     cost: 2
 
   - id: child_support_paid
@@ -515,7 +523,7 @@ questions:
     definition: Court-ordered child support paid to someone outside the household.
     ask: Ask whether anyone pays child support to someone outside the home.
     answer: {type: money, unit: USD per year, person_units: [month, year]}
-    what_if: [0, 6000]
+    what_if: [0, 24000]
     applies_when: {age_min: 18}
     cost: 2
 
@@ -525,7 +533,7 @@ questions:
     definition: This person's out-of-pocket medical costs (not covered by insurance).
     ask: For each household member 60 or older or disabled, ask about their out-of-pocket medical costs.
     answer: {type: money, unit: USD per year, person_units: [month, year]}
-    what_if: [0, 3000]
+    what_if: [0, 24000]
     applies_when: {age_min_or_disabled: 60}
     cost: 2
 

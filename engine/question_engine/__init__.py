@@ -35,7 +35,13 @@ class Candidate:
     low: Any
     high: Any
     cost: float = 1.0
-    together: tuple[Hashable, ...] = ()  # asked in the same breath (e.g. all "other income" kinds)
+    # Asked in the same breath (e.g. every kind of "other income"), so tried at the same
+    # time: outcomes that need two answers together (a heating type and a fuel bill) show.
+    together: tuple["Candidate", ...] = ()
+
+    def at(self, end: str) -> dict:
+        """The change setting this candidate and everything asked with it to `end` ("low" or "high")."""
+        return {c.key: getattr(c, end) for c in (self, *self.together)}
 
 
 @dataclass(frozen=True)
@@ -73,7 +79,7 @@ def decide(state: Any, candidates: Sequence[Candidate], calculator: Calculator, 
     low and high variants together."""
     if not candidates:
         return Decision(ask=None)
-    changes = [{c.key: c.low} for c in candidates] + [{c.key: c.high} for c in candidates]
+    changes = [c.at("low") for c in candidates] + [c.at("high") for c in candidates]
     results = calculator.evaluate(state, changes)
     n = len(candidates)
     ranked = score(candidates, results[:n], results[n:], flip_weight)

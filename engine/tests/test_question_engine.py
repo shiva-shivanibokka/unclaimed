@@ -50,3 +50,17 @@ def test_one_batched_call_per_decision():
 
 def test_no_candidates_means_stop():
     assert qe.decide(STATE, [], Fake(), flip_weight=1000, stop_below=25).stop
+
+
+def test_questions_asked_together_are_tried_together():
+    # The outcome needs both answers (a heating type and a fuel bill): each alone changes
+    # nothing, so asked separately the engine would stop without asking either.
+    class NeedsBoth:
+        def evaluate(self, state, changes):
+            return [{"aid": (bool(c.get("heat") and c.get("bill")), 100.0 if c.get("heat") and c.get("bill") else 0.0)}
+                    for c in changes]
+    alone = [qe.Candidate("heat", False, True), qe.Candidate("bill", 0, 1_000)]
+    assert qe.decide({}, alone, NeedsBoth(), flip_weight=1_000, stop_below=25).stop
+    grouped = [qe.Candidate("heat", False, True, together=(qe.Candidate("bill", 0, 1_000),))]
+    d = qe.decide({}, grouped, NeedsBoth(), flip_weight=1_000, stop_below=25)
+    assert d.ask.key == "heat" and d.ranked[0].flips == ("aid",)

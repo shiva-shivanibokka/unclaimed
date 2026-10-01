@@ -255,7 +255,65 @@
 - id: il-zip-split-county
   state: IL
   zip: "60011"
+  county: LAKE_COUNTY_IL  # 70% of the ZIP; the interview must ask
   people:
     - {id: a, relationship: head, age: 33, employment_income: 30000, weekly_hours_worked: 40}
     - {id: b, relationship: child, age: 5}
   household: {rent: 15600}
+
+# Stage 3 adversarial review reproductions.
+- id: il-pays-child-support-15k
+  state: IL
+  county: COOK_COUNTY_IL
+  as_of: 2026-09-15
+  people:
+    - {id: a, relationship: head, age: 35, employment_income: 32000, weekly_hours_worked: 40, child_support_paid: 15000}
+  household: {rent: 12000}
+
+- id: ca-declines-rent-or-own
+  state: CA
+  county: LOS_ANGELES_COUNTY_CA
+  as_of: 2026-09-15
+  declines: [housing_tenure]
+  people:
+    - {id: a, relationship: head, age: 35, employment_income: 38000, weekly_hours_worked: 40}
+    - {id: b, relationship: child, age: 6}
+  household: {rent: 24000}
+
+- id: il-spouse-declines-status
+  state: IL
+  county: COOK_COUNTY_IL
+  as_of: 2026-09-15
+  declines: [b.immigration_status]
+  people:
+    - {id: a, relationship: head, age: 40, employment_income: 25000, weekly_hours_worked: 40}
+    - {id: b, relationship: spouse, age: 45, immigration_status: UNDOCUMENTED}
+    - {id: k, relationship: child, age: 5}
+  household: {rent: 14400}
+
+- id: ca-disabled-teen-child-care
+  state: CA
+  county: LOS_ANGELES_COUNTY_CA
+  as_of: 2026-09-15
+  people:
+    - {id: a, relationship: head, age: 42, employment_income: 36000, weekly_hours_worked: 40}
+    - {id: b, relationship: child, age: 15, is_disabled: true}
+  household: {rent: 18000, childcare_expenses: 9000}
+
+- id: il-senior-high-medical
+  state: IL
+  county: COOK_COUNTY_IL
+  as_of: 2026-09-15
+  people:
+    - {id: a, relationship: head, age: 72, social_security_retirement: 16000, medical_expenses: 12000}
+  household: {rent: 9600}
+
+# Home energy aid needs the heating type and the bills together (found by the amount check).
+- id: il-gas-heat-family-liheap
+  state: IL
+  county: ADAMS_COUNTY_IL
+  as_of: 2026-09-15
+  people:
+    - {id: a, relationship: head, age: 35, employment_income: 25000, weekly_hours_worked: 20}
+    - {id: b, relationship: child, age: 7}
+  household: {rent: 9600, heating_type: NATURAL_GAS, electricity_bill: 2400, gas_bill: 1200}

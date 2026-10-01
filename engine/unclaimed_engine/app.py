@@ -119,7 +119,7 @@ def next_endpoint(household: Household) -> dict:
 
     def work():
         nonlocal hit
-        decision, hit = think_ahead.decide(household, _lock)
-        return decision, 0.0
-    result, ms, _ = _run("next", household, work)
-    return {**result, "ms": ms, "cached": hit}
+        decision, hit, waited = think_ahead.decide(household, _lock)
+        return decision, waited
+    result, ms, wait_ms = _run("next", household, work)
+    return {**result, "ms": ms, "wait_ms": wait_ms, "cached": hit}

@@ -26,17 +26,18 @@ decision = qe.decide(
     MyRules(), flip_weight=1_000, stop_below=25)
 
 decision.stop        # nothing left would change the answer enough
-decision.ask         # the Candidate to ask next
+decision.ask         # the Candidate to ask next (with decision.ask.together)
 decision.ranked      # every candidate with its flips, swing and score
 ```
 
-`Candidate.together` lets you ask related questions in one breath (e.g. every kind of "other income", or "does anyone in the household have a disability?").
+`Candidate.together` (more candidates) asks related questions in one breath (e.g. every kind of "other income", or "does anyone in the household have a disability?"), and tries them at the same time: an outcome that needs two answers together (a heating type and a fuel bill) is invisible when each is tried alone.
 
 ## Design notes
 
 - **Flips dominate dollars.** Changing whether someone qualifies matters more than changing an amount; `flip_weight` sets the exchange rate.
 - **Cost** is how burdensome or sensitive a question is (1 easy … 5 sensitive), so a sensitive question is asked only when it matters a lot.
 - **Stopping** checks every candidate, not just the top one: a costly question can rank low and still flip an outcome.
+- **`high` must be a realistic maximum**, not a typical value: an answer above it that flips an outcome is never seen. Check it against your rules (Unclaimed: `engine/tests/test_what_if_ranges.py`). Between the two values the engine assumes outcomes move one way.
 - **Batching is the calculator's job.** Rules engines are usually vectorized; evaluating all variants together is ~100× faster than one by one.
 - Answers the person declines are your state's concern: drop them from the candidates, and report outcomes that depend on them as conditional.
 
