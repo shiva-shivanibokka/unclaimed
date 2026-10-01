@@ -68,6 +68,7 @@ export const engine = {
   openapi: () => call("/openapi.json"),
   programs: () => call("/programs") as unknown as Promise<Json[]>,
   zip: (zip: string) => call(`/zip/${encodeURIComponent(zip)}`),
+  plans: (state: string) => call(`/plans/${encodeURIComponent(state)}`),
   next: (household: Json) => call("/next", household),
   calculate: (household: Json) => call("/calculate", household),
   grossUp: (household: Json, person: string, question: string, takeHome: number) =>

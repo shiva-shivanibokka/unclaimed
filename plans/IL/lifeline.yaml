@@ -1,0 +1,34 @@
+program: lifeline
+state: IL
+what: A monthly discount on one phone or internet service for your household.
+apply:
+  - how: online
+    where: Lifeline National Verifier (FCC / USAC)
+    url: https://getinternet.gov/apply?id=nv_home
+  - how: mail
+    where: Lifeline Support Center, PO Box 1000, Horseheads, NY 14845
+    url: https://www.lifelinesupport.org/how-to-apply/
+    phone: "1-800-234-9473"
+bring:
+  - Your name as it appears on your Social Security card or state ID
+  - Last four digits of your Social Security number, or a Tribal ID number
+  - Your home address (not a PO Box)
+  - A SNAP, Medicaid or other program letter with your name and a recent issue date
+  - Or an income document, like last year's tax return, with your name and annual income
+  - An email address for updates on your application
+next:
+  - You find out right away if you qualify or if more proof is needed.
+  - If asked, upload a photo of the document, or confirm your address on a map.
+  - Once approved, sign up with a phone or internet company that offers Lifeline.
+  - Sign up by the deadline you are given, or you'll need to apply again.
+watch_out:
+  - If you don't pay for the service each month, use it at least once every 30 days to keep it.
+  - When asked to recertify each year, do it within 60 days or you lose the benefit.
+  - Tell your company within 30 days if you move or no longer qualify.
+handoff: https://getinternet.gov/apply?id=nv_home
+sources:
+  - https://www.lifelinesupport.org/how-to-apply/
+  - https://www.lifelinesupport.org/about-lifeline/
+  - https://www.lifelinesupport.org/supporting-documents/
+  - https://www.lifelinesupport.org/wp-content/uploads/Lifeline-Online-Application-Instructions_English.pdf
+last_verified: 2026-10-01

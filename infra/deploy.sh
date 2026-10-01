@@ -25,7 +25,7 @@ ACCOUNT=$($AWS sts get-caller-identity --query Account --output text)
 REGISTRY=$ACCOUNT.dkr.ecr.$REGION.amazonaws.com
 # Images are named by the last commit that changed what's in them, so an infra-only commit
 # reuses the images already pushed. Uncommitted changes (new files too) make it "-dirty".
-APP="engine mcp-server simulator dictionary .dockerignore"
+APP="engine mcp-server simulator dictionary plans .dockerignore"
 TAG=$(git log -1 --format=%h -- $APP)$([ -z "$(git status --porcelain -- $APP)" ] || echo -dirty)
 CLUSTER=unclaimed
 LOGS=/ecs/unclaimed

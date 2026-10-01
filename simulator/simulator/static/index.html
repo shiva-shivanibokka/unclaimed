@@ -11,16 +11,16 @@
   <main>
     <header>
       <h1>Unclaimed</h1>
-      <p class="sub">A benefits screener for Alexa+, in a simulated Echo Show. California and Illinois.</p>
+      <p class="sub">A benefits screener for Alexa+, in a simulated Echo Show.</p>
     </header>
 
     <section class="device" aria-label="Simulated Echo Show">
-      <div class="screen">
+      <div class="screen" id="screen">
         <div class="pane talk">
           <div id="say" class="say" aria-live="polite">Tap the mic and say <em>“Alexa, open Unclaimed”</em>, or type below.</div>
           <div id="heard" class="heard"></div>
         </div>
-        <div class="pane cards" id="cards" aria-live="polite"></div>
+        <div class="app" id="app"></div>
       </div>
       <div id="bar" class="bar" aria-hidden="true"></div>
     </section>

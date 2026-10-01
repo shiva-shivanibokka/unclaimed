@@ -1,0 +1,40 @@
+program: ca_child_care
+state: CA
+what: Help paying for child care at a center, a family child care home, or with a relative or friend you choose.
+apply:
+  - how: phone
+    where: Your local child care Resource and Referral (R&R) agency
+    url: https://rrnetwork.org/family-services/find-child-care
+    phone: "1-800-KIDS-7933"
+  - how: in_person
+    where: Your county's Alternative Payment Program (APP)
+    url: https://www.cappaonline.com/aps-in-california
+  - how: in_person
+    where: Your county social services office, if you get CalWORKs
+    url: https://www.cdss.ca.gov/county-offices
+bring:
+  - Proof of all your household's income.
+  - Proof of why you need care, like your work schedule, school or training enrollment.
+  - Names and birth dates of all the children in your home.
+  - Your CalWORKs case details, if you get cash aid.
+next:
+  - An agency worker fills out the application with you and checks your papers.
+  - If there is no opening, you go on a waiting list; families most in need are enrolled first.
+  - You get a written notice about your eligibility within 30 days of signing the application.
+  - Once approved, you choose a provider and the agency pays them directly.
+  - Approval usually lasts at least 24 months before you renew.
+watch_out:
+  - Look up a licensed provider's inspection reports on the state's Facility Search before you choose.
+  - A relative or friend who watches your child may need a TrustLine background check to get paid.
+  - The agency tells you in writing when an income increase must be reported; keep that letter.
+  - You can appeal any change the agency makes to your child care help.
+handoff: https://rrnetwork.org/family-services/find-child-care
+sources:
+  - https://www.cdss.ca.gov/inforesources/calworks-child-care/parent-information-and-resources
+  - https://www.cdss.ca.gov/inforesources/child-care-and-development
+  - https://www.cdss.ca.gov/Portals/9/Additional-Resources/Forms-and-Brochures/2020/A-D/CCD26.pdf
+  - https://www.cdss.ca.gov/Portals/9/Additional-Resources/Forms-and-Brochures/2020/A-D/CCD25.pdf
+  - https://rrnetwork.org/family-services/find-child-care
+  - https://www.cappaonline.com/aps-in-california
+  - https://www.cdss.ca.gov/county-offices
+last_verified: 2026-10-01

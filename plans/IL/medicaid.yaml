@@ -1,0 +1,46 @@
+program: medicaid
+state: IL
+what: Free or low-cost health coverage from Illinois Medicaid, including doctor visits, hospital care and prescriptions.
+apply:
+  - how: online
+    where: ABE (Application for Benefits Eligibility)
+    url: https://abe.illinois.gov/abe/access/
+  - how: phone
+    where: ABE Customer Call Center / IDHS Help Line
+    url: https://www.dhs.state.il.us/page.aspx?item=33698
+    phone: "1-800-843-6154"
+  - how: in_person
+    where: Your local IDHS Family Community Resource Center
+    url: https://www.dhs.state.il.us/page.aspx?module=12
+  - how: mail
+    where: Paper form IL444-2378B, mailed or faxed to your Family Community Resource Center
+    url: https://www.dhs.state.il.us/page.aspx?item=33698
+bring:
+  - Photo ID or other proof of who you are
+  - Proof of where you live
+  - Social Security numbers for everyone applying
+  - Pay stubs and other income proof from the last month
+  - Proof of citizenship or immigration papers for each person applying
+  - Medicare or other health insurance cards, if anyone has them
+  - A doctor's or clinic's note with the due date, if pregnant
+next:
+  - ABE may skip proof the state can check itself; if more is needed, you are contacted by mail or phone.
+  - A notice tells you if you qualify, usually within 45 days (60 if applying because of a disability).
+  - Most new members must choose a health plan and primary care doctor through Illinois Client Enrollment Services.
+  - Check your status and notices any time in ABE Manage My Case.
+watch_out:
+  - Keep your mailing address current so you get renewal letters.
+  - Return the renewal form by its due date, even if nothing changed.
+  - Report changes in income, address or household in Manage My Case.
+handoff: https://abe.illinois.gov/abe/access/
+sources:
+  - https://abe.illinois.gov/abe/access/
+  - https://www.dhs.state.il.us/page.aspx?item=33698
+  - https://www.dhs.state.il.us/page.aspx?module=12
+  - https://hfs.illinois.gov/medicalclients/medicalprograms.html
+  - https://hfs.illinois.gov/medicalclients/medicaidguide/manage.html
+  - https://hfs.illinois.gov/medicalclients/medicaidguide/stayinginthesystem.html
+  - https://hfs.illinois.gov/medicalclients/medicaidguide/changes.html
+  - https://hfs.illinois.gov/content/dam/soi/en/web/hfs/sitecollectiondocuments/hfs2378h.pdf
+  - https://enrollhfs.illinois.gov/
+last_verified: 2026-10-01

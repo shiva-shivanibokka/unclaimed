@@ -1,0 +1,36 @@
+program: aca_ptc
+state: IL
+what: A tax credit that lowers your monthly health insurance bill when you buy a plan through Get Covered Illinois, the state's official marketplace.
+apply:
+  - how: online
+    where: Get Covered Illinois (Illinois's own marketplace, not HealthCare.gov)
+    url: https://enroll.getcovered.illinois.gov/hix/
+  - how: phone
+    where: Get Covered Illinois Customer Assistance Center
+    url: https://getcovered.illinois.gov/
+    phone: "1-866-311-1119"
+bring:
+  - Social Security numbers for everyone applying, if they have them
+  - Birth dates for everyone in the household
+  - Employer names
+  - Your best estimate of this year's income
+  - Your most recent tax return
+  - Immigration documents, if they apply
+next:
+  - Register for an account and complete your application.
+  - Get Covered Illinois tells you what you qualify for.
+  - Shop for plans and pick one.
+  - Pay the first month's premium to the insurance company so coverage starts.
+watch_out:
+  - Sign up during open enrollment each fall, or within a special enrollment period after a life change.
+  - Update your application as soon as your income changes, or you may have to pay back credits at tax time.
+  - If you get the credit in advance, you must file a federal tax return and report it.
+  - Use only sites ending in .gov; free help is available from navigators and brokers.
+handoff: https://enroll.getcovered.illinois.gov/hix/
+sources:
+  - https://getcovered.illinois.gov/
+  - https://getcovered.illinois.gov/get-started/about-the-marketplace.html
+  - https://getcovered.illinois.gov/get-started/how-to-enroll.html
+  - https://getcovered.illinois.gov/get-help/frequently-asked-questions.html
+  - https://getcovered.illinois.gov/plans-and-cost/marketplace-changes.html
+last_verified: 2026-10-01

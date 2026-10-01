@@ -1,0 +1,24 @@
+program: school_meals
+state: CA
+what: Breakfast and lunch at school for your children, free or at a lower price.
+apply:
+  - how: in_person
+    where: Your child's school or school district office
+    url: https://www.fns.usda.gov/cn/applying-free-and-reduced-price-school-meals
+bring:
+  - The school's meal application form; ask the school or district for one.
+  - Your household's income information.
+  - Your CalFresh or CalWORKs details, if you get them.
+next:
+  - Hand the form to your child's school or district.
+  - School or district staff review it before approving free or lower-price meals.
+watch_out:
+  - You can apply any time during the school year, not only when forms go home at the start.
+  - If you get CalFresh or CalWORKs, your children may already qualify; ask the school if you still need a form.
+  - California public schools still collect meal forms even where every student eats free, so fill one out.
+  - If you get WIC or unemployment, ask the school about meals too.
+handoff: https://www.fns.usda.gov/cn/applying-free-and-reduced-price-school-meals
+sources:
+  - https://www.fns.usda.gov/cn/applying-free-and-reduced-price-school-meals
+  - https://www.cde.ca.gov/ls/nu/univmealsfaq.asp
+last_verified: 2026-10-01

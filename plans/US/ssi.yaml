@@ -1,0 +1,37 @@
+program: ssi
+state: US
+what: Monthly payments from Social Security for people with disabilities and older adults who have little or no income or resources.
+apply:
+  - how: online
+    where: Social Security online application (adults applying because of a disability)
+    url: https://secure.ssa.gov/iClaim/dib
+  - how: phone
+    where: Social Security (call to set up an appointment by phone or in person; TTY 1-800-325-0778)
+    url: https://www.ssa.gov/apply/ssi
+    phone: "1-800-772-1213"
+bring:
+  - Your Social Security number and where you were born.
+  - Pay stubs or other proof of current income.
+  - Bank statements and papers for things you own, like a car title or life insurance policy.
+  - Your rental contract and your landlord's name and phone number.
+  - Name and birthday of everyone you live with.
+  - Marriage and divorce dates, and your spouse's Social Security number and birthday.
+  - For disability, names and phone numbers of your doctors and clinics, your tests and your medicines.
+  - Bank routing and account numbers for direct deposit.
+next:
+  - Social Security reviews your record and contacts you if it needs documents or more information.
+  - For disability, your state's Disability Determination Services office reviews it and mails you a decision letter.
+  - If approved, Social Security checks your financial documents and mails a letter with your monthly payment.
+  - You can check your application status online at any time.
+  - If you disagree with a decision, start by asking Social Security to reconsider it.
+watch_out:
+  - Only send documents if Social Security asks for them, to avoid delays.
+  - When you apply, Social Security also checks for other benefits you may be able to get.
+  - Once on SSI, report your wages, other income and changes in what you own or where you live every month.
+  - The online application is for adults with a disability; for SSI at age 65 or older, call for an appointment.
+handoff: https://www.ssa.gov/apply/ssi
+sources:
+  - https://www.ssa.gov/apply/ssi
+  - https://www.ssa.gov/ssi
+  - https://www.ssa.gov/apply/appeal-decision-we-made
+last_verified: 2026-10-01

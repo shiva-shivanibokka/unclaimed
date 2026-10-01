@@ -1,0 +1,27 @@
+program: school_meals
+state: IL
+what: Free or lower-cost breakfast and lunch for children at school.
+apply:
+  - how: in_person
+    where: Your child's school (one Household Eligibility Application per household, per school district)
+    url: https://www.isbe.net/Documents/68-06.pdf
+bring:
+  - Names of everyone in your household, and each student's school and grade
+  - A SNAP or TANF case number, if anyone in the household gets them
+  - Gross pay (before taxes) for each person with income, and how often it is paid
+  - Amounts of other income, like child support, Social Security or unemployment
+  - Last four digits of the signing adult's Social Security number, or check the box if you have none
+next:
+  - Fill out one application for all students in your household and return it to the school.
+  - The school may check your information and ask for written proof.
+  - The school tells you whether your children qualify.
+  - If you disagree with the decision, talk to school officials or ask for a hearing.
+watch_out:
+  - If the school sent a letter saying your child is approved through SNAP or TANF, you don't need to apply.
+  - Last year's approval runs out early in the new school year, so apply again unless the school says otherwise.
+  - You can apply any time during the school year, for example after a job loss.
+  - You and your children do not have to be U.S. citizens to apply.
+handoff: https://www.isbe.net/Documents/68-06.pdf
+sources:
+  - https://www.isbe.net/Documents/68-06.pdf
+last_verified: 2026-10-01

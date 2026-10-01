@@ -1,0 +1,32 @@
+program: lifeline
+state: CA
+what: California LifeLine is the state's discount on a home phone or cell phone bill, run by the CPUC and separate from the federal Lifeline program.
+apply:
+  - how: phone
+    where: A participating phone company (find one with Provider Search on the California LifeLine site)
+    url: https://www.californialifeline.com/
+  - how: phone
+    where: California LifeLine Call Center for general questions, Monday to Friday, 7 a.m. to 7 p.m.
+    url: https://www.cpuc.ca.gov/consumer-support/financial-assistance-savings-and-discounts/lifeline
+    phone: "1-866-272-0349"
+bring:
+  - A card, notice or letter showing someone in your home is in a program like Medi-Cal, CalFresh, WIC or SSI
+  - Or the front page of last year's state, federal or tribal tax return
+  - Or pay stubs or income statements for three months in a row from the past year
+  - Or benefit statements such as Social Security, unemployment or pension
+next:
+  - Ask the phone company for California LifeLine; you then get an application with a due date.
+  - Send copies of your proof with the signed application, online or by mail, before the due date.
+  - You pay regular rates until approved, then get a bill credit back to when you asked to enroll.
+  - Every year you get a renewal form in a pink envelope; renew online or by mail to keep the discount.
+  - For application or renewal questions, call the LifeLine Administrator at 1-877-858-7463.
+watch_out:
+  - Since Feb. 1, 2026, California LifeLine and federal Lifeline need two separate enrollments to get both.
+  - An incomplete or unsigned form gets sent back to you as a new form, which delays approval.
+  - If you don't renew by the due date, you are dropped and charged regular rates.
+handoff: https://www.californialifeline.com/
+sources:
+  - https://www.cpuc.ca.gov/consumer-support/financial-assistance-savings-and-discounts/lifeline
+  - https://www.cpuc.ca.gov/consumer-support/financial-assistance-savings-and-discounts/lifeline/california-lifeline-eligibility
+  - https://www.cpuc.ca.gov/-/media/cpuc-website/divisions/news-and-outreach/images/featured-stories/2026-featured-stories/february/ca-lifeline/california-lifeline-vs-federal-lifeline-021726.pdf
+last_verified: 2026-10-01

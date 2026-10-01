@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Unclaimed</title>
+<!-- The Echo Show screen (MCP Apps view) for get_results and get_plan. Self-contained: the
+     QR library is inlined by the server where the marker below is; nothing loads from outside.
+     Everything shown comes from the tool result: names and amounts from the calculator,
+     plans from the agencies' pages (plan cards). Designed on Alexa's 768x480 canvas. -->
+<style>
+  :root { --bg: #0b1220; --panel: #16213a; --text: #f4f6fb; --muted: #a9b4cc; --accent: #4cc3ff; --if: #ffcc66; }
+  :root[data-theme="light"] { --bg: #f6f8fc; --panel: #ffffff; --text: #111827; --muted: #4b5563; --accent: #0369a1; --if: #92400e; }
+  * { box-sizing: border-box; margin: 0; }
+  body { background: var(--bg); color: var(--text); font: 18px/1.35 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; padding: 20px 24px; }
+  h1 { font-size: 28px; font-weight: 650; margin-bottom: 14px; }
+  .muted { color: var(--muted); font-size: 15px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 12px; }
+  .tile { background: var(--panel); border-radius: 14px; padding: 14px 16px; border-left: 5px solid var(--accent); }
+  .tile.if { border-left-color: var(--if); }
+  .tile h2 { font-size: 18px; font-weight: 600; }
+  .amount { font-size: 26px; font-weight: 700; margin-top: 6px; }
+  .tag { display: inline-block; margin-top: 6px; font-size: 14px; color: var(--if); }
+  .foot { margin-top: 14px; }
+  .plans { display: flex; gap: 16px; overflow-x: auto; scroll-snap-type: x mandatory; }
+  .plan { flex: 0 0 100%; scroll-snap-align: start; display: grid; grid-template-columns: 1fr 190px; gap: 18px; }
+  .plan h2 { font-size: 24px; margin-bottom: 4px; }
+  .how { font-size: 20px; font-weight: 600; margin: 10px 0 4px; }
+  .qr { background: #fff; border-radius: 12px; padding: 10px; align-self: start; text-align: center; color: #111; font-size: 13px; }
+  .qr svg { width: 100%; height: auto; display: block; }
+  ul { padding-left: 20px; margin-top: 4px; }
+  li { margin: 3px 0; }
+  .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 8px; }
+  h3 { font-size: 15px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+</style>
+</head>
+<body>
+<main id="root"><p class="muted">Getting your results…</p></main>
+<script>/*QRCODE*/</script>
+<script>
+"use strict";
+const root = document.getElementById("root");
+const el = (tag, props = {}, ...kids) => {
+  const n = Object.assign(document.createElement(tag), props);
+  n.append(...kids.filter((k) => k != null));
+  return n;
+};
+const money = (x) => "$" + Math.round(x).toLocaleString("en-US");
+const PER = { month: "a month", year: "a year" };
+
+function results(r) {
+  const yes = r.programs.filter((p) => p.eligible);
+  const tiles = yes.map((p) => el("div", { className: "tile" + (p.conditional_on ? " if" : "") },
+    el("h2", { textContent: p.name }),
+    el("div", { className: "amount", textContent: p.amount === undefined ? "Coverage" : p.amount > 0 ? `${money(p.amount)} ${PER[p.per] ?? ""}` : "Qualifies" }),
+    p.conditional_on ? el("div", { className: "tag", textContent: "Depends on an answer we don't have" }) : null));
+  const more = (r.also_check ?? []).map((p) => p.name).join(", ");
+  return [
+    el("h1", { textContent: yes.length ? "You may qualify for" : "Nothing found this time" }),
+    el("div", { className: "grid" }, ...tiles),
+    more ? el("p", { className: "muted foot", textContent: `Also worth checking: ${more}` }) : null,
+    el("p", { className: "muted foot", textContent: "Estimates. The agency decides when you apply." }),
+  ];
+}
+
+function qr(url) {
+  if (typeof qrcode !== "function") return null;
+  const code = qrcode(0, "M");
+  code.addData(url);
+  code.make();
+  const box = el("div", { className: "qr" });
+  box.innerHTML = code.createSvgTag({ cellSize: 4, margin: 2, scalable: true });
+  box.append(el("div", { textContent: "Scan to apply on your phone" }));
+  return box;
+}
+
+function list(title, items) {
+  return el("section", {}, el("h3", { textContent: title }), el("ul", {}, ...items.map((t) => el("li", { textContent: t }))));
+}
+
+function plans(r) {
+  return [el("div", { className: "plans" }, ...r.plans.map((p) => {
+    const first = p.apply[0];
+    return el("article", { className: "plan" },
+      el("div", {},
+        el("h2", { textContent: p.name }),
+        el("p", { className: "muted", textContent: p.what }),
+        el("p", { className: "how", textContent: `Apply: ${first.where}${first.phone ? " · " + first.phone : ""}` }),
+        el("div", { className: "cols" }, list("Bring", p.bring), list("Then", p.next))),
+      qr(p.handoff));
+  }))];
+}
+
+function render(data) {
+  if (!data) return;
+  const view = data.plans ? plans(data) : data.programs ? results(data)
+    : [el("p", { className: "muted", textContent: "A few more questions first." })]; // get_results before it's ready
+  root.replaceChildren(...view.filter(Boolean));
+  notify("ui/notifications/size-changed", { width: document.body.scrollWidth, height: document.body.scrollHeight });
+}
+
+// MCP Apps: JSON-RPC 2.0 over postMessage with the host (spec 2026-01-26).
+let next = 0;
+const waiting = new Map();
+const send = (msg) => window.parent.postMessage({ jsonrpc: "2.0", ...msg }, "*");
+const notify = (method, params) => send({ method, params });
+const request = (method, params) => new Promise((resolve) => { waiting.set(++next, resolve); send({ id: next, method, params }); });
+const theme = (ctx) => { if (ctx?.theme) document.documentElement.dataset.theme = ctx.theme; };
+
+window.addEventListener("message", (e) => {
+  if (e.source !== window.parent) return;
+  const m = e.data;
+  if (!m || m.jsonrpc !== "2.0") return;
+  if (m.id !== undefined && waiting.has(m.id)) { waiting.get(m.id)(m.result); waiting.delete(m.id); return; }
+  if (m.method === "ui/notifications/tool-result") {
+    const p = m.params ?? {};
+    let data = p.structuredContent;
+    if (!data) { try { data = JSON.parse(p.content?.find((c) => c.type === "text")?.text); } catch { data = null; } }
+    render(data);
+  } else if (m.method === "ui/notifications/host-context-changed") {
+    theme(m.params);
+  } else if (m.method === "ui/resource-teardown" && m.id !== undefined) {
+    send({ id: m.id, result: {} });
+  }
+});
+
+request("ui/initialize", {
+  protocolVersion: "2026-01-26",
+  appCapabilities: { availableDisplayModes: ["inline", "fullscreen"] },
+  clientInfo: { name: "unclaimed-screen", version: "1" },
+}).then((init) => { theme(init?.hostContext); notify("ui/notifications/initialized", {}); });
+</script>
+</body>
+</html>

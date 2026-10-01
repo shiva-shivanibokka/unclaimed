@@ -1,0 +1,42 @@
+program: snap
+state: IL
+what: Monthly money for groceries, loaded on an Illinois Link card you use at most grocery stores.
+apply:
+  - how: online
+    where: ABE (Application for Benefits Eligibility)
+    url: https://abe.illinois.gov/abe/access/
+  - how: phone
+    where: IDHS Help Line / ABE Customer Call Center
+    url: https://www.dhs.state.il.us/page.aspx?item=33698
+    phone: "1-800-843-6154"
+  - how: in_person
+    where: Your local IDHS Family Community Resource Center
+    url: https://www.dhs.state.il.us/page.aspx?module=12
+  - how: mail
+    where: Paper form IL444-2378B, mailed or faxed to your Family Community Resource Center
+    url: https://www.dhs.state.il.us/page.aspx?item=33698
+bring:
+  - Photo ID or other proof of who you are
+  - Proof of where you live
+  - Social Security numbers for everyone on the application
+  - Pay stubs if you work
+  - Proof of any other income or payments you get
+next:
+  - Your application starts the day IDHS gets it signed.
+  - You have an interview, in person or by phone.
+  - At the end of the interview, the caseworker tells you what proof is still needed.
+  - You get a notice saying whether you are eligible; this can take up to a month.
+  - If approved, benefits arrive each month on your Illinois Link card.
+watch_out:
+  - If you have almost no money for food now, ask for emergency SNAP, which is ready in 5 days or less.
+  - Tell your caseworker when your income, household size or address changes.
+  - Eligibility is reviewed from time to time, so watch your mail and answer on time.
+handoff: https://abe.illinois.gov/abe/access/
+sources:
+  - https://www.dhs.state.il.us/page.aspx?item=30357
+  - https://www.dhs.state.il.us/page.aspx?item=33698
+  - https://www.dhs.state.il.us/page.aspx?item=31767
+  - https://www.dhs.state.il.us/page.aspx?item=45750
+  - https://www.dhs.state.il.us/page.aspx?module=12
+  - https://abe.illinois.gov/abe/access/
+last_verified: 2026-10-01

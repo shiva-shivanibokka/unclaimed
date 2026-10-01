@@ -1,0 +1,41 @@
+program: snap
+state: CA
+what: Monthly money for food on an EBT card, usable at most grocery stores and farmers markets that take EBT.
+apply:
+  - how: online
+    where: BenefitsCal
+    url: https://benefitscal.com/
+  - how: phone
+    where: CalFresh Benefits Helpline
+    url: https://www.cdss.ca.gov/inforesources/calfresh
+    phone: "1-877-847-3663"
+  - how: in_person
+    where: Your county social services office (also by mail or fax)
+    url: https://www.cdss.ca.gov/county-offices
+bring:
+  - Photo ID, like a driver's license, state ID or passport.
+  - Proof of where you live, like a lease or a bill with your address.
+  - Social Security numbers for everyone applying.
+  - Recent bank statements for everyone in your home.
+  - Pay stubs or a letter from your employer for the last 30 days.
+  - Letters for other income, like unemployment, SSI, Social Security or child support.
+  - Rent, utility and phone bills, and child care costs.
+  - Immigration papers, only for noncitizens who are applying.
+next:
+  - Your name, address and signature are enough to file; the clock starts the day the county gets it.
+  - The county interviews you, usually by phone.
+  - You get at least 10 days to send any proof the county asks for.
+  - The county decides within 30 days and mails you a letter; ask about Expedited Service if you need food now.
+  - If approved, the county mails or gives you an EBT card and you set a PIN.
+watch_out:
+  - Keep your interview even if you don't have every paper yet; the county can help you get proof.
+  - Turn in proof of rent, utilities and child care, or the county counts them as nothing.
+  - Report the changes the county tells you to report, or your benefits can be cut or stopped.
+  - Getting food benefits does not affect your immigration status, and family members who aren't applying don't need to show immigration papers.
+handoff: https://benefitscal.com/
+sources:
+  - https://www.cdss.ca.gov/inforesources/calfresh
+  - https://www.cdss.ca.gov/cdssweb/entres/forms/English/SAWS_1.pdf
+  - https://www.cdss.ca.gov/county-offices
+  - https://benefitscal.com/
+last_verified: 2026-10-01
