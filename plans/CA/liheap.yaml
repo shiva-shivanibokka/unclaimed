@@ -1,0 +1,36 @@
+name: LIHEAP home energy bill help
+program: liheap
+state: CA
+what: LIHEAP helps pay heating and cooling bills, including wood, propane or oil, helps in an energy emergency such as a shutoff, and can weatherize your home for free.
+apply:
+  - how: in_person
+    where: Your local LIHEAP provider (find it by city or ZIP on the CSD map)
+    url: https://www.csd.ca.gov/Pages/FindServicesInYourArea.aspx?ct=Energy_Bill
+  - how: phone
+    where: California 2-1-1, free help finding local services any time
+    url: https://www.211ca.org/
+    phone: "2-1-1"
+bring:
+  - Government-issued photo ID, such as a driver's license, state ID, tribal ID or passport
+  - Proof of income from every source for everyone in your household, usually dated within the last six weeks
+  - Copies of your energy bills
+  - Social Security numbers for household members, if you have them
+  - Your shutoff or disconnection notice, if you got one
+next:
+  - Your local provider reviews your application and proof.
+  - Payment usually goes straight to your utility and shows as a LIHEAP credit on your bill.
+  - The provider sends you a letter with the amount and which company was paid.
+  - If you are denied, you can appeal in writing to CSD within ten working days of the provider's final decision.
+watch_out:
+  - Funding is limited and goes first to the most vulnerable households, so some eligible households get no benefit.
+  - If you have a shutoff notice, ask the provider about crisis help (ECIP).
+  - Help differs by area, so ask your local provider what it offers and how to apply.
+  - Ask about free weatherization too; it is meant to lower your monthly bills.
+handoff: https://www.csd.ca.gov/Pages/FindServicesInYourArea.aspx?ct=Energy_Bill
+sources:
+  - https://www.csd.ca.gov/Pages/LIHEAPProgram.aspx
+  - https://www.csd.ca.gov/energybills
+  - https://www.csd.ca.gov/Pages/FindServicesInYourArea.aspx?ct=Energy_Bill
+  - https://www.csd.ca.gov/Shared%20Documents/LIHEAP-Fact-Sheet.pdf
+  - https://www.csd.ca.gov/Shared%20Documents/2026-Final-LIHEAP-State-Plan.pdf
+last_verified: 2026-10-01

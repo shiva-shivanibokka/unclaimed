@@ -1,4 +1,4 @@
-# Engine image. Build from the repo root (the engine reads ../dictionary):
+# Engine image. Build from the repo root (the engine reads ../dictionary and ../plans):
 #   docker build -f engine/Dockerfile -t unclaimed-engine .
 FROM python:3.12-slim
 COPY --from=ghcr.io/astral-sh/uv:0.12.21 /uv /usr/local/bin/uv
@@ -8,6 +8,7 @@ WORKDIR /app/engine
 COPY engine/pyproject.toml engine/uv.lock ./
 RUN uv sync --frozen --no-dev --no-install-project
 COPY dictionary /app/dictionary
+COPY plans /app/plans
 COPY engine/unclaimed_engine ./unclaimed_engine
 COPY engine/question_engine ./question_engine
 COPY engine/data ./data

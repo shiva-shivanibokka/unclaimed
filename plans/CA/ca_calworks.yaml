@@ -1,0 +1,38 @@
+program: ca_calworks
+state: CA
+what: Monthly cash aid for families with children, plus help getting a job, paid on an EBT card.
+apply:
+  - how: online
+    where: BenefitsCal
+    url: https://benefitscal.com/
+  - how: in_person
+    where: Your county social services office (also by mail or fax)
+    url: https://www.cdss.ca.gov/county-offices
+bring:
+  - Photo ID, like a driver's license, state ID or passport.
+  - Birth certificates for everyone applying.
+  - Social Security numbers for everyone applying.
+  - Proof of where you live, like a lease or a bill with your address.
+  - Pay stubs for the last 30 days and letters for any other income.
+  - Recent bank statements for everyone in your home.
+  - Shot records for your young children.
+  - Registration for any car you or the people applying own.
+next:
+  - Fill in the first questions and sign the application to start; you can finish the rest at your interview.
+  - You have an in-person interview with the county.
+  - Adults getting aid are fingerprinted and photographed.
+  - The county decides within 45 days and mails you a letter.
+  - If approved, aid goes on an EBT card you can use at most stores and ATMs.
+watch_out:
+  - Tell the county right away about an eviction notice, a utility shutoff, or food running out; Immediate Need help can come in one day.
+  - You must take part in Welfare-to-Work activities unless the county says you are exempt.
+  - If any adult who must be fingerprinted skips it, no one in the household gets aid.
+  - CalWORKs families can get child care through the county; ask your worker.
+handoff: https://benefitscal.com/
+sources:
+  - https://www.cdss.ca.gov/cdssweb/entres/forms/English/SAWS_1.pdf
+  - https://www.cdss.ca.gov/inforesources/calworks
+  - https://www.cdss.ca.gov/county-offices
+  - https://www.cdss.ca.gov/inforesources/calworks-child-care/parent-information-and-resources
+  - https://benefitscal.com/
+last_verified: 2026-10-01

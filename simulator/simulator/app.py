@@ -94,6 +94,16 @@ def health() -> dict:
     return {"ok": True}
 
 
+@app.get("/api/screens")
+def screens() -> dict:
+    """The MCP server's screens, for the page to host (MCP Apps)."""
+    try:
+        return agent.screens()
+    except Exception as e:
+        log.error("screens failed: %s", type(e).__name__)
+        raise HTTPException(503, "The screen isn't available just now.") from e
+
+
 @app.post("/api/turn")
 def turn(body: Turn, request: Request) -> dict:
     _admit(_client_ip(request))

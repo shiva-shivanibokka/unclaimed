@@ -1,0 +1,30 @@
+program: wic
+state: IL
+what: Healthy foods, nutrition advice and breastfeeding support for pregnant women, new mothers, babies and young children.
+apply:
+  - how: in_person
+    where: Your local WIC office (find it with the IDHS Office Locator, then call for an appointment)
+    url: https://www.dhs.state.il.us/page.aspx?module=12
+    phone: "1-800-843-6154"
+bring:
+  - Proof of identity, like a driver's license, photo ID or your child's birth certificate
+  - Proof of income, like pay stubs or a tax form
+  - Proof of address, like a utility bill or recent dated mail
+next:
+  - Call your local WIC office to make an appointment and ask what papers to bring.
+  - At the appointment, WIC staff check whether you and your family qualify.
+  - You get a nutrition check-up, advice and breastfeeding support.
+  - Benefits go on an Illinois eWIC card that you use with a PIN.
+watch_out:
+  - WIC does not require proof of citizenship.
+  - If you lack the usual papers, ask your WIC office about other options.
+  - Benefits that are not used by the end date do not roll over.
+  - Entering the wrong PIN four times in a row locks the card until midnight.
+handoff: https://www.dhs.state.il.us/page.aspx?module=12
+sources:
+  - https://www.dhs.state.il.us/page.aspx?item=147345
+  - https://www.dhs.state.il.us/page.aspx?item=31907
+  - https://www.dhs.state.il.us/page.aspx?item=53965
+  - https://www.dhs.state.il.us/page.aspx?item=124686
+  - https://www.dhs.state.il.us/page.aspx?module=12
+last_verified: 2026-10-01

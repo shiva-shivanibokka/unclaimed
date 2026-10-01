@@ -4,7 +4,13 @@
 import express from "express";
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
-import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
+import {
+  CallToolRequestSchema,
+  ListResourcesRequestSchema,
+  ListToolsRequestSchema,
+  ReadResourceRequestSchema,
+} from "@modelcontextprotocol/sdk/types.js";
+import { SCREEN_MIME, SCREEN_URI, screenHtml } from "./screen.js";
 import { AnswerError, buildTools, loadContext, type Tool } from "./tools.js";
 import { UnitError } from "./units.js";
 import { Ajv, type ValidateFunction } from "ajv";
@@ -45,10 +51,17 @@ async function init(): Promise<void> {
 }
 
 function buildServer(): Server {
-  const server = new Server({ name: "unclaimed", version: VERSION }, { capabilities: { tools: {} } });
+  const server = new Server({ name: "unclaimed", version: VERSION }, { capabilities: { tools: {}, resources: {} } });
   server.setRequestHandler(ListToolsRequestSchema, async () => ({
-    tools: tools.map(({ name, title, description, inputSchema }) => ({ name, title, description, inputSchema })),
+    tools: tools.map(({ name, title, description, inputSchema, _meta }) => ({ name, title, description, inputSchema, _meta })),
   }));
+  // The screen (MCP Apps). Hosts without screens ignore it: every tool also returns full text.
+  const screen = { uri: SCREEN_URI, name: "Unclaimed screen", mimeType: SCREEN_MIME };
+  server.setRequestHandler(ListResourcesRequestSchema, async () => ({ resources: [screen] }));
+  server.setRequestHandler(ReadResourceRequestSchema, async (req) => {
+    if (req.params.uri !== SCREEN_URI) throw new Error(`Unknown resource ${req.params.uri}`);
+    return { contents: [{ ...screen, text: screenHtml }] };
+  });
   server.setRequestHandler(CallToolRequestSchema, async (req) => {
     const tool = tools.find((t) => t.name === req.params.name);
     if (!tool) return { isError: true, content: [{ type: "text", text: `Unknown tool ${req.params.name}` }] };

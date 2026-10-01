@@ -30,6 +30,7 @@ SYSTEM_PROMPT = (Path(__file__).parent / "prompt.md").read_text(encoding="utf-8"
 _lock = threading.Lock()
 _mcp: MCPClient | None = None
 _tools: list | None = None
+_screens: dict | None = None  # the MCP server's screens (MCP Apps), read once per connection
 
 
 def _connect() -> list:
@@ -48,10 +49,27 @@ def _connect() -> list:
         return _tools
 
 
-def _reset() -> None:
-    global _tools
+def screens() -> dict:
+    """Which tools show a screen, and each screen's HTML, as the MCP server declares them
+    (tool `_meta.ui.resourceUri`, read with resources/read). The browser hosts them."""
+    global _screens
+    tools = _connect()
     with _lock:
-        _tools = None
+        if _screens is None:
+            uris = {t.tool_name: ((t.mcp_tool.meta or {}).get("ui") or {}).get("resourceUri") for t in tools}
+            uris = {name: uri for name, uri in uris.items() if uri}
+            html = {}
+            for uri in set(uris.values()):
+                content = _mcp.read_resource_sync(uri).contents[0]
+                html[uri] = {"html": content.text, "meta": (content.meta or {}).get("ui", {})}
+            _screens = {"tools": uris, "screens": html}
+        return _screens
+
+
+def _reset() -> None:
+    global _tools, _screens
+    with _lock:
+        _tools = _screens = None
 
 
 def turn(history: list[dict], text: str) -> dict:

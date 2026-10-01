@@ -1,4 +1,4 @@
-# Build context is the repo root for the engine image (it needs dictionary/).
+# Build context is the repo root for the engine image (it needs dictionary/ and plans/).
 **/node_modules
 **/.venv
 **/__pycache__

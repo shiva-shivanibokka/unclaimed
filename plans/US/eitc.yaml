@@ -1,0 +1,39 @@
+program: eitc
+state: US
+what: A federal tax credit for working people and families, claimed when you file your federal tax return.
+apply:
+  - how: tax_return
+    where: IRS Free File (do your own federal return online for free)
+    url: https://www.irs.gov/e-file-do-your-taxes-for-free
+  - how: in_person
+    where: Free tax help from IRS-certified volunteers (VITA or TCE site)
+    url: https://freetaxassistance.for.irs.gov/s/sitelocator
+    phone: "1-800-906-9887"
+bring:
+  - Photo ID for you, and your spouse if filing jointly.
+  - Social Security cards for you, your spouse and your dependents.
+  - All W-2 and 1099 forms from every job and other income.
+  - Last year's federal and state tax returns, if you have them.
+  - Bank routing and account numbers for direct deposit.
+next:
+  - By law, the IRS can't send refunds that include the EITC before mid-February.
+  - E-file and choose direct deposit to get your refund faster.
+  - Track your refund with Where's My Refund? on IRS.gov or the IRS app.
+  - If the IRS sends a letter about your EITC, don't ignore it; follow its directions and send what it asks for.
+watch_out:
+  - File Form 1040 to get it, even if you owe no tax; add Schedule EIC if you claim a child.
+  - Names and Social Security numbers must match the Social Security cards exactly.
+  - Only one person can claim the same child, so check who else might claim them.
+  - Missed it before? You can still claim up to three past years, or amend with Form 1040-X.
+handoff: https://www.irs.gov/e-file-do-your-taxes-for-free
+sources:
+  - https://www.irs.gov/credits-deductions/individuals/earned-income-tax-credit-eitc
+  - https://www.irs.gov/credits-deductions/individuals/earned-income-tax-credit/how-to-claim-the-earned-income-tax-credit-eitc
+  - https://www.irs.gov/credits-deductions/individuals/earned-income-tax-credit/common-errors-for-the-earned-income-tax-credit-eitc
+  - https://www.irs.gov/credits-deductions/individuals/earned-income-tax-credit/letter-or-audit-for-eitc
+  - https://www.irs.gov/filing/irs-free-file-do-your-taxes-for-free
+  - https://www.irs.gov/e-file-do-your-taxes-for-free
+  - https://www.irs.gov/individuals/free-tax-return-preparation-for-qualifying-taxpayers
+  - https://www.irs.gov/individuals/checklist-for-free-tax-return-preparation
+  - https://www.irs.gov/refunds
+last_verified: 2026-10-01

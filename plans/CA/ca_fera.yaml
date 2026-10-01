@@ -1,0 +1,39 @@
+program: ca_fera
+state: CA
+what: FERA is a monthly discount on your electric bill, applied for through your electric company.
+apply:
+  - how: online
+    where: CPUC page with each utility's CARE and FERA contacts
+    url: https://www.cpuc.ca.gov/industries-and-topics/electrical-energy/electric-costs/care-fera-program
+  - how: online
+    where: PG&E (CARE and FERA application)
+    url: https://energyinsight.pge.com/carefera?care_lang=english
+    phone: "1-866-743-5832"
+  - how: online
+    where: Southern California Edison (SCE)
+    url: https://www.sce.com/apps/iqp
+    phone: "1-800-798-5723"
+  - how: online
+    where: San Diego Gas & Electric (SDG&E)
+    url: https://www.sdge.com/assistance-programs/account-lookup/care-fera
+    phone: "1-877-646-5525"
+bring:
+  - Your electric bill, for your account number
+  - The number of people in your home and your household's total income
+next:
+  - PG&E, SCE and SDG&E don't ask for income proof when you apply.
+  - You may be picked later to prove your income; answer by the deadline or the discount stops.
+  - At PG&E and SDG&E the discount lasts two years, or four on a fixed income, and then you renew when asked.
+watch_out:
+  - Only PG&E, SCE and SDG&E customers can get FERA.
+  - At PG&E one form covers CARE and FERA; at SDG&E a CARE application is checked for FERA automatically.
+  - The bill must be in your name, at the home where you mainly live.
+  - Tell your utility if you no longer qualify.
+handoff: https://www.cpuc.ca.gov/industries-and-topics/electrical-energy/electric-costs/care-fera-program
+sources:
+  - https://www.cpuc.ca.gov/industries-and-topics/electrical-energy/electric-costs/care-fera-program
+  - https://www.pge.com/en_US/residential/save-energy-money/help-paying-your-bill/longer-term-assistance/care/care.page
+  - https://www.sce.com/residential/assistance/care-fera
+  - https://www.sdge.com/fera
+  - https://www.sdge.com/residential/pay-bill/get-payment-bill-assistance/assistance-programs
+last_verified: 2026-10-01

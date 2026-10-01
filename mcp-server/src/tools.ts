@@ -5,6 +5,7 @@
 
 import { engine, EngineError, type Dictionary, type Json, type Question } from "./engine.js";
 import { readBack, toYearly } from "./units.js";
+import { SCREEN_URI } from "./screen.js";
 
 /** A problem with what the model sent (bad unit, unknown person): it can ask again. */
 export class AnswerError extends Error {}
@@ -14,6 +15,7 @@ export interface Tool {
   title: string;
   description: string;
   inputSchema: Json;
+  _meta?: Json; // e.g. the screen that shows the result (MCP Apps)
   run: (args: Json) => Promise<Json>;
 }
 
@@ -22,6 +24,7 @@ export interface Context {
   questions: Map<string, Question>;
   programNames: Map<string, string>;
   states: string[]; // the states the engine's programs cover
+  plans: Record<string, Record<string, Json>>; // state -> program -> plan card (engine /plans)
   householdSchema: Json; // the engine's Household JSON schema; its refs point at `defs`
   defs: Json; // schema definitions, placed at the root of each tool's input schema
   personBase: Json; // the engine's Person schema: id, relationship, age
@@ -58,11 +61,14 @@ export async function loadContext(): Promise<Context> {
   ]);
   const { $defs: defs, ...household } = schemaFrom(openapi, "Household");
   const person: Json = defs.Person;
+  const states = [...new Set(programs.flatMap((p) => p.states as string[]))].sort();
+  const plans = Object.fromEntries(await Promise.all(states.map(async (s) => [s, await engine.plans(s)] as const)));
   return {
     dictionary,
     questions: new Map(dictionary.questions.map((q) => [q.id, q])),
     programNames: new Map(programs.map((p) => [p.id, p.name])),
-    states: [...new Set(programs.flatMap((p) => p.states as string[]))].sort(),
+    states,
+    plans,
     householdSchema: household,
     defs,
     personBase: {
@@ -95,6 +101,13 @@ function shapeNext(ctx: Context, next: Json): Json {
 /** ZIP or county: asked like a question, but a field of the household (dictionary `structure`). */
 function isLocation(ctx: Context, question: string) {
   return question in ctx.dictionary.structure && question !== "people";
+}
+
+/** Why a program says yes: the yes/no facts the calculator found true, in its own words
+ * (e.g. "Meets SNAP gross income test"). */
+export function reasons(explain: Json[]): string[] {
+  const yes = (v: unknown) => v === true || (v !== null && typeof v === "object" && Object.values(v).includes(true));
+  return explain.filter((f) => yes(f.value ?? f.by_person)).map((f) => f.label);
 }
 
 function key(person: string | undefined, question: string) {
@@ -276,8 +289,7 @@ export function buildTools(ctx: Context): Tool[] {
         const read_back = await applyAnswers(ctx, h, answers);
         if (rest_none) {
           // Stateless: what was just asked is the engine's next question for the household as
-          // it was sent (served from the engine's cache). Filled-in "none"s aren't read back.
-          // A filled-in "no" can be a claim the person didn't make (heat not included in the
+          // it was sent (served from the engine's cache). A filled-in "no" can be a claim the person didn't make (heat not included in the
           // rent), so those are read back to be corrected; filled-in zeros aren't (too many to say).
           const asked = await engine.next(household);
           const skip = new Set([...answers.map((a: Answer) => key(a.person, a.question)), ...declined]);
@@ -296,11 +308,13 @@ export function buildTools(ctx: Context): Tool[] {
     {
       name: "get_results",
       title: "Get benefit results",
+      _meta: { ui: { resourceUri: SCREEN_URI } },
       description:
         "Calculate which programs the household qualifies for and how much, once the questions stop (or when the person " +
         "wants an estimate now). Programs with `conditional_on` depend on an answer the person declined or wasn't asked yet: " +
-        "say 'if ...', never a flat 'you qualify'. Say the `we_assumed` statements briefly. If `ready` is false, " +
-        "ask `next.ask` first: no estimate is possible without it.",
+        "say 'if ...', never a flat 'you qualify'. `why` lists the rules the household meets, in the calculator's words: " +
+        "say them plainly. Say the `we_assumed` statements briefly. If `ready` is false, ask `next.ask` first: " +
+        "no estimate is possible without it. Then offer the plan (get_plan) for the programs they want to apply for.",
       inputSchema: {
         type: "object",
         required: ["household"],
@@ -328,10 +342,43 @@ export function buildTools(ctx: Context): Tool[] {
             ...(p.eligible_people && { eligible_people: p.eligible_people }),
             ...(p.amount !== undefined && { amount: p.amount, per: p.per }),
             ...(conditional[p.id] && { conditional_on: conditional[p.id] }),
+            ...(p.eligible && { why: reasons(p.explain ?? []) }),
           })),
           declined: r.assumptions.filter((a: Json) => a.status === "declined").map((a: Json) => key(a.person, a.question)),
           we_assumed: r.statements,
+          // Programs with a plan card that the calculator doesn't model: worth a look, no verdict.
+          also_check: Object.entries(ctx.plans[household.state] ?? {})
+            .filter(([, card]) => !card.calculated)
+            .map(([id, card]) => ({ id, name: card.name, what: card.what })),
         };
+      },
+    },
+    {
+      name: "get_plan",
+      title: "Get the plan to apply",
+      _meta: { ui: { resourceUri: SCREEN_URI } },
+      description:
+        "What to do next for the programs the person wants to apply for: how and where to apply, what to bring, what " +
+        "happens after, and what to watch out for, from the agencies' own pages. Say the first way to apply and offer " +
+        "what to bring; the screen shows the full list with a code that opens the application on their phone.",
+      inputSchema: {
+        type: "object",
+        required: ["state", "programs"],
+        properties: {
+          state: { type: "string", enum: ctx.states, description: "The household's state (household.state)" },
+          programs: {
+            type: "array",
+            minItems: 1,
+            items: { type: "string", enum: [...new Set(Object.values(ctx.plans).flatMap((p) => Object.keys(p)))] },
+            description: "Program ids from get_results",
+          },
+        },
+      },
+      run: async ({ state, programs }) => {
+        const cards = ctx.plans[state];
+        const missing = (programs as string[]).filter((p) => !cards[p]);
+        if (missing.length) throw new AnswerError(`no plan for ${missing.join(", ")} in ${state}`);
+        return { plans: (programs as string[]).map((id) => ({ id, ...cards[id] })) };
       },
     },
   ];

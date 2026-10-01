@@ -1,0 +1,38 @@
+program: aca_ptc
+state: CA
+what: Financial help that lowers your monthly premium for a health plan bought through Covered California.
+apply:
+  - how: online
+    where: Covered California (about 30 minutes)
+    url: https://apply.coveredca.com/static/lw-web/account-creation/choose-application
+  - how: phone
+    where: Covered California, Monday to Friday, 8 a.m. to 6 p.m.
+    url: https://www.coveredca.com/apply/
+    phone: "1-800-300-1506"
+  - how: in_person
+    where: A free certified enroller or licensed agent near you
+    url: https://www.coveredca.com/get-help/find-an-enroller
+  - how: mail
+    where: Paper application to Covered California, P.O. Box 989725, West Sacramento, CA 95798-9725
+    url: https://www.coveredca.com/apply/
+bring:
+  - Social Security numbers for everyone applying, if they have one
+  - Federal tax information, if you file taxes
+  - Immigration documents, for anyone who is not a citizen
+  - Employer and income information for everyone who works
+next:
+  - Choose a plan and enroll.
+  - Pay your first bill online, or wait for a bill from the insurance company.
+  - Your ID card comes in the mail after payment; you can use your plan before it arrives.
+  - Each year Covered California sends Form 1095-A by Jan. 31 for your taxes.
+watch_out:
+  - Enroll during open enrollment, Nov. 1 to Jan. 31, unless a major life change like a move, a new baby or lost coverage opens a special enrollment.
+  - Report changes such as income or household size within 30 days by signing in or calling.
+  - You must reconcile the credit on your federal tax return; if your income was higher than you estimated, you may pay some back.
+handoff: https://apply.coveredca.com/static/lw-web/account-creation/choose-application
+sources:
+  - https://www.coveredca.com/apply/
+  - https://www.coveredca.com/get-help/find-an-enroller
+  - https://www.coveredca.com/support/financial-help/income-changes/
+  - https://www.coveredca.com/learning-center/tax-forms-and-filing/irs-form-1095-a/
+last_verified: 2026-10-01

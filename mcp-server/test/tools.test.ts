@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { AnswerError, applyAnswers, noneForTheRest, type Context } from "../src/tools.js";
+import { AnswerError, applyAnswers, noneForTheRest, reasons, type Context } from "../src/tools.js";
 
 // A small dictionary shaped like the engine's. Ids are made up on purpose: the code must
 // take them (and which question gives the hours for hourly pay) from the dictionary.
@@ -53,4 +53,14 @@ test("'none of the rest' fills what wasn't answered or declined with zero / no",
     { question: "wages", person: "me", value: 0, unit: "year" },
     { question: "is_disabled", person: "me", value: false },
   ]);
+});
+
+test("why: the yes/no facts that came out yes, for the household or anyone in it", () => {
+  const explain = [
+    { label: "Meets the income test", value: true },
+    { label: "Meets the asset test", value: false },
+    { label: "Income limit", value: 50542 },
+    { label: "Categorically eligible", by_person: { mom: false, kid: true } },
+  ];
+  assert.deepEqual(reasons(explain), ["Meets the income test", "Categorically eligible"]);
 });

@@ -1,0 +1,29 @@
+program: il_child_care
+state: IL
+what: Help paying for child care while you work or go to school, through the Child Care Assistance Program (CCAP).
+apply:
+  - how: online
+    where: Digital CCAP Application (Illinois Department of Early Childhood)
+    url: https://www.getchildcareil.org/
+bring:
+  - Two recent pay stubs
+  - Your most recent tax return
+  - An employment letter, if you're too new at your job to have two pay stubs
+  - Your class schedule or school enrollment letter, if you are in school
+  - Self-employment records, if you work for yourself
+next:
+  - Submit documents in the online application, or later to your local Child Care Resource and Referral agency (CCR&R).
+  - If you haven't picked a provider, an eligibility worker reaches out to help you choose one.
+  - You should get an answer within 45 days of the CCR&R receiving your complete application.
+  - Approved cases last for a year, and a renewal form comes about six weeks before it ends.
+watch_out:
+  - You can apply before you have picked a child care provider.
+  - Most approved families pay a monthly copayment directly to their provider.
+  - Your local CCR&R can help you apply and takes extra documents by mail, fax, email or in person.
+  - If you need care right away, call your CCR&R and ask about faster processing.
+handoff: https://www.getchildcareil.org/
+sources:
+  - https://idec.illinois.gov/forparents/child-care-assistance-program.html
+  - https://www.getchildcareil.org/
+  - https://www.getchildcareil.org/faq
+last_verified: 2026-10-01

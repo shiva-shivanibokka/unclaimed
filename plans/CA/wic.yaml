@@ -1,0 +1,35 @@
+program: wic
+state: CA
+what: Benefits to buy healthy foods, plus nutrition advice and breastfeeding support, for growing families.
+apply:
+  - how: in_person
+    where: Your local WIC office (find one by city or ZIP and set up an appointment)
+    url: https://www.myfamily.wic.ca.gov/Home/HowCanIGetWIC
+  - how: phone
+    where: California WIC Program
+    url: https://www.myfamily.wic.ca.gov/Home/HowCanIGetWIC
+    phone: "1-800-852-5770"
+bring:
+  - ID for yourself and for each child you are signing up.
+  - Proof of your address, like an ID, paycheck, rent paper or utility bill.
+  - Proof of household income, like a paycheck, tax return, employer letter or Medi-Cal card.
+  - Proof of pregnancy, if you are pregnant.
+  - Medical forms filled out by your health care provider.
+  - Your baby or child, if WIC staff ask you to bring them.
+next:
+  - A WIC counselor checks whether you qualify and explains WIC services.
+  - WIC does a nutrition check for each family member who qualifies.
+  - Food benefits are loaded onto your California WIC Card, and you can use it right away.
+  - You set up a PIN before you shop.
+  - Download the California WIC App to see your food balance and appointments.
+watch_out:
+  - If you or your child has an active Medi-Cal card, it can count as proof of income.
+  - Use your WIC benefits within 30 days; the app shows when they expire.
+  - Only your local WIC office can confirm you qualify, so make the appointment even if you're unsure.
+  - Keep going to your WIC appointments to keep your benefits.
+handoff: https://www.myfamily.wic.ca.gov/Home/HowCanIGetWIC
+sources:
+  - https://www.myfamily.wic.ca.gov/Home/HowCanIGetWIC
+  - https://www.myfamily.wic.ca.gov/Home/WicCardAndApp
+  - https://www.myfamily.wic.ca.gov/
+last_verified: 2026-10-01

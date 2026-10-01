@@ -1,9 +1,9 @@
 // The simulated Echo Show: push-to-talk (browser speech recognition), spoken replies
-// (browser speech synthesis), and result cards. The conversation lives only in this page
+// (browser speech synthesis), and the add-on's screen (MCP Apps, below). The conversation lives only in this page
 // and goes to the server with each turn; reloading forgets it.
 
 const $ = (id) => document.getElementById(id);
-const say = $("say"), heard = $("heard"), cards = $("cards"), bar = $("bar");
+const say = $("say"), heard = $("heard"), app = $("app"), bar = $("bar");
 const mic = $("mic"), text = $("text"), form = $("form"), status = $("status"), log = $("log");
 
 let messages = [];
@@ -36,49 +36,108 @@ function speak(words) {
   synth.speak(u);
 }
 
-// The latest get_results tool result in the conversation, if any.
-function latestResults() {
-  const ids = new Set();
-  for (const m of messages) for (const b of m.content) if (b.toolUse?.name === "get_results") ids.add(b.toolUse.toolUseId);
+// ---- MCP Apps host (spec 2026-01-26) --------------------------------------------------
+// The MCP server declares which tools show a screen (tool _meta.ui.resourceUri) and serves
+// the screen's HTML; this page shows it in a sandboxed frame (an opaque origin: it can't
+// reach this page, its storage or the network) and hands it the tool's input and result.
+// One simplification: the spec's separate-origin proxy frame is replaced by that sandbox.
+const PROTOCOL = "2026-01-26";
+let screens = null; // {tools: {name: uri}, screens: {uri: {html, meta}}}
+let shown = null; // the tool call on screen
+let frame = null;
+
+async function loadScreens() {
+  if (!screens) {
+    const res = await fetch("/api/screens");
+    if (res.ok) screens = await res.json();
+  }
+  return screens;
+}
+
+// The latest call to a tool that has a screen: its input and its MCP result.
+function latestScreenCall() {
+  const uses = new Map();
+  for (const m of messages) for (const b of m.content) if (b.toolUse) uses.set(b.toolUse.toolUseId, b.toolUse);
   for (let i = messages.length - 1; i >= 0; i--) {
     for (const b of messages[i].content) {
       const r = b.toolResult;
-      if (!r || !ids.has(r.toolUseId) || r.status === "error") continue;
-      for (const c of r.content) {
-        if (c.json) return c.json;
-        try { return JSON.parse(c.text); } catch { /* not JSON */ }
-      }
+      const use = r && uses.get(r.toolUseId);
+      if (!use || r.status === "error" || !screens?.tools[use.name]) continue;
+      const content = r.content.filter((c) => c.text !== undefined).map((c) => ({ type: "text", text: c.text }));
+      let structuredContent = r.content.find((c) => c.json)?.json;
+      if (!structuredContent) try { structuredContent = JSON.parse(content[0]?.text); } catch { /* text only */ }
+      return { id: use.toolUseId, uri: screens.tools[use.name], name: use.name, input: use.input, result: { content, structuredContent } };
     }
   }
   return null;
 }
 
-const money = (x) => `$${Math.round(x).toLocaleString("en-US")}`;
+// What the view may load: only what the server declared (here, nothing outside the page).
+function cspFor(meta) {
+  const csp = meta?.csp ?? {};
+  const list = (domains) => (domains ?? []).join(" ");
+  return [
+    "default-src 'none'",
+    `script-src 'unsafe-inline' ${list(csp.resourceDomains)}`,
+    `style-src 'unsafe-inline' ${list(csp.resourceDomains)}`,
+    `img-src data: ${list(csp.resourceDomains)}`,
+    `font-src ${list(csp.resourceDomains) || "'none'"}`,
+    `connect-src ${list(csp.connectDomains) || "'none'"}`,
+    `frame-src ${list(csp.frameDomains) || "'none'"}`,
+    "base-uri 'none'",
+    "object-src 'none'",
+  ].join("; ");
+}
 
-function renderCards(results) {
-  cards.replaceChildren();
-  if (!results) return;
-  const yes = results.programs.filter((p) => p.eligible);
-  for (const p of yes) {
-    const card = document.createElement("div");
-    card.className = `card${p.conditional_on ? " if" : ""}`;
-    const h = document.createElement("h3");
-    h.textContent = p.name;
-    const amt = document.createElement("div");
-    amt.className = "amt";
-    amt.textContent = p.amount === undefined ? "Covered" : p.amount > 0 ? `${money(p.amount)} / ${p.per}` : "Qualifies";
-    card.append(h, amt);
-    const notes = [];
-    if (p.conditional_on) notes.push("depends on an answer you skipped or we didn't ask");
-    if (p.eligible_people) notes.push(`for ${p.eligible_people.length} ${p.eligible_people.length === 1 ? "person" : "people"}`);
-    if (notes.length) {
-      const n = document.createElement("div");
-      n.className = "note";
-      n.textContent = notes.join(" · ");
-      card.appendChild(n);
-    }
-    cards.appendChild(card);
+function post(msg) { frame?.contentWindow?.postMessage({ jsonrpc: "2.0", ...msg }, "*"); }
+
+window.addEventListener("message", (e) => {
+  if (!frame || e.source !== frame.contentWindow) return;
+  const m = e.data;
+  if (!m || m.jsonrpc !== "2.0" || !m.method) return;
+  if (m.method === "ui/initialize") {
+    const box = app.getBoundingClientRect();
+    post({ id: m.id, result: {
+      protocolVersion: PROTOCOL,
+      hostInfo: { name: "unclaimed-alexa-simulator", version: "1" },
+      hostCapabilities: { openLinks: {} },
+      hostContext: {
+        theme: "dark", displayMode: "inline", platform: "web", locale: "en-US",
+        containerDimensions: { width: Math.round(box.width), height: Math.round(box.height) },
+        deviceCapabilities: { touch: "ontouchstart" in window, hover: matchMedia("(hover: hover)").matches },
+        toolInfo: { tool: { name: shown.name } },
+      },
+    } });
+  } else if (m.method === "ui/notifications/initialized") {
+    post({ method: "ui/notifications/tool-input", params: { arguments: shown.input } });
+    post({ method: "ui/notifications/tool-result", params: shown.result });
+  } else if (m.method === "ui/open-link" && m.id !== undefined) {
+    const url = String(m.params?.url ?? "");
+    if (url.startsWith("https://")) window.open(url, "_blank", "noopener");
+    post({ id: m.id, result: {} });
+  } else if (m.id !== undefined) {
+    post({ id: m.id, error: { code: -32601, message: `${m.method} isn't supported by this host` } });
   }
+});
+
+async function showScreen() {
+  await loadScreens().catch(() => null);
+  const call = screens && latestScreenCall();
+  if (!call || call.id === shown?.id) return;
+  shown = call;
+  const screen = screens.screens[call.uri];
+  frame = document.createElement("iframe");
+  frame.title = "Unclaimed";
+  frame.setAttribute("sandbox", "allow-scripts");
+  frame.srcdoc = screen.html.replace("<head>", `<head><meta http-equiv="Content-Security-Policy" content="${cspFor(screen.meta)}">`);
+  app.replaceChildren(frame);
+  $("screen").classList.add("has-app");
+}
+
+function clearScreen() {
+  shown = frame = null;
+  app.replaceChildren();
+  $("screen").classList.remove("has-app");
 }
 
 async function send(words) {
@@ -101,7 +160,7 @@ async function send(words) {
     messages = data.messages;
     say.textContent = data.reply;
     addLog("alexa", data.reply);
-    renderCards(latestResults());
+    showScreen();
     const t = data.timing;
     status.textContent = `Turn ${((performance.now() - started) / 1000).toFixed(1)} s · model ${(t.model_ms / 1000).toFixed(1)} s · tools ${(t.tools_ms / 1000).toFixed(1)} s`;
     speak(data.reply);
@@ -152,7 +211,7 @@ if (Recognition) {
 $("reset").addEventListener("click", () => {
   messages = [];
   synth?.cancel();
-  cards.replaceChildren();
+  clearScreen();
   log.replaceChildren();
   heard.textContent = "";
   status.textContent = "";

@@ -176,3 +176,9 @@ def test_zip_lookup_reads_the_crosswalk(client):
     assert client.get("/zip/60011").json()["states"] == {"IL": ["LAKE_COUNTY_IL", "COOK_COUNTY_IL"]}
     assert client.get("/zip/10001").json()["states"] == {}  # New York: not a supported state
     assert client.get("/zip/abc").status_code == 422
+
+
+def test_plans_carry_the_program_list_names(client):
+    ca = client.get("/plans/CA").json()
+    assert ca["snap"]["name"] == "CalFresh" and ca["snap"]["calculated"]  # the name from /programs
+    assert client.get("/plans/TX").status_code == 404

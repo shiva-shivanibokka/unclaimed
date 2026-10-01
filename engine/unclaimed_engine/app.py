@@ -10,7 +10,7 @@ from dataclasses import asdict
 from fastapi import FastAPI, HTTPException, Path as PathParam
 from pydantic import BaseModel, Field
 
-from . import think_ahead
+from . import plans, think_ahead
 from .calculate import calculate
 from .dictionary import load
 from .geo import locate
@@ -45,6 +45,7 @@ async def lifespan(_: FastAPI):
     # Pay the cold start (see engine/README.md for measured times) before taking
     # traffic instead of on a person's first question.
     global _ready
+    plans.load()  # a bad plan card stops the engine here, not mid-conversation
     t = time.perf_counter()
     for h in WARMUP:
         calculate(h)
@@ -81,6 +82,18 @@ def dictionary() -> dict:
         "structure": d.structure,
         "groups": d.groups,
     }
+
+
+@app.get("/plans/{state}")
+def plans_for(state: str = PathParam(pattern=r"^[A-Z]{2}$")) -> dict:
+    """What to do next for each program in a state (plans/), with the program's name from
+    the program list. Static: the MCP server reads it once."""
+    if state not in SUPPORTED_STATES:
+        raise HTTPException(status_code=404, detail=f"{state} isn't a supported state")
+    names = {p.id: p.name_in(state) for p in PROGRAMS}
+    return {program: {**{k: v for k, v in card.items() if k not in ("program", "state")},
+                      "name": names.get(program, card.get("name")), "calculated": program in names}
+            for program, card in plans.for_state(state).items()}
 
 
 @app.get("/zip/{zip_code}")

@@ -1,0 +1,44 @@
+program: chip
+state: IL
+what: Health coverage for children through Illinois All Kids, including check-ups, shots, doctor visits and prescriptions.
+apply:
+  - how: online
+    where: ABE (Application for Benefits Eligibility)
+    url: https://abe.illinois.gov/abe/access/
+  - how: phone
+    where: All Kids Hotline
+    url: https://hfs.illinois.gov/medicalprograms/allkids/application.html
+    phone: "1-866-255-5437"
+  - how: in_person
+    where: An All Kids Application Agent or your local IDHS Family Community Resource Center
+    url: https://hfs.illinois.gov/medicalclients/medicalprograms.html
+  - how: mail
+    where: All Kids paper application (English or Spanish) from HFS
+    url: https://hfs.illinois.gov/medicalprograms/allkids/application.html
+bring:
+  - Proof of where you live
+  - Social Security numbers for everyone applying
+  - Pay stubs and other income proof from the last month
+  - Self-employment records, if you work for yourself
+  - Proof of citizenship or immigration papers for each child
+  - Health insurance cards, if the children already have coverage
+next:
+  - ABE may skip proof the state can check itself; if more is needed, you are contacted by mail or phone.
+  - A notice tells you if your children qualify, usually within 45 days.
+  - Each child gets an All Kids medical card.
+  - Most new members must choose a health plan and primary care doctor through Illinois Client Enrollment Services.
+watch_out:
+  - Some All Kids coverage has premiums or copays.
+  - Keep your mailing address current so you get renewal letters.
+  - Return the renewal form by its due date, even if nothing changed.
+  - All Kids Application Agents across Illinois can help you apply.
+handoff: https://abe.illinois.gov/abe/access/
+sources:
+  - https://hfs.illinois.gov/medicalprograms/allkids/application.html
+  - https://hfs.illinois.gov/medicalprograms/allkids/customerinfo.html
+  - https://hfs.illinois.gov/medicalclients/medicalprograms.html
+  - https://hfs.illinois.gov/medicalclients/medicaidguide/stayinginthesystem.html
+  - https://hfs.illinois.gov/content/dam/soi/en/web/hfs/sitecollectiondocuments/hfs2378h.pdf
+  - https://abe.illinois.gov/abe/access/
+  - https://enrollhfs.illinois.gov/
+last_verified: 2026-10-01
