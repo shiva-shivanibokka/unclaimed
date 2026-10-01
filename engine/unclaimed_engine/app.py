@@ -9,9 +9,11 @@ from dataclasses import asdict
 
 from fastapi import FastAPI, HTTPException
 
+from . import think_ahead
 from .calculate import calculate
 from .dictionary import load
 from .household import Household
+from .interview import conditional_on_declined
 from .programs import PROGRAMS, SUPPORTED_STATES
 
 log = logging.getLogger("unclaimed.engine")
@@ -76,24 +78,48 @@ def dictionary() -> dict:
     }
 
 
-@app.post("/calculate")
-def calculate_endpoint(household: Household) -> dict:
+def _run(name: str, household: Household, work) -> tuple[dict, int, int]:
+    """Bounded, timed engine work with our error handling: (result, ms, wait_ms)."""
     if not _slots.acquire(blocking=False):
         raise HTTPException(status_code=503, detail="busy, retry shortly")
     try:
         t = time.perf_counter()
-        with _lock:
-            waited = time.perf_counter() - t
-            result = calculate(household)
+        result, waited = work()
         compute = time.perf_counter() - t - waited
     except ValueError as e:  # our own validation, e.g. a ZIP with no residents in the state
         raise HTTPException(status_code=422, detail=str(e)) from e
     except Exception as e:  # engine failure: log the type only, never the household
-        log.error("calculate failed: %s", type(e).__name__)
+        log.error("%s failed: %s", name, type(e).__name__)
         raise HTTPException(status_code=503, detail="calculation unavailable") from e
     finally:
         _slots.release()
     ms, wait_ms = round(compute * 1000), round(waited * 1000)
     # Anonymous metrics only: never log the household itself.
-    log.info("calculate state=%s people=%d ms=%d wait_ms=%d", household.state, len(household.people), ms, wait_ms)
+    log.info("%s state=%s people=%d ms=%d wait_ms=%d", name, household.state, len(household.people), ms, wait_ms)
+    return result, ms, wait_ms
+
+
+@app.post("/calculate")
+def calculate_endpoint(household: Household) -> dict:
+    def work():
+        t = time.perf_counter()
+        with _lock:
+            waited = time.perf_counter() - t
+            # Programs that depend on a declined answer: the results screen says "if ...".
+            return {**calculate(household), "conditional": conditional_on_declined(household)}, waited
+    result, ms, wait_ms = _run("calculate", household, work)
     return {**result, "ms": ms, "wait_ms": wait_ms}
+
+
+@app.post("/next")
+def next_endpoint(household: Household) -> dict:
+    """The next question to ask (with the ones to ask in the same breath), or stop.
+    Cached and computed ahead for likely answers (think_ahead.py)."""
+    hit = False
+
+    def work():
+        nonlocal hit
+        decision, hit = think_ahead.decide(household, _lock)
+        return decision, 0.0
+    result, ms, _ = _run("next", household, work)
+    return {**result, "ms": ms, "cached": hit}

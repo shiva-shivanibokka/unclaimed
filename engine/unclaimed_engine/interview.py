@@ -1,0 +1,164 @@
+"""The benefits interview: turns the dictionary into Question Engine candidates and asks
+the engine (batched) which unknown fact would change the result the most.
+
+Order: the core questions first (always relevant), then whatever the Question Engine
+scores highest, until no remaining question would flip an eligibility or move a benefit
+by at least STOP_BELOW a month.
+"""
+
+from typing import Any
+
+import question_engine as qe
+
+from . import batch
+from .dictionary import Question, load
+from .household import Household
+from .programs import PROGRAMS
+
+# Our tuning, defined once. A flip (qualify <-> not) outweighs this many dollars a month,
+# so eligibility changes always beat amount changes of ordinary size.
+FLIP_WEIGHT = 1_000
+# Stop when no candidate flips anything and none moves a benefit by this much a month.
+STOP_BELOW = 25
+# After this many questions (a group asked together counts once), offer "estimate now".
+ESTIMATE_OFFER_AFTER = 10
+
+DICTIONARY = load()
+COVERAGE = {p.id for p in PROGRAMS if p.coverage}
+
+
+def _value(h: Household, pid: str | None, qid: str):
+    owner = h if pid is None else next(p for p in h.people if p.id == pid)
+    return getattr(owner, qid)
+
+
+def _key(pid: str | None, qid: str) -> str:
+    return qid if pid is None else f"{pid}.{qid}"
+
+
+def _applies(q: Question, h: Household, person=None) -> bool:
+    w = q.applies_when
+    if "states" in w and h.state not in w["states"]:
+        return False
+    if person is not None:
+        if "age_min" in w and person.age < w["age_min"]:
+            return False
+        if "age_max" in w and person.age > w["age_max"]:
+            return False
+        if "age_min_or_disabled" in w and not (person.age >= w["age_min_or_disabled"] or person.is_disabled):
+            return False
+        if w.get("non_citizen") and person.immigration_status in (None, "CITIZEN"):
+            return False
+        return True
+    if "any_child_under" in w and not any(p.relationship == "child" and p.age < w["any_child_under"] for p in h.people):
+        return False
+    if "any_age_at_least" in w and not any(p.age >= w["any_age_at_least"] for p in h.people):
+        return False
+    if "any_age_min_or_disabled" in w and not any(
+            p.age >= w["any_age_min_or_disabled"] or p.is_disabled for p in h.people):
+        return False
+    return True
+
+
+def _requirements_met(q: Question, h: Household, pid: str | None) -> bool:
+    for rid, allowed in q.requires.items():
+        r = DICTIONARY.question(rid)
+        value = _value(h, pid if r.entity == "person" else None, rid)
+        if value is None or (allowed is None and not value) or (allowed is not None and value not in allowed):
+            return False
+    return True
+
+
+def open_questions(h: Household) -> list[tuple[str | None, Question]]:
+    """(person id or None, question) pairs that are unanswered, not declined, apply to this
+    household and have their prerequisites answered; in dictionary order."""
+    declined = set(h.declined)
+    out = []
+    for q in DICTIONARY.questions:
+        owners = [(p.id, p) for p in h.people] if q.entity == "person" else [(None, None)]
+        for pid, person in owners:
+            if (_value(h, pid, q.id) is None and _key(pid, q.id) not in declined
+                    and _applies(q, h, person) and _requirements_met(q, h, pid)):
+                out.append((pid, q))
+    return out
+
+
+class _Calculator:
+    """Question Engine calculator over the batched benefits engine. Coverage programs
+    (Medicaid, CHIP) count only as flips: their engine value is the cost of coverage."""
+
+    def evaluate(self, h: Household, changes) -> list[dict[str, tuple[bool, float]]]:
+        results = batch.evaluate(h, [dict(c) for c in changes])
+        return [{pid: (ok, 0.0 if pid in COVERAGE else value) for pid, (ok, value) in r.items()} for r in results]
+
+
+def _candidate(h: Household, pid: str | None, q: Question, open_keys: set) -> qe.Candidate:
+    """Asked once for the whole household ("does anyone have a disability?", "does anyone
+    get Social Security?"): `together` holds the same question for everyone else it's open
+    for, plus every open question in its group."""
+    group = {q.id} | {o.id for o in DICTIONARY.questions if q.group and o.group == q.group}
+    together = tuple(sorted((k for k in open_keys if k[1] in group and k != (pid, q.id)), key=str))
+    return qe.Candidate(key=(pid, q.id), low=q.what_if[0], high=q.what_if[1], cost=q.cost, together=together)
+
+
+def _asked_count(h: Household) -> int:
+    """Questions already answered or declined, a group counting once per person."""
+    seen = set()
+    for q in DICTIONARY.questions:
+        owners = [p.id for p in h.people] if q.entity == "person" else [None]
+        for pid in owners:
+            if _value(h, pid, q.id) is not None or _key(pid, q.id) in h.declined:
+                seen.add((pid, q.group or q.id))
+    return len(seen)
+
+
+def _question_view(pid: str | None, q: Question) -> dict[str, Any]:
+    return {"question": q.id, "person": pid, "definition": q.definition, "ask": q.ask,
+            "answer": q.answer, "clarifiers": list(q.clarifiers)}
+
+
+def conditional_on_declined(h: Household) -> dict[str, list[str]]:
+    """Programs whose eligibility depends on a declined answer: program -> declined keys.
+    The result must say "if ...", never a flat "you qualify" (e.g. federal credits when
+    immigration status is declined)."""
+    d = DICTIONARY
+    keys = []
+    for item in h.declined:
+        pid, _, qid = item.rpartition(".")
+        keys.append((pid or None, qid))
+    if not keys:
+        return {}
+    changes = [{k: v} for k in keys for v in d.question(k[1]).what_if]
+    results = batch.evaluate(h, changes)
+    out: dict[str, list[str]] = {}
+    for n, k in enumerate(keys):
+        low, high = results[2 * n], results[2 * n + 1]
+        for program in low:
+            if low[program][0] != high[program][0]:
+                out.setdefault(program, []).append(_key(*k))
+    return out
+
+
+def next_question(h: Household) -> dict:
+    """What to ask next (with the questions to ask in the same breath), or stop."""
+    open_ = open_questions(h)
+    open_keys = {(pid, q.id) for pid, q in open_}
+    asked = _asked_count(h)
+    core = [(pid, q) for pid, q in open_ if q.core]
+    if core:
+        pid, q = core[0]
+        c = _candidate(h, pid, q, open_keys)
+        return {"stop": False, "core": True, "ask": _question_view(pid, q),
+                "together": [_question_view(p, DICTIONARY.question(t)) for p, t in c.together],
+                "asked": asked, "offer_estimate": False}
+    candidates = [_candidate(h, pid, q, open_keys) for pid, q in open_]
+    decision = qe.decide(h, candidates, _Calculator(), flip_weight=FLIP_WEIGHT, stop_below=STOP_BELOW)
+    why = [{"question": s.candidate.key[1], "person": s.candidate.key[0], "flips": list(s.flips),
+            "swing_per_month": round(s.swing, 2), "score": round(s.score, 2)} for s in decision.ranked[:5]]
+    if decision.stop:
+        return {"stop": True, "core": False, "ask": None, "together": [], "asked": asked,
+                "offer_estimate": False, "top_candidates": why, "conditional": conditional_on_declined(h)}
+    pid, qid = decision.ask.key
+    return {"stop": False, "core": False, "ask": _question_view(pid, DICTIONARY.question(qid)),
+            "together": [_question_view(p, DICTIONARY.question(t)) for p, t in decision.ask.together],
+            "asked": asked, "offer_estimate": asked >= ESTIMATE_OFFER_AFTER, "top_candidates": why}

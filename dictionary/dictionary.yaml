@@ -45,10 +45,10 @@ questions:
     answer: {type: number, unit: hours per week, min: 0, max: 100}
     what_if: [0, 30]
     applies_when: {age_min: 18, age_max: 64}
-    requires: [employment_income]
     cost: 1
     clarifiers:
       - SNAP requires adults 18-64 without dependents to work 20 hours a week.
+      - Includes self-employed and gig work, so it isn't tied to the wages question.
 
   # ---- Core 4: other income (asked together; map what they say to these) -------------
   - id: self_employment_income
@@ -263,6 +263,7 @@ questions:
     ask: Ask what the household pays in rent.
     answer: {type: money, unit: USD per year, person_units: [month, year]}
     what_if: [0, 24000]
+    requires: {housing_tenure: [RENTER]}
     cost: 1
 
   - id: mortgage_payments
@@ -273,7 +274,7 @@ questions:
     ask: For homeowners with a mortgage, ask what the mortgage payment is.
     answer: {type: money, unit: USD per year, person_units: [month, year]}
     what_if: [0, 24000]
-    requires: [housing_tenure]
+    requires: {housing_tenure: [OWNER_WITH_MORTGAGE]}
     cost: 2
     clarifiers:
       - If taxes and insurance are bundled into the payment, ask for the split, or put the bundle here and 0 for those.
@@ -287,7 +288,7 @@ questions:
     ask: For homeowners, ask what they pay in property taxes.
     answer: {type: money, unit: USD per year, person_units: [month, year]}
     what_if: [0, 6000]
-    requires: [housing_tenure]
+    requires: {housing_tenure: [OWNER_WITH_MORTGAGE, OWNER_WITHOUT_MORTGAGE]}
     cost: 2
 
   - id: home_insurance
@@ -298,7 +299,7 @@ questions:
     ask: For homeowners, ask what they pay for home insurance.
     answer: {type: money, unit: USD per year, person_units: [month, year]}
     what_if: [0, 2400]
-    requires: [housing_tenure]
+    requires: {housing_tenure: [OWNER_WITH_MORTGAGE, OWNER_WITHOUT_MORTGAGE]}
     cost: 1
 
   # ---- Utilities ----------------------------------------------------------------------
@@ -322,7 +323,7 @@ questions:
     ask: Ask whether heat is included in their rent.
     answer: {type: bool}
     what_if: [false, true]
-    requires: [heating_type]
+    requires: {housing_tenure: [RENTER]}
     cost: 1
 
   - id: pays_for_cooling
@@ -394,6 +395,7 @@ questions:
 
   - id: is_disabled
     entity: person
+    group: disability
     engine: [is_disabled, meets_ssi_disability_criteria]
     definition: Has a physical or mental condition expected to last a year or more that keeps them from working, or limits the work they can do.
     ask: Ask whether anyone has a disability or long-term health condition that keeps them from working.
@@ -405,6 +407,7 @@ questions:
 
   - id: is_blind
     entity: person
+    group: disability
     engine: [is_blind]
     definition: Legally blind.
     ask: Ask together with disability whether anyone is legally blind.
