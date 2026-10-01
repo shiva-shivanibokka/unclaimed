@@ -23,7 +23,7 @@ PolicyEngine-US has file paths longer than Windows' 260-character limit, so on W
 export UV_PROJECT_ENVIRONMENT=~/.venvs/unclaimed-engine
 uv sync
 uv run pytest -m 'not slow'                     # ~30 s
-uv run pytest                                   # + the coverage trace, ~5 min
+uv run pytest                                   # + the coverage trace, ~15 min
 uv run uvicorn unclaimed_engine.app:app --port 8000
 uv run python scripts/measure_latency.py
 ```

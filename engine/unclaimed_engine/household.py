@@ -79,10 +79,12 @@ class _HouseholdBase(BaseModel):
             raise ValueError(f"as_of must be within {AS_OF_YEARS_AROUND_TODAY} year of today")
         questions = {q.id: q for q in load().questions}
         by_id = {p.id: p for p in people}
+        if len(set(self.declined)) != len(self.declined):
+            raise ValueError("declined: duplicate entries")
         for item in self.declined:
-            pid, _, qid = item.rpartition(".")
+            pid, dot, qid = item.rpartition(".")
             q = questions.get(qid)
-            if not q or (q.entity == "person") != bool(pid) or (pid and pid not in by_id):
+            if not q or (dot and not pid) or (q.entity == "person") != bool(pid) or (pid and pid not in by_id):
                 raise ValueError(f"declined: {item!r} is not a question for this household")
             if getattr(by_id[pid] if pid else self, qid) is not None:
                 raise ValueError(f"declined: {item!r} also has an answer")

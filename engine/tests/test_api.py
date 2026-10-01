@@ -93,6 +93,7 @@ def test_dictionary_endpoint(client):
     body = client.get("/dictionary").json()
     q = {x["id"]: x for x in body["questions"]}
     assert "CITIZEN" in q["immigration_status"]["options"]  # enum options come from the engine
+    assert "UNSPECIFIED" not in q["heating_type"]["options"]  # the engine's "not given" is never an answer
     assert q["employment_income"]["core"] and body["statements"]
 
 
@@ -114,6 +115,8 @@ def test_programs_list(client):
     {"state": "CA", "people": HEAD, "declined": ["a.not_a_question"]},
     {"state": "CA", "people": HEAD, "declined": ["a.employment_income"]},  # answered and declined
     {"state": "CA", "people": HEAD, "declined": ["immigration_status"]},  # person question without a person
+    {"state": "CA", "people": HEAD, "declined": [".rent"]},  # empty person prefix
+    {"state": "CA", "people": HEAD, "declined": ["rent", "rent"]},  # duplicate
     {"state": "CA", "people": [{"id": "a", "relationship": "head", "age": 40, "immigration_status": "ALIEN"}]},
     {"state": "TX", "people": [{"id": "a", "relationship": "head", "age": 40}]},
     {"state": "CA", "people": [{"id": "a", "relationship": "child", "age": 4}]},  # no head

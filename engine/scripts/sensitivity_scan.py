@@ -25,22 +25,26 @@ from unclaimed_engine.coverage import INCOMES, grid  # noqa: E402
 from unclaimed_engine.programs import PROGRAMS  # noqa: E402
 
 YEAR, MONTH = periods(date.today())
-# Test value per type: a realistic amount for money (yearly), the non-default for bools.
-MONEY, COUNT = 6_000, 1
-GROUP_KEYS = {"person": "people", "tax_unit": "tax_units", "spm_unit": "spm_units",
-              "family": "families", "marital_unit": "marital_units", "household": "households"}
+# Test values per type, in both directions from the default: zero and realistic amounts
+# for numbers, the other value for bools, every option for enums. A value equal to the
+# engine's default is skipped (it can't change anything).
+NUMBERS = {"float": (0, 2, 6_000), "int": (0, 1, 10, 40)}
+GROUP_KEYS = {e.key: e.plural for e in system.entities}
 
 
-def test_value(var: str):
+def test_values(var: str) -> list:
     meta = system.variables[var]
     t = meta.value_type.__name__
     if t == "bool":
-        return not meta.default_value
-    if t == "float":
-        return MONEY
-    if t == "int":
-        return COUNT
-    return None  # enums / strings: listed for manual review
+        values = [True, False]
+    elif t in NUMBERS:
+        values = list(NUMBERS[t])
+    elif t == "Enum":
+        values = [v.name for v in meta.possible_values]
+    else:
+        return []  # strings (ids, FIPS): structural, handled by derivers
+    default = getattr(meta.default_value, "name", meta.default_value)
+    return [v for v in values if v != default]
 
 
 def batch(situation: dict, variants: list[tuple[str, object] | None]) -> dict:
@@ -84,17 +88,17 @@ def main(trace_path: str, out_path: str) -> None:
     # Inputs not already asked or derived: the ones whose handling the scan informs.
     inputs = [r["variable"] for r in json.loads(Path(trace_path).read_text())
               if not (r["bucket"] or "").startswith(("question:", "derived"))]
-    report = {v: {"test_value": test_value(v), "changes": {}} for v in inputs}
+    report = {v: {"test_values": test_values(v), "changes": {}} for v in inputs}
     sample = list(grid(INCOMES[:3]))
     for label, h in sample:
         base_sit, _ = build_situation(h, YEAR)
-        scanned = [v for v in inputs if report[v]["test_value"] is not None]
-        res = results(batch(base_sit, [None] + [(v, report[v]["test_value"]) for v in scanned]), h.state, len(scanned) + 1)
+        variants = [(v, x) for v in inputs for x in report[v]["test_values"]]
+        res = results(batch(base_sit, [None, *variants]), h.state, len(variants) + 1)
         base = res[0]
-        for v, after in zip(scanned, res[1:]):
+        for (v, x), after in zip(variants, res[1:]):
             changed = {p: {"from": base[p], "to": after[p]} for p in base if base[p] != after[p]}
             if changed:
-                report[v]["changes"][label] = changed
+                report[v]["changes"].setdefault(label, {})[str(x)] = changed
         print(f"done {label}", flush=True)
     Path(out_path).write_text(json.dumps(report, indent=1))
     moving = sum(1 for r in report.values() if r["changes"])

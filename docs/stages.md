@@ -61,8 +61,8 @@ Independent reviewer (fresh subagent): 2 blockers, 3 majors, 9 minors, all verif
 - Checked and held up: USDA/IRS figures, IL EITC/CTC, period math, ZIP data integrity (no cross-state gaps in HUD's national file), no personal data in logs, MCP 2025-11-25 transport.
 
 ## Stage 2: Dictionary and coverage (Oct 3 – Oct 8)
-- [x] Trace-based coverage checker over generated CA + IL households: 112 households (7 shapes × 4 incomes × 2 states, each unanswered and fully answered) read 318 engine inputs; `test_coverage.py` fails on any unclassified input
-- [x] Classify every read input (as of Sep 30; `dictionary/dictionary.yaml` is the live source): 43 questions setting 45 inputs, 16 derived from structure, 256 assumed (8 groups, each with a statement), 7 out of scope. Evidence: `sensitivity_scan.py` found 158 inputs that change a result for some household; those are asked or assumed out loud
+- [x] Trace-based coverage checker over generated CA + IL households (13 shapes incl. infants, seniors on SSI, a disabled child, students, non-citizens and a homeowner; each unanswered and fully answered); `test_coverage.py` fails on any unclassified input
+- [x] Classify every read input (`dictionary/dictionary.yaml` is the live source). Evidence: `sensitivity_scan.py` (values on both sides of each default, every enum option, 156 households). Every input that changes a result is asked, derived, or covered by a statement that is true of the default
 - [x] Dictionary entries for the 5 core questions (ZIP and household are structure; pay, other income (17 income types asked as one group), housing) and every follow-up, with definition, phrasing guidance, answer type and units, what-if range, applies_when, requires, cost, clarifiers
 - [x] Assumptions list: each unanswered question comes back as `{question, person, value, status}`; the `assumed` groups' statements come back for the results screen
 - [x] Single source: the engine's API schema is generated from `dictionary/dictionary.yaml`; `GET /dictionary` serves it to the MCP server and Question Engine; enum options come from the engine; ZIP data uses PolicyEngine's own county FIPS table (rebuilt file identical to the Census-based one)
@@ -72,6 +72,18 @@ Findings:
 - Hidden defaults fixed by deriving them: `state_fips` defaulted to California's code (6) for Illinois households; `is_household_head`, `own_children_in_household`, tax unit IDs and `county_fips` defaulted wrong. None changed a result in the grid today, but they're now correct by construction.
 - Full-time students under 24 are now dependents (IRC 152), replacing the Stage 1 stated assumption.
 - Tracing is slow per household, so the sensitivity scan batches ~300 variants of a household into one simulation (all 42 households in minutes instead of ~7 hours). Stage 3's what-ifs should use the same batching.
+
+### Stage 2 adversarial review (Sep 30)
+Independent reviewer: 1 blocker, 6 majors, 8 minors, all verified and fixed; regression tests in `engine/tests/test_answers.py`.
+- **Blocker:** immigration status never reached `ssn_card_type`, which federal EITC/CTC read: an undocumented parent was shown ~$6.1k of credits they can't get. Now derived from immigration status (undocumented: no SSN; other non-citizen statuses: SSN valid for work); CalEITC (ITIN allowed) unaffected.
+- **Major:** medical costs were placed on the head, so SNAP's elderly/disabled medical deduction was lost ($24 vs $90/mo). Now asked per person; household answers on per-person inputs need an explicit `on_person` placement (loader-enforced).
+- **Major:** CARE/FERA denied to renters with heat in the rent who pay their own electric bill. `tenant_pays_utilities` now follows the electricity/gas bills.
+- **Major:** non-citizen defaults (5 years in the US, 40 work quarters) silently granted Medicaid/SSI. Now asked (`years_in_us`, `work_quarters`).
+- **Major:** "no special circumstances" statement was false for two defaults: no kitchen (cut a CA senior's state supplement) and WIC nutrition risk = yes. Kitchen now derived True and stated; WIC and SSDI-months have their own statements.
+- **Major:** the sensitivity scan only tested one direction and skipped enums. Now both directions + every enum option; re-run over 156 households.
+- **Major:** owners' property tax/insurance and the gas bill weren't askable. Added; part-time college students added from the re-run scan.
+- **Minor:** tax unit IDs started at 0 (= "no claiming unit" to the engine), now from 1; dependent ages read from the engine's IRS parameters; entity names from the engine; `UNSPECIFIED` enum values never offered; savings is a household total; `declined` rejects empty prefixes and duplicates; CHIP take-up classified; duplicated figures removed from docs.
+- Known for Stage 3: an employed adult with unknown hours gets $0 SNAP (hours default 0 fails the work rule), so hours is high-value, and "estimate now" must say SNAP depends on it.
 
 ## Stage 3: Question Engine + eval tiers A and B (Oct 6 – Oct 11)
 - [ ] Candidate listing (applies_when, requires)
