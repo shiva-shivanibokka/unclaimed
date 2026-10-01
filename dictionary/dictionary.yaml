@@ -18,13 +18,32 @@
 # the maximum must reach every amount that can flip a program for a plausible household;
 # engine/tests/test_what_if_ranges.py checks it (no flip between the maximum and twice it).
 #
+# Phrasing (definition, ask, clarifiers) never states a program rule or threshold: the AI
+# could repeat a stale one. Rules live in PolicyEngine; results explain them from there.
+#
+# applies_when says only who could plausibly have an answer (our decision: no wages before
+# 14, no pregnancy outside 12-55). Never a program rule (SNAP's elderly age, a child care
+# age limit): which questions matter is the Question Engine's job, from PolicyEngine's rules.
+#
 # applies_when keys and on_person placements are defined (and validated) in
 # engine/unclaimed_engine/dictionary.py.
 
+# Who and where: the household's structure (Household fields, not engine inputs), asked
+# first. Phrasing lives here like every question's.
+structure:
+  zip:
+    definition: Home ZIP code. The engine finds the county from it (HUD crosswalk).
+    ask: Ask for their home ZIP code.
+  county:
+    definition: The county they live in. Asked only when their ZIP spans more than one.
+    ask: Their ZIP code covers more than one county; ask which one they live in, reading the options.
+  people:
+    definition: Everyone who lives and shares meals with them, with each person's age and relationship (spouse or partner, child).
+    ask: Ask who lives with them, and each person's age.
+
 questions:
 
-  # ---- Core 1: ZIP (structure: `zip`, resolved to county by the engine) ---------------
-  # ---- Core 2: who lives with you (structure: people, relationship, age) --------------
+  # ---- Core 1 and 2: ZIP and who lives with you are `structure` above -----------------
 
   # ---- Core 3: pay before taxes -------------------------------------------------------
   - id: employment_income
@@ -48,10 +67,10 @@ questions:
     ask: Ask roughly how many hours a week they work.
     answer: {type: number, unit: hours per week, min: 0, max: 100}
     what_if: [0, 30]
-    applies_when: {age_min: 18, age_max: 64}
+    applies_when: {age_min: 14}
     cost: 1
     clarifiers:
-      - SNAP requires adults 18-64 without dependents to work 20 hours a week.
+      - Some benefits have a work-hours rule, so ask even when pay is low or irregular.
       - Includes self-employed and gig work, so it isn't tied to the wages question.
 
   # ---- Core 4: other income (asked together; map what they say to these) -------------
@@ -88,7 +107,7 @@ questions:
     ask: Ask whether anyone gets Social Security, which kind, and how much a month.
     answer: {type: money, unit: USD per year, person_units: [month, year]}
     what_if: [0, 60000]
-    applies_when: {age_min: 62}
+    applies_when: {age_min: 18}
     cost: 1
 
   - id: social_security_disability
@@ -154,7 +173,7 @@ questions:
     ask: Ask whether anyone gets a pension.
     answer: {type: money, unit: USD per year, person_units: [month, year]}
     what_if: [0, 60000]
-    applies_when: {age_min: 40}
+    applies_when: {age_min: 18}
     cost: 1
 
   - id: retirement_withdrawals
@@ -281,7 +300,7 @@ questions:
     requires: {housing_tenure: [OWNER_WITH_MORTGAGE]}
     cost: 2
     clarifiers:
-      - If taxes and insurance are bundled into the payment, ask for the split, or put the bundle here and 0 for those.
+      - If taxes and insurance are bundled into the payment, ask for the split, or put the bundle here and zero for those.
 
   - id: property_taxes
     entity: household
@@ -446,7 +465,7 @@ questions:
     requires: [immigration_status]
     cost: 3
     clarifiers:
-      - Many lawful permanent residents must wait 5 years for Medicaid, SNAP or SSI.
+      - Some benefits depend on how long a lawful permanent resident has had that status.
 
   - id: work_quarters
     entity: person
@@ -455,32 +474,32 @@ questions:
     ask: For non-citizen adults, ask roughly how many years they (or their spouse) have worked in the U.S.; each year is 4 quarters.
     answer: {type: number, unit: quarters, min: 0, max: 400}
     what_if: [0, 40]
-    applies_when: {non_citizen: true, age_min: 18}
+    applies_when: {non_citizen: true}
     requires: [immigration_status]
     cost: 3
     clarifiers:
-      - 40 quarters (10 years) of work lets some lawful permanent residents get SSI.
+      - Enough U.S. work history can let some lawful permanent residents get SSI or SNAP sooner.
 
   - id: is_full_time_college_student
     entity: person
     engine: [is_full_time_college_student]
     definition: Enrolled full-time in college, university or a vocational program.
-    ask: Ask whether anyone 18 or older is a full-time student.
+    ask: Ask whether anyone in the household is a full-time college student.
     answer: {type: bool}
     what_if: [false, true]
-    applies_when: {age_min: 18, age_max: 49}
+    applies_when: {age_min: 16}
     cost: 1
     clarifiers:
-      - A full-time student aged 19-23 can still be claimed as a dependent child.
+      - A full-time student can still be claimed as a dependent child for longer than other adult children.
 
   - id: is_part_time_college_student
     entity: person
     engine: [is_part_time_college_student]
     definition: Enrolled at least half-time (but not full-time) in college, university or a vocational program.
-    ask: If someone 18 or older is in school but not full-time, ask whether it's at least half-time.
+    ask: If someone is in college but not full-time, ask whether it's at least half-time.
     answer: {type: bool}
     what_if: [false, true]
-    applies_when: {age_min: 18, age_max: 49}
+    applies_when: {age_min: 16}
     cost: 1
     clarifiers:
       - SNAP's student rule applies to anyone enrolled at least half-time.
@@ -514,7 +533,6 @@ questions:
     ask: Ask what they pay for child care.
     answer: {type: money, unit: USD per year, person_units: [week, month, year]}
     what_if: [0, 24000]
-    applies_when: {any_child_under_or_disabled: 13}
     cost: 2
 
   - id: child_support_paid
@@ -531,10 +549,9 @@ questions:
     entity: person
     engine: [other_medical_expenses]
     definition: This person's out-of-pocket medical costs (not covered by insurance).
-    ask: For each household member 60 or older or disabled, ask about their out-of-pocket medical costs.
+    ask: Ask about each person's out-of-pocket medical costs (premiums, prescriptions, bills not covered by insurance).
     answer: {type: money, unit: USD per year, person_units: [month, year]}
     what_if: [0, 24000]
-    applies_when: {age_min_or_disabled: 60}
     cost: 2
 
   # ---- Benefits already received ------------------------------------------------------
@@ -634,7 +651,7 @@ assumed:
              taxable_sep_distributions, total_disability_payments, educational_assistance]
 
   - reason: How long someone has received SSDI decides Medicare (after 24 months); rarely known offhand.
-    statement: For anyone on Social Security disability, we assumed they don't have Medicare yet (it starts after 24 months of SSDI).
+    statement: For anyone on Social Security disability, we assumed they don't have Medicare yet (it starts after a waiting period on SSDI).
     engine: [months_receiving_social_security_disability]
 
   - reason: WIC requires a nutrition check at the WIC clinic; nearly all applicants are found at nutritional risk.

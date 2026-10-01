@@ -75,6 +75,7 @@ def dictionary() -> dict:
         "questions": [asdict(q) | ({"options": list(q.options)} if q.answer["type"] == "enum" else {})
                       for q in d.questions],
         "statements": [g.statement for g in d.assumed if g.statement],
+        "structure": d.structure,
     }
 
 

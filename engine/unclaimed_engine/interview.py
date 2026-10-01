@@ -46,19 +46,9 @@ def _applies(q: Question, h: Household, person=None) -> bool:
             return False
         if "age_max" in w and person.age > w["age_max"]:
             return False
-        if "age_min_or_disabled" in w and not (person.age >= w["age_min_or_disabled"] or person.is_disabled):
-            return False
         if w.get("non_citizen") and person.immigration_status in (None, "CITIZEN"):
             return False
         return True
-    if "any_child_under_or_disabled" in w and not any(
-            p.relationship == "child" and (p.age < w["any_child_under_or_disabled"] or p.is_disabled) for p in h.people):
-        return False
-    if "any_age_at_least" in w and not any(p.age >= w["any_age_at_least"] for p in h.people):
-        return False
-    if "any_age_min_or_disabled" in w and not any(
-            p.age >= w["any_age_min_or_disabled"] or p.is_disabled for p in h.people):
-        return False
     return True
 
 
@@ -169,12 +159,11 @@ def _county_question(h: Household) -> dict | None:
     county, candidates = resolve_county_for(h)
     if county:
         return None
+    field = "county" if candidates else "zip"
+    view = {"question": field, "person": None, **DICTIONARY.structure[field], "clarifiers": []}
     if candidates:
-        return {"question": "county", "person": None, "definition": "The county they live in.",
-                "ask": "Their ZIP code covers more than one county; ask which one they live in.",
-                "answer": {"type": "enum"}, "options": candidates, "clarifiers": []}
-    return {"question": "zip", "person": None, "definition": "Home ZIP code.",
-            "ask": "Ask for their home ZIP code.", "answer": {"type": "text"}, "clarifiers": []}
+        return {**view, "answer": {"type": "enum"}, "options": candidates}
+    return {**view, "answer": {"type": "text"}}
 
 
 def next_question(h: Household) -> dict:
