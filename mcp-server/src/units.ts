@@ -34,7 +34,7 @@ export function toYearly(spec: AnswerSpec, amount: number, unit: string, weeklyH
   const allowed = spec.person_units ?? ["year"];
   if (!allowed.includes(unit)) throw new UnitError(`unit must be one of ${allowed.join(", ")}`);
   if (unit === "hour") {
-    if (weeklyHours === undefined) throw new UnitError("hourly pay needs the hours worked per week first");
+    if (weeklyHours === undefined) throw new UnitError("hourly pay needs weekly hours: include weekly_hours_worked for this person in the same call");
     return amount * weeklyHours * WEEKS_PER_YEAR;
   }
   return amount * PER_YEAR[unit];

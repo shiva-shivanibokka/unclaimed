@@ -63,6 +63,7 @@ def test_phrasing_states_no_program_rules():
     texts = [(q.id, t) for q in d.questions for t in (q.definition, q.ask, *q.clarifiers)]
     texts += [("statement", g.statement) for g in d.assumed if g.statement]
     texts += [(k, t) for k, v in d.structure.items() for t in v.values()]
+    texts += [(k, v["ask"]) for k, v in d.groups.items()]
     for qid, text in texts:
         for name in allowed:
             text = text.replace(name, "")
@@ -80,3 +81,11 @@ def test_gates_are_plausibility_not_program_rules():
     for q in load().questions:
         ages = {v for k, v in q.applies_when.items() if k.startswith("age_")}
         assert not ages & rule_ages, f"{q.id}: {ages & rule_ages}"
+
+
+def test_duplicate_keys_are_refused(tmp_path):
+    import pytest
+    bad = tmp_path / "d.yaml"
+    bad.write_text("questions: []\nderived: {}\nderived: {}\nassumed: []\nout_of_scope: []\n")
+    with pytest.raises(ValueError, match="duplicate"):
+        load.__wrapped__(bad)

@@ -41,6 +41,20 @@ structure:
     definition: Everyone who lives and shares meals with them, with each person's age and relationship (spouse or partner, child).
     ask: Ask who lives with them, and each person's age.
 
+# Questions asked in one breath share a `group`; this is how to ask the whole group as one
+# question (the person answers what applies; "none of the rest" fills the others).
+groups:
+  other_income:
+    ask: Ask in one question whether anyone gets any other income, for example self-employment or gig work, Social Security, unemployment, child support, a pension or disability payments. Then ask the amount only for the kinds they have.
+  disability:
+    ask: Ask in one question whether anyone has a disability or long-term health condition, or is blind.
+  utilities:
+    ask: Ask how they heat their home and roughly what they pay for electricity, gas, phone and internet. Skip what they don't pay for.
+  housing:
+    ask: Ask whether they rent or own; then the rent, or the mortgage, property tax and home insurance.
+  current_benefits:
+    ask: Ask in one question whether anyone already gets benefits such as SSI, Medicaid, cash aid, food assistance or housing assistance.
+
 questions:
 
   # ---- Core 1 and 2: ZIP and who lives with you are `structure` above -----------------
@@ -328,7 +342,6 @@ questions:
   # ---- Utilities ----------------------------------------------------------------------
   - id: heating_type
     entity: household
-    group: home_energy
     group: utilities
     engine: [heating_type]
     definition: The fuel used most to heat the home.
@@ -352,7 +365,6 @@ questions:
 
   - id: pays_for_cooling
     entity: household
-    group: home_energy
     group: utilities
     engine: [has_cooling_expense]
     definition: Pays for air conditioning or other cooling separately from rent.
@@ -363,7 +375,6 @@ questions:
 
   - id: electricity_bill
     entity: household
-    group: home_energy
     group: utilities
     engine: [pre_subsidy_electricity_expense]
     definition: Electricity bill, before any discount.
@@ -376,7 +387,6 @@ questions:
 
   - id: gas_bill
     entity: household
-    group: home_energy
     group: utilities
     engine: [gas_expense]
     definition: Natural gas bill, before any discount.

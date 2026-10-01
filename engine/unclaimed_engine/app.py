@@ -79,6 +79,7 @@ def dictionary() -> dict:
                       for q in d.questions],
         "statements": [g.statement for g in d.assumed if g.statement],
         "structure": d.structure,
+        "groups": d.groups,
     }
 
 

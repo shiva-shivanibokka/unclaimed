@@ -7,6 +7,8 @@ import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/
 import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
 import { AnswerError, buildTools, loadContext, type Tool } from "./tools.js";
 import { UnitError } from "./units.js";
+import { Ajv, type ValidateFunction } from "ajv";
+import addFormats from "ajv-formats";
 import { EngineError } from "./engine.js";
 
 const PORT = Number(process.env.PORT ?? 8080);
@@ -19,10 +21,17 @@ const ALLOWED_ORIGINS = new Set(
 
 // Tools are built once from the engine's dictionary and schema (retried until the engine is up).
 let tools: Tool[] = [];
+// Arguments are checked against each tool's schema before running: a model that sends
+// text where a list belongs (or "18 * 30 * 52" for a number) gets told exactly what's wrong.
+const validators = new Map<string, ValidateFunction>();
 async function init(): Promise<void> {
   for (let attempt = 1; ; attempt++) {
     try {
-      tools = buildTools(await loadContext());
+      const built = buildTools(await loadContext());
+      const ajv = new Ajv({ allErrors: true, strict: false });
+      addFormats.default(ajv);
+      for (const t of built) validators.set(t.name, ajv.compile(t.inputSchema));
+      tools = built; // published only once every schema compiles
       console.log(JSON.stringify({ ready: true, tools: tools.map((t) => t.name) }));
       return;
     } catch (e) {
@@ -40,8 +49,14 @@ function buildServer(): Server {
   server.setRequestHandler(CallToolRequestSchema, async (req) => {
     const tool = tools.find((t) => t.name === req.params.name);
     if (!tool) return { isError: true, content: [{ type: "text", text: `Unknown tool ${req.params.name}` }] };
+    const args = req.params.arguments ?? {};
+    const validate = validators.get(tool.name)!;
+    if (!validate(args)) {
+      const problems = (validate.errors ?? []).slice(0, 5).map((e) => `${e.instancePath || "arguments"} ${e.message}`);
+      return { isError: true, content: [{ type: "text", text: `Invalid arguments: ${problems.join("; ")}` }] };
+    }
     try {
-      const result = await tool.run(req.params.arguments ?? {});
+      const result = await tool.run(args);
       return { content: [{ type: "text", text: JSON.stringify(result) }], structuredContent: result };
     } catch (e) {
       // Answers the model can fix (bad unit, unknown person) or a busy engine: tell the model, not a crash.
