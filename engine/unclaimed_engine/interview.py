@@ -121,7 +121,7 @@ def _asked_count(h: Household) -> int:
 
 def _question_view(pid: str | None, q: Question) -> dict[str, Any]:
     view = {"question": q.id, "person": pid, "definition": q.definition, "ask": q.ask,
-            "answer": q.answer, "clarifiers": list(q.clarifiers)}
+            "answer": q.answer, "clarifiers": list(q.clarifiers), "group": q.group}
     return {**view, "options": list(q.options)} if q.answer["type"] == "enum" else view
 
 

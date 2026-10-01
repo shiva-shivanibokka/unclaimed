@@ -1,0 +1,137 @@
+:root {
+  --bg: #f4f5f7;
+  --ink: #16191f;
+  --muted: #5b6270;
+  --bezel: #1c1f24;
+  --screen: #0d1b2a;
+  --screen-ink: #f2f6fa;
+  --screen-muted: #9fb3c8;
+  --card: #15283d;
+  --accent: #00caff;
+  --ok: #3ddc97;
+  --if: #ffc857;
+  --line: #d9dde3;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0b0d10;
+    --ink: #e8ebef;
+    --muted: #9aa3ae;
+    --bezel: #2a2e35;
+    --line: #2a2e35;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0b0d10;
+  --ink: #e8ebef;
+  --muted: #9aa3ae;
+  --bezel: #2a2e35;
+  --line: #2a2e35;
+}
+
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+main { max-width: 980px; margin: 0 auto; padding: 24px 16px 40px; }
+header h1 { margin: 0; font-size: 1.6rem; letter-spacing: -0.01em; }
+.sub { margin: 4px 0 18px; color: var(--muted); }
+
+.device {
+  background: var(--bezel);
+  border-radius: 22px;
+  padding: 18px 18px 10px;
+  box-shadow: 0 14px 40px rgb(0 0 0 / 0.25);
+}
+.screen {
+  background: var(--screen);
+  color: var(--screen-ink);
+  border-radius: 10px;
+  aspect-ratio: 16 / 10;
+  display: grid;
+  grid-template-columns: 1.1fr 1fr;
+  gap: 18px;
+  padding: 28px;
+  overflow: hidden;
+}
+.pane { min-width: 0; overflow: auto; }
+.say { font-size: clamp(1.1rem, 2.3vw, 1.6rem); line-height: 1.35; }
+.say em { color: var(--accent); font-style: normal; }
+.heard { margin-top: 14px; color: var(--screen-muted); font-size: 0.95rem; min-height: 1.4em; }
+.heard::before { content: ""; }
+
+.cards { display: flex; flex-direction: column; gap: 10px; }
+.card {
+  background: var(--card);
+  border-radius: 10px;
+  padding: 12px 14px;
+  border-left: 4px solid var(--ok);
+}
+.card.if { border-left-color: var(--if); }
+.card h3 { margin: 0; font-size: 1rem; }
+.card .amt { font-size: 1.25rem; font-weight: 650; margin-top: 2px; }
+.card .note { color: var(--screen-muted); font-size: 0.85rem; margin-top: 2px; }
+
+.bar {
+  height: 6px;
+  margin: 12px auto 0;
+  width: 40%;
+  border-radius: 3px;
+  background: #3a3f47;
+  transition: background 0.2s, width 0.3s;
+}
+.bar.listening { background: var(--accent); width: 70%; animation: pulse 1.2s ease-in-out infinite; }
+.bar.thinking { background: linear-gradient(90deg, #0066ff, var(--accent), #0066ff); background-size: 200% 100%; animation: slide 1s linear infinite; width: 70%; }
+.bar.speaking { background: var(--accent); width: 55%; }
+@keyframes pulse { 50% { opacity: 0.45; } }
+@keyframes slide { to { background-position: -200% 0; } }
+
+.controls { display: flex; gap: 10px; margin-top: 18px; align-items: center; }
+.mic {
+  flex: none;
+  width: 56px; height: 56px;
+  border-radius: 50%;
+  border: 0;
+  background: var(--accent);
+  cursor: pointer;
+  display: grid; place-items: center;
+}
+.mic svg { width: 26px; height: 26px; fill: #00283a; }
+.mic.on { box-shadow: 0 0 0 6px rgb(0 202 255 / 0.3); }
+.mic:disabled { opacity: 0.5; cursor: default; }
+#text {
+  flex: 1; min-width: 0;
+  padding: 14px 16px;
+  border-radius: 28px;
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+}
+.send {
+  flex: none;
+  padding: 14px 20px;
+  border-radius: 28px;
+  border: 0;
+  background: var(--ink);
+  color: var(--bg);
+  font: inherit;
+  cursor: pointer;
+}
+.meta { display: flex; justify-content: space-between; gap: 12px; margin-top: 10px; color: var(--muted); font-size: 0.85rem; }
+.link { border: 0; background: none; color: var(--muted); text-decoration: underline; cursor: pointer; font: inherit; padding: 0; }
+.log { margin-top: 18px; }
+.log summary { cursor: pointer; color: var(--muted); }
+.log ol { padding-left: 1.2em; }
+.log li { margin: 6px 0; }
+.log .you { color: var(--muted); }
+footer { margin-top: 28px; color: var(--muted); font-size: 0.85rem; }
+
+@media (max-width: 700px) {
+  .screen { grid-template-columns: 1fr; aspect-ratio: auto; min-height: 420px; padding: 20px; }
+  .device { padding: 12px 12px 8px; border-radius: 16px; }
+  .send { padding: 14px 16px; }
+}

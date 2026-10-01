@@ -75,6 +75,7 @@ class Dictionary:
     assumed: tuple[Group, ...]
     out_of_scope: tuple[Group, ...]
     structure: dict[str, dict[str, str]]  # zip, county, people -> definition, ask
+    groups: dict[str, dict[str, str]]  # group -> ask (how to ask the whole group as one question)
 
     def question(self, qid: str) -> Question:
         return next(q for q in self.questions if q.id == qid)
@@ -98,6 +99,9 @@ def _check(d: Dictionary) -> None:
         if var not in system.variables:
             raise ValueError(f"dictionary names {var}, which PolicyEngine doesn't have")
     ids = [q.id for q in d.questions]
+    used = {q.group for q in d.questions if q.group}
+    if d.groups and used != set(d.groups):
+        raise ValueError(f"groups without phrasing or phrasing without questions: {used ^ set(d.groups)}")
     if len(ids) != len(set(ids)):
         raise ValueError("duplicate question ids")
     for q in d.questions:
@@ -131,9 +135,21 @@ def _requires(raw) -> dict[str, tuple[Any, ...] | None]:
     return {r: tuple(v) if v is not None else None for r, v in raw.items()}
 
 
+class _StrictLoader(yaml.SafeLoader):
+    """YAML keeps the last of two equal keys without a word; a dictionary entry with two
+    `group:` lines would silently lose one. Refuse instead."""
+
+    def construct_mapping(self, node, deep=False):
+        keys = [self.construct_object(k, deep=deep) for k, _ in node.value]
+        dupes = {k for k in keys if keys.count(k) > 1}
+        if dupes:
+            raise ValueError(f"duplicate keys {sorted(dupes)} at line {node.start_mark.line + 1}")
+        return super().construct_mapping(node, deep=deep)
+
+
 @cache
 def load(path: Path = PATH) -> Dictionary:
-    raw = yaml.safe_load(path.read_text(encoding="utf-8"))
+    raw = yaml.load(path.read_text(encoding="utf-8"), Loader=_StrictLoader)
     d = Dictionary(
         questions=tuple(
             Question(**{**q, "engine": tuple(q["engine"]), "what_if": tuple(q.get("what_if", ())),
@@ -144,6 +160,7 @@ def load(path: Path = PATH) -> Dictionary:
         assumed=tuple(Group(**{**g, "engine": tuple(g["engine"])}) for g in raw["assumed"]),
         out_of_scope=tuple(Group(**{**g, "engine": tuple(g["engine"])}) for g in raw["out_of_scope"]),
         structure={k: dict(v) for k, v in raw.get("structure", {}).items()},
+        groups={k: dict(v) for k, v in raw.get("groups", {}).items()},
     )
     _check(d)
     return d

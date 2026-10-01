@@ -31,6 +31,7 @@ export interface Dictionary {
   questions: Question[];
   statements: string[];
   structure: Record<string, { definition: string; ask: string }>;
+  groups: Record<string, { ask: string }>;
 }
 
 /** An error the person (via the model) can act on, e.g. "busy, try again" or a bad answer. */

@@ -1,0 +1,17 @@
+[project]
+name = "unclaimed-simulator"
+version = "0.1.0"
+description = "A web stand-in for Alexa+: browser voice, an Echo Show-style frame, and a Strands agent on Amazon Bedrock calling the Unclaimed MCP server"
+license = "AGPL-3.0-only"
+requires-python = ">=3.11"
+dependencies = [
+    "strands-agents>=1.0",
+    "fastapi>=0.115",
+    "uvicorn>=0.30",
+]
+
+[dependency-groups]
+dev = ["pytest>=8", "httpx>=0.27"]
+
+[tool.uv]
+package = false

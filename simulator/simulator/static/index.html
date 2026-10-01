@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Unclaimed on Alexa+ (simulator)</title>
+  <meta name="description" content="A web stand-in for Alexa+ running the Unclaimed benefits screener">
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <main>
+    <header>
+      <h1>Unclaimed</h1>
+      <p class="sub">A benefits screener for Alexa+, in a simulated Echo Show. California and Illinois.</p>
+    </header>
+
+    <section class="device" aria-label="Simulated Echo Show">
+      <div class="screen">
+        <div class="pane talk">
+          <div id="say" class="say" aria-live="polite">Tap the mic and say <em>“Alexa, open Unclaimed”</em>, or type below.</div>
+          <div id="heard" class="heard"></div>
+        </div>
+        <div class="pane cards" id="cards" aria-live="polite"></div>
+      </div>
+      <div id="bar" class="bar" aria-hidden="true"></div>
+    </section>
+
+    <form id="form" class="controls" autocomplete="off">
+      <button type="button" id="mic" class="mic" aria-label="Talk">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15a3 3 0 0 0 3-3V6a3 3 0 1 0-6 0v6a3 3 0 0 0 3 3Zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-2.08A7 7 0 0 0 19 12h-2Z"/></svg>
+      </button>
+      <input id="text" type="text" maxlength="600" placeholder="Or type what you'd say…" aria-label="What you'd say">
+      <button type="submit" class="send">Send</button>
+    </form>
+
+    <div class="meta">
+      <span id="status"></span>
+      <button type="button" id="reset" class="link">New conversation</button>
+    </div>
+
+    <details class="log">
+      <summary>Conversation</summary>
+      <ol id="log"></ol>
+    </details>
+
+    <footer>
+      Simulated Alexa+: a Strands agent on Amazon Bedrock calls the Unclaimed MCP server, as Alexa+ would.
+      Nothing you say is stored. Results are estimates; agencies decide.
+    </footer>
+  </main>
+  <script src="/static/app.js"></script>
+</body>
+</html>
