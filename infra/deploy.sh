@@ -100,6 +100,15 @@ $AWS logs put-retention-policy --log-group-name "$LOGS" --retention-in-days 14
 $AWS ecs create-cluster --cluster-name "$CLUSTER" >/dev/null
 
 service_arn() { $AWS ecs list-services --cluster "$CLUSTER" --query "serviceArns[?ends_with(@, '/$1')] | [0]" --output text; }
+# Express Mode rolls a release back when its error-rate alarm fires, and that alarm counts
+# the "not found" answers internet scanners get on any public URL (it rolled back a healthy
+# release on Oct 1). Only that trigger is turned off: failed health checks still roll back.
+no_alarm_rollback() {
+  local alarm
+  alarm=$($AWS ecs describe-services --cluster "$CLUSTER" --services "$1"     --query 'services[0].deploymentConfiguration.alarms.alarmNames[0]' --output text)
+  [ "$alarm" != "None" ] || return 0  # a brand-new service may not have it yet: next deploy
+  $AWS ecs update-service --cluster "$CLUSTER" --service "$1"     --deployment-configuration "alarms={alarmNames=[$alarm],enable=false,rollback=false}" >/dev/null
+}
 endpoint() {  # https URL of a service (AWS returns the host, sometimes with a scheme)
   local host
   host=$($AWS ecs describe-express-gateway-service --service-arn "$1" \
@@ -130,6 +139,7 @@ if [ "$MCP_ARN" = "None" ]; then
 else
   $AWS ecs update-express-gateway-service --service-arn "$MCP_ARN" --task-definition-arn "$TASKDEF" >/dev/null
 fi
+no_alarm_rollback unclaimed-mcp
 MCP_URL="$(endpoint "$MCP_ARN")/mcp"
 
 say "Simulator"
@@ -145,6 +155,8 @@ if [ "$SIM_ARN" = "None" ]; then
 else
   $AWS ecs update-express-gateway-service --service-arn "$SIM_ARN" --primary-container "$SIM_CONTAINER" >/dev/null
 fi
+
+no_alarm_rollback unclaimed-simulator
 
 say "Done (services take a few minutes to become healthy)"
 echo "MCP server: $MCP_URL"
