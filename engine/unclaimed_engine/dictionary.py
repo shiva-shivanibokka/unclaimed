@@ -106,6 +106,8 @@ def _check(d: Dictionary) -> None:
         unknown = set(q.applies_when) - APPLIES_WHEN[q.entity]
         if unknown:
             raise ValueError(f"{q.id}: unknown applies_when keys {unknown}")
+        if not all(isinstance(t, str) for t in (q.definition, q.ask, *q.clarifiers)):
+            raise ValueError(f"{q.id}: phrasing must be text (a colon in YAML makes a mapping: quote it)")
         if not 1 <= q.cost <= 5:
             raise ValueError(f"{q.id}: cost must be 1-5")
         for r, allowed in q.requires.items():

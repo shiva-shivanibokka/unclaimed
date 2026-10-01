@@ -58,7 +58,7 @@ questions:
     cost: 2
     clarifiers:
       - Include tips, overtime and bonuses.
-      - If they only know take-home pay, use it and say the result is an estimate.
+      - If they only know take-home pay, give it as take-home; it is converted to pay before taxes with the tax rules.
 
   - id: weekly_hours_worked
     entity: person
