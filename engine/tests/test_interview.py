@@ -144,3 +144,11 @@ def test_multiple_choice_questions_carry_their_options():
         {"id": "a", "relationship": "head", "age": 40, "employment_income": 0, "self_employment_income": 0}])
     d = next_question(h)
     assert d["ask"]["question"] == "housing_tenure" and "RENTER" in d["ask"]["options"]
+
+
+def test_estimate_before_the_end_names_what_could_still_change():
+    # Stopping early: child care hasn't been asked and flips SNAP at $48K, so an estimate
+    # now must say SNAP depends on it (the engine would read the missing answer as $0).
+    d = next_question(la_family(48_000, has_job_health_insurance=False))
+    assert not d["stop"] and not d["core"]
+    assert "childcare_expenses" in d["unanswered"]["snap"]

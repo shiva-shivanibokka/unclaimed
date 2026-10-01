@@ -127,7 +127,8 @@ def _run(name: str, household: Household, work) -> tuple[dict, int, int]:
         raise HTTPException(status_code=422, detail=str(e)) from e
     except Exception as e:  # engine failure: log the type only, never the household
         log.error("%s failed: %s", name, type(e).__name__)
-        raise HTTPException(status_code=503, detail="calculation unavailable") from e
+        # 500, not 503: retrying the same household fails the same way (503 means "busy").
+        raise HTTPException(status_code=500, detail="calculation failed") from e
     finally:
         _slots.release()
     ms, wait_ms = round(compute * 1000), round(waited * 1000)

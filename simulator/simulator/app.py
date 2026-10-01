@@ -6,7 +6,6 @@ Run: uvicorn simulator.app:app --port 8090
 
 import json
 import logging
-import os
 import threading
 import time
 from collections import defaultdict, deque
@@ -18,24 +17,25 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from . import agent
+from .settings import setting
 
 log = logging.getLogger("unclaimed.simulator")
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 
 STATIC = Path(__file__).parent / "static"
-# Our limits, set per deployment. A screening is ~15-25 turns.
-TURNS_PER_IP_PER_HOUR = int(os.environ.get("TURNS_PER_IP_PER_HOUR", "120"))
-TURNS_PER_DAY = int(os.environ.get("TURNS_PER_DAY", "3000"))
+TURNS_PER_IP_PER_HOUR = int(setting("TURNS_PER_IP_PER_HOUR"))
+FULL_RATE_TOKENS_PER_DAY = int(setting("FULL_RATE_TOKENS_PER_DAY"))
 MAX_TEXT = 600  # characters per spoken turn
 MAX_MESSAGES = 160  # conversation length; a long screening is well under this
-MAX_HISTORY_BYTES = 400_000
+# The history is resent (and billed) every turn; a long screening's is about a third of this.
+MAX_HISTORY_BYTES = 150_000
 ALLOWED_BLOCKS = {"text", "toolUse", "toolResult"}
 
 app = FastAPI(title="Unclaimed Alexa+ simulator", version="0.1.0")
 app.mount("/static", StaticFiles(directory=STATIC), name="static")
 
 _hits: dict[str, deque] = defaultdict(deque)
-_day: list = [time.strftime("%Y-%m-%d"), 0]
+_day: list = [time.strftime("%Y-%m-%d"), 0]  # date, full-rate tokens used
 _limits = threading.Lock()
 
 
@@ -52,7 +52,7 @@ def _admit(ip: str) -> None:
         today = time.strftime("%Y-%m-%d")
         if _day[0] != today:
             _day[:] = [today, 0]
-        if _day[1] >= TURNS_PER_DAY:
+        if _day[1] >= FULL_RATE_TOKENS_PER_DAY:
             raise HTTPException(429, "The demo has reached today's limit. Please try again tomorrow.")
         hits = _hits[ip]
         while hits and hits[0] < now - 3600:
@@ -60,7 +60,11 @@ def _admit(ip: str) -> None:
         if len(hits) >= TURNS_PER_IP_PER_HOUR:
             raise HTTPException(429, "That's a lot of turns for one hour. Please try again a bit later.")
         hits.append(now)
-        _day[1] += 1
+
+
+def _spent(tokens: dict) -> None:
+    with _limits:
+        _day[1] += tokens["input"] + tokens["cache_write"] + tokens["output"]
 
 
 class Turn(BaseModel):
@@ -99,6 +103,7 @@ def turn(body: Turn, request: Request) -> dict:
     except Exception as e:
         log.error("turn failed: %s", type(e).__name__)  # never the conversation itself
         raise HTTPException(503, "Alexa couldn't answer just now. Please try again.") from e
+    _spent(out["tokens"])
     log.info("turn ms=%d tools_ms=%d model_calls=%d in_tokens=%d out_tokens=%d", out["timing"]["total_ms"],
              out["timing"]["tools_ms"], out["timing"]["model_calls"], out["tokens"]["input"], out["tokens"]["output"])
     return out

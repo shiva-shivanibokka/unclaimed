@@ -69,8 +69,7 @@ function renderCards(results) {
     amt.textContent = p.amount === undefined ? "Covered" : p.amount > 0 ? `${money(p.amount)} / ${p.per}` : "Qualifies";
     card.append(h, amt);
     const notes = [];
-    if (p.amount === 0) notes.push("amount depends on your bill");
-    if (p.conditional_on) notes.push("depends on an answer you skipped");
+    if (p.conditional_on) notes.push("depends on an answer you skipped or we didn't ask");
     if (p.eligible_people) notes.push(`for ${p.eligible_people.length} ${p.eligible_people.length === 1 ? "person" : "people"}`);
     if (notes.length) {
       const n = document.createElement("div");

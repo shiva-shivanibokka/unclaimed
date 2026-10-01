@@ -11,13 +11,20 @@ import time
 from pathlib import Path
 
 from strands import Agent
+from strands.hooks import BeforeModelCallEvent
 from strands.models import BedrockModel
 from strands.models.model import CacheConfig
 from strands.tools.mcp import MCPClient
 
-MODEL_ID = os.environ.get("SIMULATOR_MODEL_ID", "us.anthropic.claude-haiku-4-5-20251001-v1:0")
-REGION = os.environ.get("AWS_REGION", "us-east-1")
+from .settings import setting
+
+MODEL_ID = setting("SIMULATOR_MODEL_ID")
+REGION = os.environ.get("AWS_REGION")  # None: the AWS profile's region (ECS sets AWS_REGION)
 MCP_URL = os.environ.get("MCP_URL", "http://localhost:8080/mcp")
+# Caps on one turn's Bedrock use. A spoken reply is a few sentences, but a tool call carries
+# the household draft; a turn is normally a tool call or two and a reply.
+MAX_TOKENS = 4096
+MAX_MODEL_CALLS_PER_TURN = 6
 SYSTEM_PROMPT = (Path(__file__).parent / "prompt.md").read_text(encoding="utf-8")
 
 _lock = threading.Lock()
@@ -52,9 +59,18 @@ def turn(history: list[dict], text: str) -> dict:
     tools = _connect()
     # Prompt caching: the instructions, tool schemas and earlier turns repeat on every model
     # call, so cached they cost a fraction and return sooner.
-    model = BedrockModel(model_id=MODEL_ID, region_name=REGION, cache_config=CacheConfig(strategy="auto"))
+    model = BedrockModel(model_id=MODEL_ID, region_name=REGION, max_tokens=MAX_TOKENS,
+                         cache_config=CacheConfig(strategy="auto"))
     agent = Agent(model=model, messages=history, tools=tools,
                   system_prompt=SYSTEM_PROMPT, callback_handler=None)
+    calls = 0
+
+    def limit(event: BeforeModelCallEvent) -> None:
+        nonlocal calls
+        calls += 1
+        if calls > MAX_MODEL_CALLS_PER_TURN:
+            event.cancel = "Too many steps for one turn."
+    agent.add_hook(limit, BeforeModelCallEvent)
     t = time.perf_counter()
     try:
         result = agent(text)

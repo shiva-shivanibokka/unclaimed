@@ -114,6 +114,11 @@ def _check(d: Dictionary) -> None:
             raise ValueError(f"{q.id}: phrasing must be text (a colon in YAML makes a mapping: quote it)")
         if not 1 <= q.cost <= 5:
             raise ValueError(f"{q.id}: cost must be 1-5")
+        # Pay per hour needs the person's weekly hours: the dictionary names that question.
+        hours = q.answer.get("hours_from")
+        if ("hour" in q.answer.get("person_units", [])) != bool(hours) or (
+                hours and (hours not in ids or d.question(hours).entity != q.entity)):
+            raise ValueError(f"{q.id}: a per-hour unit needs hours_from, a {q.entity} question")
         for r, allowed in q.requires.items():
             if r not in ids:
                 raise ValueError(f"{q.id} requires unknown question {r}")

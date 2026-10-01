@@ -89,3 +89,17 @@ def test_duplicate_keys_are_refused(tmp_path):
     bad.write_text("questions: []\nderived: {}\nderived: {}\nassumed: []\nout_of_scope: []\n")
     with pytest.raises(ValueError, match="duplicate"):
         load.__wrapped__(bad)
+
+
+def test_pay_per_hour_names_the_hours_question(tmp_path):
+    import pytest
+    bad = tmp_path / "d.yaml"
+    bad.write_text("""questions:
+  - {id: x, entity: person, engine: [employment_income_before_lsr], definition: d, ask: a,
+     answer: {type: money, unit: u, person_units: [hour, year]}, what_if: [0, 1], cost: 1}
+derived: {}
+assumed: []
+out_of_scope: []
+""")
+    with pytest.raises(ValueError, match="hours_from"):
+        load.__wrapped__(bad)

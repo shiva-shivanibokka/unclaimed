@@ -25,7 +25,6 @@ RESULTS = ROOT / "eval" / "results"
 CASES = RESULTS / "tier_c_cases.json"
 SCORECARD = ROOT / "docs" / "scorecard.md"
 MAX_TURNS = 40  # safety net for the simulation; a screening is ~10-20 turns
-PERSON_MODEL = "us.anthropic.claude-haiku-4-5-20251001-v1:0"
 
 
 # ---- prepare (engine environment) --------------------------------------------------------
@@ -123,7 +122,8 @@ def converse(case: dict) -> dict:
     sys.path.insert(0, str(ROOT / "simulator"))
     from simulator import agent as alexa
 
-    person = Agent(model=BedrockModel(model_id=PERSON_MODEL, region_name=alexa.REGION),
+    # The simulated person runs on the same model as the simulated Alexa.
+    person = Agent(model=BedrockModel(model_id=alexa.MODEL_ID, region_name=alexa.REGION),
                    system_prompt=_person_prompt(case), callback_handler=None)
     history: list[dict] = []
     said = "Alexa, open Unclaimed."

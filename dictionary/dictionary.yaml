@@ -49,7 +49,7 @@ groups:
   disability:
     ask: Ask in one question whether anyone has a disability or long-term health condition, or is blind.
   utilities:
-    ask: Ask how they heat their home and roughly what they pay for electricity, gas, phone and internet. Skip what they don't pay for.
+    ask: Ask how they heat their home, whether heat is included in their rent (if they rent), and roughly what they pay for electricity, gas, phone and internet. Skip what they don't pay for.
   housing:
     ask: Ask whether they rent or own; then the rent, or the mortgage, property tax and home insurance.
   current_benefits:
@@ -66,7 +66,8 @@ questions:
     engine: [employment_income_before_lsr]
     definition: Wages, salary and tips from jobs, before taxes and deductions.
     ask: Ask what each working adult earns from jobs before taxes, in whatever way they know it (per paycheck and how often, or per hour and hours).
-    answer: {type: money, unit: USD per year, person_units: [hour, week, two_weeks, half_month, month, year], basis: before_tax}
+    answer: {type: money, unit: USD per year, person_units: [hour, week, two_weeks, half_month, month, year], basis: before_tax,
+             hours_from: weekly_hours_worked}
     what_if: [0, 60000]
     applies_when: {age_min: 14}
     cost: 2

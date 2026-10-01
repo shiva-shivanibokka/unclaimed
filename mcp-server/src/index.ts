@@ -10,6 +10,9 @@ import { UnitError } from "./units.js";
 import { Ajv, type ValidateFunction } from "ajv";
 import addFormats from "ajv-formats";
 import { EngineError } from "./engine.js";
+import { readFileSync } from "node:fs";
+
+const VERSION: string = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8")).version;
 
 const PORT = Number(process.env.PORT ?? 8080);
 // Browser origins allowed to call /mcp (comma-separated), e.g. the simulator's URL.
@@ -42,7 +45,7 @@ async function init(): Promise<void> {
 }
 
 function buildServer(): Server {
-  const server = new Server({ name: "unclaimed", version: "0.2.0" }, { capabilities: { tools: {} } });
+  const server = new Server({ name: "unclaimed", version: VERSION }, { capabilities: { tools: {} } });
   server.setRequestHandler(ListToolsRequestSchema, async () => ({
     tools: tools.map(({ name, title, description, inputSchema }) => ({ name, title, description, inputSchema })),
   }));
@@ -64,13 +67,15 @@ function buildServer(): Server {
       const expected = e instanceof AnswerError || e instanceof UnitError || (e instanceof EngineError && e.status < 500);
       // Log the kind only: messages can echo the person's answers.
       if (!expected) console.error(JSON.stringify({ tool: tool.name, error: e instanceof Error ? e.name : "unknown" }));
-      return { isError: true, content: [{ type: "text", text: message }] };
+      // A bug's message is internal: the model gets something it can say instead.
+      const text = expected || e instanceof EngineError ? message : "Something went wrong on our side. Apologize and offer to start over.";
+      return { isError: true, content: [{ type: "text", text }] };
     }
   });
   return server;
 }
 
-// Public and without sign-in, so each client is limited (a screening is ~30-50 calls).
+// Public and without sign-in, so each client is limited.
 const REQUESTS_PER_IP_PER_MINUTE = Number(process.env.MCP_REQUESTS_PER_IP_PER_MINUTE ?? 300);
 const windows = new Map<string, { start: number; count: number }>();
 function rateLimit(req: express.Request, res: express.Response, next: express.NextFunction) {

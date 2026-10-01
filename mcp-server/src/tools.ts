@@ -4,7 +4,7 @@
 // converts the person's units, reads answers back, and shapes results for a voice turn.
 
 import { engine, EngineError, type Dictionary, type Json, type Question } from "./engine.js";
-import { PER_YEAR, readBack, toYearly } from "./units.js";
+import { readBack, toYearly } from "./units.js";
 
 /** A problem with what the model sent (bad unit, unknown person): it can ask again. */
 export class AnswerError extends Error {}
@@ -21,6 +21,7 @@ export interface Context {
   dictionary: Dictionary;
   questions: Map<string, Question>;
   programNames: Map<string, string>;
+  states: string[]; // the states the engine's programs cover
   householdSchema: Json; // the engine's Household JSON schema; its refs point at `defs`
   defs: Json; // schema definitions, placed at the root of each tool's input schema
   personBase: Json; // the engine's Person schema: id, relationship, age
@@ -61,6 +62,7 @@ export async function loadContext(): Promise<Context> {
     dictionary,
     questions: new Map(dictionary.questions.map((q) => [q.id, q])),
     programNames: new Map(programs.map((p) => [p.id, p.name])),
+    states: [...new Set(programs.flatMap((p) => p.states as string[]))].sort(),
     householdSchema: household,
     defs,
     personBase: {
@@ -90,6 +92,11 @@ function shapeNext(ctx: Context, next: Json): Json {
   };
 }
 
+/** ZIP or county: asked like a question, but a field of the household (dictionary `structure`). */
+function isLocation(ctx: Context, question: string) {
+  return question in ctx.dictionary.structure && question !== "people";
+}
+
 function key(person: string | undefined, question: string) {
   return person ? `${person}.${question}` : question;
 }
@@ -106,7 +113,7 @@ export interface Answer {
  * call doesn't answer or decline is zero or no. Enums have no "none", so they must be answered. */
 export function noneForTheRest(ctx: Context, asked: Json[], skip: Set<string>): Answer[] {
   return asked
-    .filter((x) => !skip.has(key(x.person ?? undefined, x.question)))
+    .filter((x) => !skip.has(key(x.person ?? undefined, x.question)) && !isLocation(ctx, x.question))
     .map((x) => ({ x, q: ctx.questions.get(x.question)! }))
     .filter(({ q }) => q.answer.type !== "enum")
     .map(({ x, q }) => ({
@@ -117,9 +124,10 @@ export function noneForTheRest(ctx: Context, asked: Json[], skip: Set<string>): 
     }));
 }
 
-/** Apply answers in the person's units to the household (engine units). Returns read-backs. */
+/** Apply answers in the person's units to the household (engine units). Returns the
+ * read-backs, one per answer, in the order given. */
 export async function applyAnswers(ctx: Context, household: Json, answers: Answer[]): Promise<string[]> {
-  const said: string[] = [];
+  const said: string[] = answers.map(() => "");
   const people: Json[] = household.people;
   const target = (q: Question, a: Answer): Json => {
     if (q.entity === "household") return household;
@@ -131,16 +139,19 @@ export async function applyAnswers(ctx: Context, household: Json, answers: Answe
   // "person.question" (the form `declined` uses) is accepted for a person's answer too.
   for (const a of answers) {
     if (!a.question.includes(".")) continue;
-    const [person, question] = a.question.split(".", 2) as [string, string];
+    const dot = a.question.lastIndexOf(".");
+    const [person, question] = [a.question.slice(0, dot), a.question.slice(dot + 1)];
     if (a.person && a.person !== person) throw new AnswerError(`${a.question} names ${person} but person is ${a.person}`);
     Object.assign(a, { person, question });
   }
-  // Hours first: hourly pay needs them.
-  const ordered = [...answers].sort((a, b) => Number(b.question === "weekly_hours_worked") - Number(a.question === "weekly_hours_worked"));
+  // Hours first: hourly pay needs them (the dictionary says which question gives them).
+  const hours = new Set(ctx.dictionary.questions.map((q) => q.answer.hours_from).filter(Boolean));
+  const ordered = [...answers].sort((a, b) => Number(hours.has(b.question)) - Number(hours.has(a.question)));
   for (const a of ordered) {
-    if (a.question === "county" || a.question === "zip") {
+    const at = answers.indexOf(a);
+    if (isLocation(ctx, a.question)) {
       household[a.question] = String(a.value);
-      said.push(`${a.question}: ${a.value}`);
+      said[at] = `${a.question}: ${a.value}`;
       continue;
     }
     const q = ctx.questions.get(a.question);
@@ -152,39 +163,43 @@ export async function applyAnswers(ctx: Context, household: Json, answers: Answe
       const unit = a.unit ?? (spec.person_units?.length === 1 ? spec.person_units[0] : undefined);
       if (!unit) throw new AnswerError(`${a.question}: say per what (${spec.person_units!.join(", ")})`);
       if (a.take_home && spec.basis !== "before_tax") throw new AnswerError(`${a.question} isn't pay; take_home doesn't apply`);
-      const yearly = toYearly(spec, a.value, unit, owner.weekly_hours_worked ?? undefined);
+      const yearly = toYearly(spec, a.value, unit, spec.hours_from ? owner[spec.hours_from] ?? undefined : undefined);
       if (a.take_home) {
-        grossUps.push({ owner, q, amount: a.value, unit, yearly, at: said.length });
-        said.push(""); // filled in once converted, below
+        owner[q.id] = yearly; // a first guess, so a partner's conversion doesn't see $0
+        grossUps.push({ owner, q, amount: a.value, unit, yearly, at }); // read back once converted, below
       } else {
         owner[q.id] = yearly;
-        said.push(readBack(q.definition.split(".")[0], a.value, unit, yearly));
+        said[at] = readBack(q.definition.split(".")[0], a.value, unit, yearly);
       }
     } else if (spec.type === "enum") {
       if (!q.options?.includes(String(a.value))) throw new AnswerError(`${a.question} must be one of ${q.options?.join(", ")}`);
       owner[q.id] = a.value;
-      said.push(`${q.id}: ${a.value}`);
+      said[at] = `${q.id}: ${a.value}`;
     } else if (spec.type === "bool") {
       if (typeof a.value !== "boolean") throw new AnswerError(`${a.question} needs true or false`);
       owner[q.id] = a.value;
-      said.push(`${q.id}: ${a.value ? "yes" : "no"}`);
+      said[at] = `${q.id}: ${a.value ? "yes" : "no"}`;
     } else {
       if (typeof a.value !== "number") throw new AnswerError(`${a.question} needs a number`);
       owner[q.id] = a.value;
-      said.push(`${q.id}: ${a.value}`);
+      said[at] = `${q.id}: ${a.value}`;
     }
   }
   // Take-home pay -> pay before taxes, after every other answer is in (taxes depend on them).
-  for (const g of grossUps) {
-    const { gross } = await engine.grossUp(household, g.owner.id, g.q.id, g.yearly);
-    g.owner[g.q.id] = gross;
-    said[g.at] = readBack(g.q.definition.split(".")[0], g.amount, g.unit, gross, true);
+  // Partners are taxed jointly, so with two take-home answers each conversion runs again
+  // once the other's pay before taxes is known.
+  for (let pass = 0; pass < Math.min(grossUps.length, 2); pass++) {
+    for (const g of grossUps) {
+      g.owner[g.q.id] = (await engine.grossUp(household, g.owner.id, g.q.id, g.yearly)).gross;
+    }
   }
+  for (const g of grossUps) said[g.at] = readBack(g.q.definition.split(".")[0], g.amount, g.unit, g.owner[g.q.id], true);
   return said;
 }
 
 export function buildTools(ctx: Context): Tool[] {
-  const units = Object.keys(PER_YEAR).concat("hour");
+  const units = [...new Set(ctx.dictionary.questions.flatMap((q) => q.answer.person_units ?? []))];
+  const states = ctx.states.join(" and ");
   const answerItem = {
     type: "object",
     required: ["question", "value"],
@@ -192,7 +207,7 @@ export function buildTools(ctx: Context): Tool[] {
       question: { type: "string", description: "Question id from `ask` (or ask_in_the_same_breath), e.g. rent" },
       person: { type: "string", description: "Person id, for questions asked per person" },
       value: { type: ["number", "boolean", "string"], description: "Dollars as a number, true/false, a number, or one of the options" },
-      unit: { type: "string", enum: units, description: "For money: per what, as the person said it (hour, week, two_weeks, half_month, month, year; total for savings)" },
+      unit: { type: "string", enum: units, description: `For money: per what, as the person said it (${units.join(", ")})` },
       take_home: { type: "boolean", description: "For pay: true if the amount is take-home (after taxes); it is converted to pay before taxes" },
     },
   };
@@ -202,7 +217,7 @@ export function buildTools(ctx: Context): Tool[] {
       name: "start_screening",
       title: "Start a benefits screening",
       description:
-        "Start checking which benefits a household may qualify for (California and Illinois). Call after asking " +
+        `Start checking which benefits a household may qualify for (states covered: ${states}). Call after asking ` +
         `for the ZIP code (${ctx.dictionary.structure.zip.ask}) and who lives there (${ctx.dictionary.structure.people.ask}). ` +
         "Returns the household draft (pass it unchanged to every later call) and the first question to ask. " +
         "Nothing about the person is stored.",
@@ -223,9 +238,8 @@ export function buildTools(ctx: Context): Tool[] {
         const { states } = await engine.zip(zip);
         const found = Object.keys(states);
         if (found.length === 0) {
-          return { supported: false, say: "This ZIP code isn't in a state Unclaimed covers yet (California and Illinois)." };
+          return { supported: false, say: `This ZIP code isn't in a state Unclaimed covers yet (it covers ${states}).` };
         }
-        // A ZIP in two supported states is rare; the engine's /next asks the county, which settles the state.
         const household = { state: found[0], zip, people };
         return { supported: true, household, next: shapeNext(ctx, await engine.next(household)) };
       },
@@ -236,7 +250,8 @@ export function buildTools(ctx: Context): Tool[] {
       description:
         "Record what the person said, in their own units (e.g. 1450 per month; 18 per hour; take-home pay), " +
         "and get the next question. Answer the asked question and any ask_in_the_same_breath ones together. " +
-        "If the person doesn't want to answer, list the question in `declined` (that's fine: results will say what depends on it). " +
+        "If the person doesn't want to answer, list the question in `declined` (that's fine: results will say what depends on it); " +
+        "if they answer it later after all, just answer it. " +
         "Read the `read_back` lines to the person so they can correct anything. When `next.stop` is true, call get_results.",
       inputSchema: {
         type: "object",
@@ -262,11 +277,19 @@ export function buildTools(ctx: Context): Tool[] {
         if (rest_none) {
           // Stateless: what was just asked is the engine's next question for the household as
           // it was sent (served from the engine's cache). Filled-in "none"s aren't read back.
+          // A filled-in "no" can be a claim the person didn't make (heat not included in the
+          // rent), so those are read back to be corrected; filled-in zeros aren't (too many to say).
           const asked = await engine.next(household);
           const skip = new Set([...answers.map((a: Answer) => key(a.person, a.question)), ...declined]);
-          if (!asked.stop) await applyAnswers(ctx, h, noneForTheRest(ctx, [asked.ask, ...asked.together], skip));
+          if (!asked.stop) {
+            const fills = noneForTheRest(ctx, [asked.ask, ...asked.together], skip);
+            const said = await applyAnswers(ctx, h, fills);
+            read_back.push(...said.filter((_, i) => typeof fills[i].value === "boolean"));
+          }
         }
-        for (const d of declined as string[]) if (!h.declined?.includes(d)) h.declined = [...(h.declined ?? []), d];
+        // An answer replaces an earlier "I'd rather not say".
+        const answered = new Set(answers.map((a: Answer) => key(a.person, a.question)));
+        h.declined = [...new Set([...(h.declined ?? []), ...(declined as string[])])].filter((d) => !answered.has(d));
         return { household: h, read_back, next: shapeNext(ctx, await engine.next(h)) };
       },
     },
@@ -275,8 +298,9 @@ export function buildTools(ctx: Context): Tool[] {
       title: "Get benefit results",
       description:
         "Calculate which programs the household qualifies for and how much, once the questions stop (or when the person " +
-        "wants an estimate now). Programs in `conditional_on` depend on an answer the person declined: say 'if ...', " +
-        "never a flat 'you qualify'. Say the `we_assumed` statements briefly.",
+        "wants an estimate now). Programs with `conditional_on` depend on an answer the person declined or wasn't asked yet: " +
+        "say 'if ...', never a flat 'you qualify'. Say the `we_assumed` statements briefly. If `ready` is false, " +
+        "ask `next.ask` first: no estimate is possible without it.",
       inputSchema: {
         type: "object",
         required: ["household"],
@@ -284,9 +308,17 @@ export function buildTools(ctx: Context): Tool[] {
         $defs: ctx.defs,
       },
       run: async ({ household }) => {
+        // Before the questions run out, an unasked answer is read by the engine as 0/no: the
+        // essentials (location, pay) must be in, and what's still open makes results conditional.
+        const next = await engine.next(household);
+        if (!next.stop && next.core) return { ready: false, next: shapeNext(ctx, next) };
         const r = await engine.calculate(household);
         const conditional: Json = r.conditional ?? {};
+        for (const [program, keys] of Object.entries<string[]>(next.unanswered ?? {})) {
+          conditional[program] = [...new Set([...(conditional[program] ?? []), ...keys])];
+        }
         return {
+          ready: true,
           as_of: r.as_of,
           county: r.county,
           programs: r.programs.map((p: Json) => ({
