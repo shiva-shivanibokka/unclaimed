@@ -25,6 +25,9 @@ MAX_MONEY = 10_000_000
 # Screening dates: last year through next year, the range our official-figure tests
 # cover. Outside it the engine errors (no parameters) or silently extrapolates.
 AS_OF_YEARS_AROUND_TODAY = 1
+# Declined answers per household. Each costs a what-if per possible answer on every
+# /calculate, so a cap keeps one request from holding the engine for seconds.
+MAX_DECLINED = 20
 
 
 def _field(q: Question) -> tuple[Any, Any]:
@@ -55,7 +58,7 @@ class _HouseholdBase(BaseModel):
     zip: str | None = Field(None, pattern=r"^\d{5}$", description="Used to find the county when county is unknown")
     as_of: date | None = Field(None, description="Screening date; defaults to today")
     declined: list[str] = Field(
-        default_factory=list,
+        default_factory=list, max_length=MAX_DECLINED,
         description="Questions the person chose not to answer: 'question_id' for household questions, "
                     "'person_id.question_id' for person questions. Calculated as unknown, reported as declined.")
 

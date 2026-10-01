@@ -3,11 +3,18 @@ cached by the exact household, and after each one the likely next households (ev
 question just asked answered "no"/"none", or the main one answered "yes") are computed in
 the background while the person is still talking. Exact answers like "$1,450 rent" miss
 the cache and are computed on demand.
+
+Guesses never come first: a guess starts only when no real request is waiting, and only
+for the latest request (older guesses are dropped). A real request can still wait for a
+guess already running (one decision at most); /next reports that wait.
 """
 
+import itertools
 import threading
+import time
 from collections import OrderedDict
 from concurrent.futures import ThreadPoolExecutor
+from datetime import date
 
 from .batch import apply
 from .dictionary import load
@@ -18,10 +25,16 @@ CACHE_SIZE = 512  # households; a decision is a few KB
 _cache: OrderedDict[str, dict] = OrderedDict()
 _cache_lock = threading.Lock()
 _pool = ThreadPoolExecutor(max_workers=1, thread_name_prefix="think-ahead")
+_latest = itertools.count()  # request number; guesses for older requests are dropped
+_newest = 0
+_waiting = 0  # real requests waiting for or holding the engine
+_state = threading.Lock()
 
 
 def _key(h: Household) -> str:
-    return h.model_dump_json()
+    # The screening date decides the rules (e.g. the SNAP year starts Oct 1), so an
+    # unset date is keyed by today's.
+    return h.model_dump_json() + (h.as_of or date.today()).isoformat()
 
 
 def _get(key: str) -> dict | None:
@@ -53,28 +66,38 @@ def likely_next(h: Household, decision: dict) -> list[Household]:
     return [apply(h, low), apply(h, high)]
 
 
-def decide(h: Household, compute_lock: threading.Lock) -> tuple[dict, bool]:
-    """(decision, served from cache). Queues think-ahead for the likely next households."""
+def decide(h: Household, compute_lock: threading.Lock) -> tuple[dict, bool, float]:
+    """(decision, served from cache, seconds waited for the engine). Queues think-ahead for
+    the likely next households."""
+    global _newest, _waiting
     key = _key(h)
-    cached = _get(key)
-    if cached is None:
-        with compute_lock:
-            cached = next_question(h)
+    cached, waited = _get(key), 0.0
+    hit = cached is not None
+    if not hit:
+        with _state:
+            _waiting += 1
+        try:
+            t = time.perf_counter()
+            with compute_lock:
+                waited = time.perf_counter() - t
+                cached = next_question(h)
+        finally:
+            with _state:
+                _waiting -= 1
         _put(key, cached)
-        hit = False
-    else:
-        hit = True
+    with _state:
+        _newest = request = next(_latest)
     for nxt in likely_next(h, cached):
-        _pool.submit(_prefetch, nxt, compute_lock)
-    return cached, hit
+        _pool.submit(_prefetch, nxt, compute_lock, request)
+    return cached, hit, waited
 
 
-def _prefetch(h: Household, compute_lock: threading.Lock) -> None:
+def _prefetch(h: Household, compute_lock: threading.Lock, request: int) -> None:
     key = _key(h)
-    if _get(key) is not None:
-        return
-    # Never make a person wait behind a guess: skip if a real request holds the engine.
-    if not compute_lock.acquire(blocking=False):
+    with _state:
+        if request != _newest or _waiting:
+            return  # stale, or a person is waiting: never make them wait behind a guess
+    if _get(key) is not None or not compute_lock.acquire(blocking=False):
         return
     try:
         decision = next_question(h)

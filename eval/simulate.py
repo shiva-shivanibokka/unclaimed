@@ -2,10 +2,15 @@
 Question Engine asks. The result where the interview stops is compared with the
 full-information result (every question answered).
 
-A case is a dict: state, county or zip, people (id, relationship, age, plus any answers),
-household (household answers), declines (keys the person won't answer, e.g.
-"a.immigration_status"). Anything the truth doesn't specify is answered with the
-question's "none" value (its low what-if: 0, no, renter, citizen).
+A case is a dict: state, county and/or zip, people (id, relationship, age, plus any
+answers), household (household answers), declines (keys the person won't answer, e.g.
+"a.immigration_status"). With a zip, the interview starts from the ZIP alone and the
+oracle answers "which county?" with the case's county. Anything the truth doesn't specify
+is answered with the question's low what-if (0, no, renter, citizen; 1 year in the US and
+0 work quarters), so only answers a case sets away from that can catch a skipped question.
+
+Compared per program and, for programs decided person by person (Medicaid, CHIP, WIC),
+per person ("medicaid:b").
 """
 
 import sys
@@ -14,7 +19,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "engine"))
 
-from unclaimed_engine.batch import apply  # noqa: E402
+from unclaimed_engine.batch import PERSON_SEP, apply  # noqa: E402
 from unclaimed_engine.calculate import calculate  # noqa: E402
 from unclaimed_engine.dictionary import load  # noqa: E402
 from unclaimed_engine.household import Household  # noqa: E402
@@ -38,7 +43,9 @@ def _truth(case: dict) -> dict:
 
 
 def _start(case: dict) -> Household:
-    return Household(state=case["state"], county=case.get("county"), zip=case.get("zip"), as_of=case.get("as_of"),
+    """What the interview starts from: where (the ZIP alone when there is one) and who."""
+    return Household(state=case["state"], county=None if case.get("zip") else case.get("county"),
+                     zip=case.get("zip"), as_of=case.get("as_of"),
                      people=[{k: p[k] for k in STRUCTURE} for p in case["people"]])
 
 
@@ -54,7 +61,7 @@ def _check(case: dict, full: Household) -> None:
 
 def run(case: dict) -> dict:
     truth = _truth(case)
-    full = apply(_start(case), truth)
+    full = apply(_start(case).model_copy(update={"county": case.get("county")}), truth)
     _check(case, full)
     declines = set(case.get("declines", []))
     h = _start(case)
@@ -65,18 +72,23 @@ def run(case: dict) -> dict:
         latencies.append((time.perf_counter() - t) * 1000)
         if d["stop"]:
             break
-        keys = [(x["person"], x["question"]) for x in [d["ask"], *d["together"]]]
         turns.append(d["ask"]["question"])
+        if d["ask"]["question"] == "county":
+            h = h.model_copy(update={"county": case["county"]})
+            continue
+        keys = [(x["person"], x["question"]) for x in [d["ask"], *d["together"]]]
         answers = {k: truth[k] for k in keys if _label(k) not in declines}
         refused = [_label(k) for k in keys if _label(k) in declines]
         h = apply(h, answers).model_copy(update={"declined": [*h.declined, *refused]})
-    got, want = _programs(calculate(h)), _programs(calculate(full))
+    ids = [p.id for p in h.people]
+    got, want = _programs(calculate(h), ids), _programs(calculate(full), ids)
     # Programs that depend on a declined answer are reported as "if ...", not "you qualify".
     conditional = set(conditional_on_declined(h))
     return {
         "id": case["id"], "turns": len(turns), "asked": turns, "hit_turn_cap": len(turns) >= MAX_TURNS,
         "decision_ms": latencies,
-        "false_qualify": sorted(p for p in want if got[p][0] and not want[p][0] and p not in conditional),
+        "false_qualify": sorted(p for p in want if got[p][0] and not want[p][0]
+                                and p.split(PERSON_SEP)[0] not in conditional),
         "conditional": sorted(conditional),
         "missed": sorted(p for p in want if want[p][0] and not got[p][0]),
         "amount_error": round(sum(abs(got[p][1] - want[p][1]) for p in want if got[p][0] and want[p][0]), 2),
@@ -89,7 +101,14 @@ def _label(key) -> str:
     return qid if pid is None else f"{pid}.{qid}"
 
 
-def _programs(result: dict) -> dict[str, tuple[bool, float]]:
-    """program -> (eligible, monthly dollars). Coverage programs (no `amount`: their engine
-    value is the cost of coverage) count for eligibility only."""
-    return {p["id"]: (p["eligible"], p["monthly_value"] if "amount" in p else 0.0) for p in result["programs"]}
+def _programs(result: dict, ids: list[str]) -> dict[str, tuple[bool, float]]:
+    """program -> (eligible, monthly dollars), plus "program:person" -> (eligible, 0) for
+    programs decided person by person. Coverage programs (no `amount`: their engine value
+    is the cost of coverage) count for eligibility only."""
+    out = {}
+    for p in result["programs"]:
+        out[p["id"]] = (p["eligible"], p["monthly_value"] if "amount" in p else 0.0)
+        if "eligible_people" in p:
+            for pid in ids:
+                out[f"{p['id']}{PERSON_SEP}{pid}"] = (pid in p["eligible_people"], 0.0)
+    return out

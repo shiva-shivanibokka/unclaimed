@@ -44,6 +44,11 @@ def run_tier(name: str, cases: list[dict], workers: int) -> list[dict]:
     return results
 
 
+def _spread(xs: list[float]) -> str:
+    xs = sorted(xs)
+    return f"{statistics.median(xs):,.0f} / {xs[int(0.95 * (len(xs) - 1))]:,.0f} / {xs[-1]:,.0f}"
+
+
 def summarize(name: str, results: list[dict]) -> str:
     ok = [r for r in results if "error" not in r]
     errors = [r for r in results if "error" in r]
@@ -61,7 +66,7 @@ def summarize(name: str, results: list[dict]) -> str:
         f"| Missed a program they qualify for | {len(missed)} households |",
         f"| Same eligibility as the full-information answer, every program | {len(exact)} / {len(ok)} |",
         f"| Questions asked (turns): median / max | {statistics.median(turns):.0f} / {max(turns)} |" if turns else "",
-        f"| Amount error where both say eligible, median per household | ${statistics.median(r['amount_error'] for r in ok):,.0f}/mo |" if ok else "",
+        f"| Amount error where both say eligible, per household: median / p95 / max | {_spread([r['amount_error'] for r in ok])} $/mo |" if ok else "",
         f"| Decision time: median / p95 | {statistics.median(ms):.0f} / {sorted(ms)[int(0.95 * (len(ms) - 1))]:.0f} ms |" if ms else "",
         f"| Results disclosed as conditional on a declined answer | {sum(1 for r in ok if r['conditional'])} households |",
         f"| Errors | {len(errors)} |",

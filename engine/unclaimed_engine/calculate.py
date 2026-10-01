@@ -219,6 +219,14 @@ def program_values(sim: Simulation, program: Program, year: str, month: str):
     return monthly, flags
 
 
+def person_flags(sim: Simulation, program: Program, year: str, month: str):
+    """Eligible per person, in situation order, for programs decided person by person
+    (Medicaid, CHIP, WIC); None for programs decided for the household."""
+    if program.eligibility and system.variables[program.eligibility].entity.key == "person":
+        return sim.calculate(program.eligibility, period_for(program.eligibility, year, month)) > 0
+    return None
+
+
 def resolve_county_for(h: Household) -> tuple[str | None, list[str]]:
     """(county, candidates): the given county (which must contain the ZIP), or the ZIP's."""
     if h.zip and not h.county:
@@ -239,8 +247,8 @@ def _program_result(sim: Simulation, program: Program, state: str, year: str, mo
         "monthly_value": round(monthly, 2),
     }
     result["eligible"] = bool(flags[0])
-    if program.eligibility and system.variables[program.eligibility].entity.key == "person":
-        people = sim.calculate(program.eligibility, period_for(program.eligibility, year, month))
+    people = person_flags(sim, program, year, month)
+    if people is not None:
         result["eligible_people"] = [pid for pid, ok in zip(person_ids, people) if ok]
     if program.coverage:
         result.pop("amount")  # value of coverage, not money paid to the person

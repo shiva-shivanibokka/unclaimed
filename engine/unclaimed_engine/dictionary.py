@@ -25,7 +25,7 @@ ANSWER_TYPES = ("money", "bool", "number", "enum")
 # Person questions: the person's age. Household questions: who is in the household.
 APPLIES_WHEN = {
     "person": {"age_min", "age_max", "age_min_or_disabled", "non_citizen", "states"},
-    "household": {"any_child_under", "any_age_at_least", "any_age_min_or_disabled", "states"},
+    "household": {"any_child_under_or_disabled", "any_age_at_least", "any_age_min_or_disabled", "states"},
 }
 # Enum members that mean "not given" in the engine: never offered as an answer, so an
 # unknown can't arrive disguised as a known value.
