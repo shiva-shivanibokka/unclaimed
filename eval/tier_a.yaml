@@ -1,0 +1,261 @@
+# Tier A: handwritten households covering the situations the screener must get right.
+# Each is the household's full truth; the simulated interview only learns what it asks.
+# Answers use dictionary question ids in engine units (money per year; savings a balance).
+# Unspecified answers are "none" (0, no, renter, citizen). See eval/simulate.py.
+
+- id: ca-la-single-mom-2kids-32k
+  state: CA
+  county: LOS_ANGELES_COUNTY_CA
+  people:
+    - {id: mom, relationship: head, age: 32, employment_income: 32000, weekly_hours_worked: 40}
+    - {id: k1, relationship: child, age: 4}
+    - {id: k2, relationship: child, age: 9}
+  household: {rent: 18000, electricity_bill: 900, gas_bill: 400, phone_bill: 600}
+
+- id: ca-la-single-mom-2kids-48k-childcare
+  state: CA
+  county: LOS_ANGELES_COUNTY_CA
+  people:
+    - {id: mom, relationship: head, age: 32, employment_income: 48000, weekly_hours_worked: 40}
+    - {id: k1, relationship: child, age: 4}
+    - {id: k2, relationship: child, age: 9}
+  household: {rent: 21600, childcare_expenses: 12000, electricity_bill: 1100}
+
+- id: ca-fresno-couple-baby-pregnant
+  state: CA
+  county: FRESNO_COUNTY_CA
+  people:
+    - {id: a, relationship: head, age: 27, employment_income: 30000, weekly_hours_worked: 40}
+    - {id: b, relationship: spouse, age: 25, is_pregnant: true}
+    - {id: c, relationship: child, age: 0}
+  household: {rent: 13200, heating_type: NATURAL_GAS, gas_bill: 600, electricity_bill: 1200}
+
+- id: ca-sf-single-adult-gig-18k
+  state: CA
+  zip: "94110"
+  people:
+    - {id: a, relationship: head, age: 29, self_employment_income: 18000, weekly_hours_worked: 25}
+  household: {rent: 15600, phone_bill: 600, internet_bill: 720}
+
+- id: ca-single-adult-no-work
+  state: CA
+  county: SACRAMENTO_COUNTY_CA
+  people:
+    - {id: a, relationship: head, age: 35, weekly_hours_worked: 0}
+  household: {rent: 9600}
+
+- id: ca-senior-ssi
+  state: CA
+  county: LOS_ANGELES_COUNTY_CA
+  people:
+    - {id: a, relationship: head, age: 74, receives_ssi: true, social_security_retirement: 4800, medical_expenses: 1200}
+  household: {rent: 10800, electricity_bill: 600}
+
+- id: ca-senior-couple-owners
+  state: CA
+  county: SAN_DIEGO_COUNTY_CA
+  people:
+    - {id: a, relationship: head, age: 71, social_security_retirement: 18000, pension_income: 6000}
+    - {id: b, relationship: spouse, age: 69, social_security_retirement: 9000, medical_expenses: 2400}
+  household: {housing_tenure: OWNER_WITHOUT_MORTGAGE, property_taxes: 3600, home_insurance: 1500, savings: 12000}
+
+- id: ca-disabled-adult-ssdi
+  state: CA
+  county: ALAMEDA_COUNTY_CA
+  people:
+    - {id: a, relationship: head, age: 48, is_disabled: true, social_security_disability: 16800}
+  household: {rent: 12000, electricity_bill: 700}
+
+- id: ca-disabled-child
+  state: CA
+  county: RIVERSIDE_COUNTY_CA
+  people:
+    - {id: a, relationship: head, age: 38, employment_income: 36000, weekly_hours_worked: 40}
+    - {id: b, relationship: child, age: 10, is_disabled: true}
+  household: {rent: 19200}
+
+- id: ca-undocumented-parent-citizen-kids
+  state: CA
+  county: LOS_ANGELES_COUNTY_CA
+  people:
+    - {id: a, relationship: head, age: 34, employment_income: 26000, weekly_hours_worked: 40, immigration_status: UNDOCUMENTED}
+    - {id: b, relationship: child, age: 6}
+    - {id: c, relationship: child, age: 2}
+  household: {rent: 16800}
+
+- id: ca-lpr-recent-family
+  state: CA
+  county: SANTA_CLARA_COUNTY_CA
+  people:
+    - {id: a, relationship: head, age: 36, employment_income: 28000, weekly_hours_worked: 40, immigration_status: LEGAL_PERMANENT_RESIDENT, years_in_us: 2, work_quarters: 8}
+    - {id: b, relationship: spouse, age: 33, immigration_status: LEGAL_PERMANENT_RESIDENT, years_in_us: 2}
+    - {id: c, relationship: child, age: 5}
+  household: {rent: 24000}
+
+- id: ca-student-adult-child
+  state: CA
+  county: ORANGE_COUNTY_CA
+  people:
+    - {id: a, relationship: head, age: 49, employment_income: 42000, weekly_hours_worked: 40}
+    - {id: b, relationship: child, age: 20, is_full_time_college_student: true, employment_income: 6000, weekly_hours_worked: 10}
+  household: {rent: 22800}
+
+- id: ca-adult-child-working
+  state: CA
+  county: KERN_COUNTY_CA
+  people:
+    - {id: a, relationship: head, age: 52, employment_income: 14000, weekly_hours_worked: 25}
+    - {id: b, relationship: child, age: 24, employment_income: 30000, weekly_hours_worked: 40}
+  household: {rent: 14400}
+
+- id: ca-unemployed-parent
+  state: CA
+  county: SAN_BERNARDINO_COUNTY_CA
+  people:
+    - {id: a, relationship: head, age: 40, unemployment_compensation: 9000, weekly_hours_worked: 0}
+    - {id: b, relationship: child, age: 12}
+  household: {rent: 16800, savings: 500}
+
+- id: ca-high-income-family
+  state: CA
+  county: SAN_MATEO_COUNTY_CA
+  people:
+    - {id: a, relationship: head, age: 41, employment_income: 160000, weekly_hours_worked: 45, has_job_health_insurance: true}
+    - {id: b, relationship: spouse, age: 40, employment_income: 60000, weekly_hours_worked: 30, has_job_health_insurance: true}
+    - {id: c, relationship: child, age: 8}
+  household: {rent: 48000}
+
+- id: ca-calworks-family-savings
+  state: CA
+  county: LOS_ANGELES_COUNTY_CA
+  people:
+    - {id: a, relationship: head, age: 28, weekly_hours_worked: 0}
+    - {id: b, relationship: child, age: 3}
+  household: {rent: 12000, savings: 20000}
+
+- id: ca-child-support-mom
+  state: CA
+  county: SACRAMENTO_COUNTY_CA
+  people:
+    - {id: a, relationship: head, age: 30, employment_income: 22000, weekly_hours_worked: 32, child_support_received: 4800}
+    - {id: b, relationship: child, age: 7}
+  household: {rent: 13200}
+
+- id: ca-declines-immigration
+  state: CA
+  county: LOS_ANGELES_COUNTY_CA
+  people:
+    - {id: a, relationship: head, age: 33, employment_income: 25000, weekly_hours_worked: 40, immigration_status: UNDOCUMENTED}
+    - {id: b, relationship: child, age: 4}
+  household: {rent: 15600}
+  declines: [a.immigration_status]
+
+- id: il-chicago-single-mom-3kids
+  state: IL
+  county: COOK_COUNTY_IL
+  people:
+    - {id: a, relationship: head, age: 31, employment_income: 27000, weekly_hours_worked: 36}
+    - {id: b, relationship: child, age: 2}
+    - {id: c, relationship: child, age: 6}
+    - {id: d, relationship: child, age: 11}
+  household: {rent: 14400, heating_type: NATURAL_GAS, gas_bill: 900, childcare_expenses: 6000}
+
+- id: il-senior-alone-ss
+  state: IL
+  county: COOK_COUNTY_IL
+  people:
+    - {id: a, relationship: head, age: 70, social_security_retirement: 14000}
+  household: {rent: 9600, heating_type: NATURAL_GAS}
+
+- id: il-rural-couple-farmworker
+  state: IL
+  county: CHAMPAIGN_COUNTY_IL
+  people:
+    - {id: a, relationship: head, age: 45, employment_income: 24000, weekly_hours_worked: 40}
+    - {id: b, relationship: spouse, age: 43, employment_income: 8000, weekly_hours_worked: 15}
+    - {id: c, relationship: child, age: 14}
+    - {id: d, relationship: child, age: 16}
+  household: {housing_tenure: OWNER_WITH_MORTGAGE, mortgage_payments: 9600, property_taxes: 2400, heating_type: PROPANE}
+
+- id: il-single-adult-abawd-working
+  state: IL
+  county: PEORIA_COUNTY_IL
+  people:
+    - {id: a, relationship: head, age: 26, employment_income: 15000, weekly_hours_worked: 30}
+  household: {rent: 8400}
+
+- id: il-single-adult-abawd-not-working
+  state: IL
+  county: PEORIA_COUNTY_IL
+  people:
+    - {id: a, relationship: head, age: 26, employment_income: 4000, weekly_hours_worked: 10}
+  household: {rent: 6000}
+
+- id: il-pregnant-young-woman
+  state: IL
+  county: COOK_COUNTY_IL
+  people:
+    - {id: a, relationship: head, age: 21, employment_income: 12000, weekly_hours_worked: 25, is_pregnant: true}
+  household: {rent: 9000}
+
+- id: il-disabled-ssi-adult
+  state: IL
+  county: COOK_COUNTY_IL
+  people:
+    - {id: a, relationship: head, age: 55, is_disabled: true, receives_ssi: true}
+  household: {rent: 7200, receives_snap: true}
+
+- id: il-grandparent-age-head-teen
+  state: IL
+  county: MADISON_COUNTY_IL
+  people:
+    - {id: a, relationship: head, age: 62, social_security_retirement: 12000, pension_income: 4000}
+    - {id: b, relationship: child, age: 15}
+  household: {rent: 10800}
+
+- id: il-lpr-senior-long-resident
+  state: IL
+  county: COOK_COUNTY_IL
+  people:
+    - {id: a, relationship: head, age: 68, immigration_status: LEGAL_PERMANENT_RESIDENT, years_in_us: 12, work_quarters: 44}
+  household: {rent: 9600}
+
+- id: il-middle-income-family
+  state: IL
+  county: DUPAGE_COUNTY_IL
+  people:
+    - {id: a, relationship: head, age: 38, employment_income: 72000, weekly_hours_worked: 40, has_job_health_insurance: true}
+    - {id: b, relationship: spouse, age: 36}
+    - {id: c, relationship: child, age: 3}
+    - {id: d, relationship: child, age: 7}
+  household: {housing_tenure: OWNER_WITH_MORTGAGE, mortgage_payments: 18000, property_taxes: 6000, childcare_expenses: 9000}
+
+- id: il-tanf-family-no-income
+  state: IL
+  county: COOK_COUNTY_IL
+  people:
+    - {id: a, relationship: head, age: 24, weekly_hours_worked: 0}
+    - {id: b, relationship: child, age: 1}
+  household: {rent: 9600, receives_tanf: true}
+
+- id: il-veteran-disability
+  state: IL
+  county: WILL_COUNTY_IL
+  people:
+    - {id: a, relationship: head, age: 58, veterans_benefits: 20000, is_disabled: true}
+  household: {rent: 12000}
+
+- id: il-student-single
+  state: IL
+  county: CHAMPAIGN_COUNTY_IL
+  people:
+    - {id: a, relationship: head, age: 21, is_full_time_college_student: true, employment_income: 8000, weekly_hours_worked: 12}
+  household: {rent: 7200}
+
+- id: il-zip-split-county
+  state: IL
+  zip: "60011"
+  people:
+    - {id: a, relationship: head, age: 33, employment_income: 30000, weekly_hours_worked: 40}
+    - {id: b, relationship: child, age: 5}
+  household: {rent: 15600}

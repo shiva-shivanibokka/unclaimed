@@ -8,12 +8,16 @@ Python service that runs [PolicyEngine-US](https://github.com/PolicyEngine/polic
 - `unclaimed_engine/programs.py`: the programs we screen for, mapped to PolicyEngine variables
 - `unclaimed_engine/calculate.py`: household → PolicyEngine situation → per-program results + assumptions
 - `unclaimed_engine/geo.py` + `data/zip_county.csv`: ZIP → county (HUD USPS crosswalk, residential-address weighted)
-- `unclaimed_engine/app.py`: FastAPI (`GET /health`, `GET /programs`, `GET /dictionary`, `POST /calculate`, schema at `/openapi.json`), warmed up at startup
+- `question_engine/`: the generic Question Engine library (no benefits knowledge; see its README)
+- `unclaimed_engine/interview.py`: the benefits interview on top of it: candidates from the dictionary (applies_when, requires), core questions first, household-wide asks, stop rule, results conditional on declined answers
+- `unclaimed_engine/batch.py`: many households in one simulation (what-ifs ~100× faster than one by one)
+- `unclaimed_engine/think_ahead.py`: decision cache + background computation for likely next answers
+- `unclaimed_engine/app.py`: FastAPI (`GET /health`, `GET /programs`, `GET /dictionary`, `POST /next`, `POST /calculate`, schema at `/openapi.json`), warmed up at startup
 - `tests/`: results vs. official published figures (USDA, IRS, state law), and the API contract
 - `scripts/measure_latency.py`: warm latency per household shape and per program
 - `scripts/trace_inputs.py`, `scripts/sensitivity_scan.py`: which inputs the programs read, and which change results (evidence for the dictionary)
 
-The Question Engine (`question_engine/`) arrives in Stage 3.
+Evaluation (tiers A and B, scorecard): `../eval/`, results in `../docs/scorecard.md`.
 
 ## Run (Linux / WSL)
 
@@ -49,6 +53,7 @@ curl -s localhost:8000/calculate -H 'content-type: application/json' -d '{
 - **Single source of truth.** Allowed immigration statuses, county names and the defaults reported in `assumptions` are read from PolicyEngine at startup, not copied. Supported states are defined once, in `programs.py`. Other components read `/programs` and `/openapi.json` rather than re-typing them.
 - **Household shape (v1).** One head, an optional spouse, and children (each younger than the head). Tax roles come from `relationship`, never from PolicyEngine's age-based guess (which would make an 18-year-old the spouse). Children under 19, full-time students under 24, or disabled children are dependents; other adult children file their own return. Structural engine inputs (tax unit IDs, household head, own children, FIPS codes, ZIP) are derived from the structure, never left to engine defaults. Other adults (grandparents, roommates) aren't supported yet.
 - **Limits.** `as_of` within one year of today (the range the official-figure tests cover; outside it the engine errors or extrapolates). Money fields within ±$10M. A given `county` must contain the given `zip`.
+- **Interview (`POST /next`).** Send the household as known so far (answers + `declined`); get the next question with the ones to ask in the same breath (`together`: the same question for everyone else, or the rest of its group), or `stop`. On stop, `conditional` lists programs that depend on a declined answer (the results say "if ..."). After 10 questions `offer_estimate` is true. Tuning (`FLIP_WEIGHT`, `STOP_BELOW` $25/mo, `ESTIMATE_OFFER_AFTER`) lives in `interview.py`. `cached` says whether think-ahead had it ready.
 - **Overload.** At most `UNCLAIMED_MAX_IN_FLIGHT` (default 8) calculations running or waiting; beyond that, 503 at once. `ms` is compute time, `wait_ms` the time spent queued. `/health` stays responsive under load. Engine failures return a generic 503 and log only the error type.
 - **Privacy.** Nothing is stored; logs carry only the state, the number of people and the timing.
 

@@ -45,7 +45,9 @@ class Question:
     cost: int  # 1 easy ... 5 sensitive
     what_if: tuple[Any, ...] = ()  # low/high values the Question Engine tries
     applies_when: dict[str, Any] = field(default_factory=dict)
-    requires: tuple[str, ...] = ()
+    # Questions that must be answered first: question id -> allowed values, or None for
+    # "answered with a non-zero / yes value" (e.g. hours only for someone with earnings).
+    requires: dict[str, tuple[Any, ...] | None] = field(default_factory=dict)
     clarifiers: tuple[str, ...] = ()
     group: str | None = None  # asked together (e.g. "other_income")
     core: bool = False  # one of the five core questions
@@ -106,9 +108,12 @@ def _check(d: Dictionary) -> None:
             raise ValueError(f"{q.id}: unknown applies_when keys {unknown}")
         if not 1 <= q.cost <= 5:
             raise ValueError(f"{q.id}: cost must be 1-5")
-        for r in q.requires:
+        for r, allowed in q.requires.items():
             if r not in ids:
                 raise ValueError(f"{q.id} requires unknown question {r}")
+            other = d.question(r)
+            if allowed and other.answer["type"] == "enum" and not set(allowed) <= set(other.options):
+                raise ValueError(f"{q.id} requires {r} in {allowed}, not all valid options")
         for var in q.engine:
             engine_entity = system.variables[var].entity.key
             if q.entity == "person" and engine_entity != "person":
@@ -117,13 +122,20 @@ def _check(d: Dictionary) -> None:
                 raise ValueError(f"{q.id} is per household but {var} is per person: set on_person")
 
 
+def _requires(raw) -> dict[str, tuple[Any, ...] | None]:
+    """`requires` as a list of ids (answered, non-zero) or a mapping id -> allowed values."""
+    if isinstance(raw, list):
+        return {r: None for r in raw}
+    return {r: tuple(v) if v is not None else None for r, v in raw.items()}
+
+
 @cache
 def load(path: Path = PATH) -> Dictionary:
     raw = yaml.safe_load(path.read_text(encoding="utf-8"))
     d = Dictionary(
         questions=tuple(
             Question(**{**q, "engine": tuple(q["engine"]), "what_if": tuple(q.get("what_if", ())),
-                        "requires": tuple(q.get("requires", ())), "clarifiers": tuple(q.get("clarifiers", ()))})
+                        "requires": _requires(q.get("requires", {})), "clarifiers": tuple(q.get("clarifiers", ()))})
             for q in raw["questions"]
         ),
         derived=dict(raw["derived"]),

@@ -64,9 +64,10 @@ class _Structure:
     spouse: tuple[str, ...]
     dependents: tuple[str, ...]
     own_filers: tuple[str, ...]  # adult children, filing their own return
+    id_offset: int = 0  # keeps tax unit IDs unique when several households share one simulation
 
     @classmethod
-    def of(cls, h: Household, county: str | None, year: str) -> "_Structure":
+    def of(cls, h: Household, county: str | None, year: str, id_offset: int = 0) -> "_Structure":
         # Qualifying child: under 19, under 24 if a full-time student (IRC 152(c)(3)(A)), or
         # disabled at any age. The ages are the engine's own parameters for the year.
         ages = system.parameters.gov.irs.dependent.ineligible_age(f"{year}-01-01")
@@ -77,7 +78,8 @@ class _Structure:
                    head=next(p.id for p in h.people if p.relationship == "head"),
                    spouse=tuple(p.id for p in h.people if p.relationship == "spouse"),
                    dependents=dependents,
-                   own_filers=tuple(p.id for p in kids if p.id not in dependents))
+                   own_filers=tuple(p.id for p in kids if p.id not in dependents),
+                   id_offset=id_offset)
 
     @property
     def ids(self) -> list[str]:
@@ -90,7 +92,7 @@ class _Structure:
 
     def tax_unit_of(self, pid: str) -> int:
         """The person's tax unit ID. IDs start at 1: the engine reads 0 as "no claiming unit"."""
-        return next(n for n, members in enumerate(self.tax_units.values(), start=1) if pid in members)
+        return next(n for n, members in enumerate(self.tax_units.values(), start=1 + self.id_offset) if pid in members)
 
 
 # How our code sets each `derived` input in the dictionary. Person inputs return
@@ -107,7 +109,7 @@ DERIVERS = {
     "is_tax_unit_dependent": lambda s: {i: i in s.dependents for i in s.ids},
     "county_fips": lambda s: county_fips(s.county) if s.county else None,
     "state_fips": lambda s: state_fips(s.h.state),
-    "tax_unit_id": lambda s: {name: n for n, name in enumerate(s.tax_units, start=1)},
+    "tax_unit_id": lambda s: {name: n for n, name in enumerate(s.tax_units, start=1 + s.id_offset)},
     "medicaid_claiming_tax_unit_id": lambda s: {i: s.tax_unit_of(i) for i in s.ids},
     "is_household_head": lambda s: {i: i == s.head for i in s.ids},
     "is_related_to_head_or_spouse": lambda s: {i: True for i in s.ids},
@@ -124,11 +126,11 @@ DERIVERS = {
 }
 
 
-def build_situation(h: Household, year: str, county: str | None = None) -> tuple[dict, list[dict]]:
+def build_situation(h: Household, year: str, county: str | None = None, id_offset: int = 0) -> tuple[dict, list[dict]]:
     """PolicyEngine situation for one household, plus what was assumed for each unanswered
     question: {question, person, value (the engine's default), status: unknown|declined}.
     `county` overrides h.county (used when it was resolved from the ZIP)."""
-    s = _Structure.of(h, county or h.county, year)
+    s = _Structure.of(h, county or h.county, year, id_offset)
     declined = set(h.declined)
     assumptions: list[dict] = []
     people: dict[str, dict] = {pid: {} for pid in s.ids}
@@ -203,10 +205,32 @@ def _explain(sim: Simulation, variable: str, year: str, month: str, person_ids: 
     return fact
 
 
-def _program_result(sim: Simulation, program: Program, state: str, year: str, month: str, person_ids: list[str]) -> dict:
+def program_values(sim: Simulation, program: Program, year: str, month: str):
+    """(monthly value, eligible) per household in the simulation. The one definition of a
+    program's result, used for a single screening and for batched what-ifs. Eligibility
+    comes from the engine's flag where it fully decides it, else amount > 0."""
     period = period_for(program.variable, year, month)
-    total = float(sim.calculate(program.variable, period).sum())
+    total = sim.calculate(program.variable, period, map_to="household")
     monthly = total if period == month else total / 12
+    if program.eligibility:
+        flags = sim.calculate(program.eligibility, period_for(program.eligibility, year, month), map_to="household") > 0
+    else:
+        flags = total > 0
+    return monthly, flags
+
+
+def resolve_county_for(h: Household) -> tuple[str | None, list[str]]:
+    """(county, candidates): the given county (which must contain the ZIP), or the ZIP's."""
+    if h.zip and not h.county:
+        return resolve_county(h.zip, h.state)
+    if h.zip and h.county not in [c for c, _ in counties_for_zip(h.zip, h.state)]:
+        raise ValueError(f"{h.county} does not contain ZIP {h.zip}")
+    return h.county, [h.county] if h.county else []
+
+
+def _program_result(sim: Simulation, program: Program, state: str, year: str, month: str, person_ids: list[str]) -> dict:
+    monthly_values, flags = program_values(sim, program, year, month)
+    monthly = float(monthly_values[0])
     result = {
         "id": program.id,
         "name": program.name_in(state),
@@ -214,13 +238,10 @@ def _program_result(sim: Simulation, program: Program, state: str, year: str, mo
         "amount": round(monthly if program.per == "month" else monthly * 12, 2),
         "monthly_value": round(monthly, 2),
     }
-    if program.eligibility:
-        flags = sim.calculate(program.eligibility, period_for(program.eligibility, year, month))
-        if system.variables[program.eligibility].entity.key == "person":
-            result["eligible_people"] = [pid for pid, ok in zip(person_ids, flags) if ok]
-        result["eligible"] = bool(flags.any())
-    else:
-        result["eligible"] = total > 0
+    result["eligible"] = bool(flags[0])
+    if program.eligibility and system.variables[program.eligibility].entity.key == "person":
+        people = sim.calculate(program.eligibility, period_for(program.eligibility, year, month))
+        result["eligible_people"] = [pid for pid, ok in zip(person_ids, people) if ok]
     if program.coverage:
         result.pop("amount")  # value of coverage, not money paid to the person
     result["explain"] = [_explain(sim, v, year, month, person_ids) for v in program.explain]
@@ -230,11 +251,7 @@ def _program_result(sim: Simulation, program: Program, state: str, year: str, mo
 def calculate(h: Household) -> dict:
     as_of = h.as_of or date.today()
     year, month = periods(as_of)
-    county, candidates = h.county, [h.county] if h.county else []
-    if h.zip and not county:
-        county, candidates = resolve_county(h.zip, h.state)
-    elif h.zip and county not in [c for c, _ in counties_for_zip(h.zip, h.state)]:
-        raise ValueError(f"{county} does not contain ZIP {h.zip}")
+    county, candidates = resolve_county_for(h)
     situation, assumptions = build_situation(h, year, county)
     sim = Simulation(situation=situation)
     if not county:

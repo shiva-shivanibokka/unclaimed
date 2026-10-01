@@ -97,6 +97,17 @@ def test_dictionary_endpoint(client):
     assert q["employment_income"]["core"] and body["statements"]
 
 
+def test_next_is_cached_and_thinks_ahead(client):
+    from unclaimed_engine import think_ahead
+    body = {"state": "IL", "county": "COOK_COUNTY_IL", "people": [{"id": "a", "relationship": "head", "age": 40}]}
+    first = client.post("/next", json=body).json()
+    assert first["ask"]["question"] == "employment_income" and not first["cached"]
+    assert client.post("/next", json=body).json()["cached"]
+    think_ahead._pool.submit(lambda: None).result()  # single FIFO worker: prefetch is done
+    answered = {**body, "people": [{**body["people"][0], "employment_income": 0}]}
+    assert client.post("/next", json=answered).json()["cached"]
+
+
 def test_programs_list(client):
     ids = {p["id"] for p in client.get("/programs").json()}
     assert {"snap", "eitc", "medicaid", "ca_eitc", "il_eitc"} <= ids
