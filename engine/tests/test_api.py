@@ -156,3 +156,23 @@ def test_think_ahead_is_keyed_by_the_screening_date():
     # No date given means today: a decision cached yesterday (e.g. before the SNAP year
     # starts on Oct 1) must not be served today.
     assert think_ahead._key(h).endswith(date.today().isoformat())
+
+
+def test_take_home_is_converted_to_pay_before_taxes(client):
+    # IL single adult earning $40,000 in 2026, by hand from official figures:
+    # FICA 7.65% (SSA: 6.2% + 1.45% Medicare) = $3,060; federal: standard deduction
+    # $16,100, 10% to $12,400 then 12% (IRS Rev. Proc. 2025-32) = $2,620; IL: 4.95% flat
+    # (35 ILCS 5/201) after one personal exemption (~$2,900) = ~$1,836.
+    # Take-home ~ $32,484, so converting it back gives ~$40,000 (exemption rounding: +-$300).
+    body = {"household": {"state": "IL", "county": "COOK_COUNTY_IL", "as_of": "2026-09-15",
+                          "people": [{"id": "a", "relationship": "head", "age": 35}]},
+            "person": "a", "question": "employment_income", "take_home": 32_484}
+    r = client.post("/gross_up", json=body)
+    assert r.status_code == 200 and abs(r.json()["gross"] - 40_000) < 300
+    assert client.post("/gross_up", json={**body, "question": "rent"}).status_code == 422
+
+
+def test_zip_lookup_reads_the_crosswalk(client):
+    assert client.get("/zip/60011").json()["states"] == {"IL": ["LAKE_COUNTY_IL", "COOK_COUNTY_IL"]}
+    assert client.get("/zip/10001").json()["states"] == {}  # New York: not a supported state
+    assert client.get("/zip/abc").status_code == 422

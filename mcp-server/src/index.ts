@@ -1,10 +1,13 @@
-// Unclaimed MCP server: Stage 0 "hello" build.
-// Stateless Streamable HTTP: a fresh server + transport per request, no sessions,
-// nothing stored about the person (the household draft will travel in tool args).
+// Unclaimed MCP server for Alexa+: Streamable HTTP (MCP 2025-11-25), stateless.
+// A fresh server + transport per request, no sessions, nothing stored about the person:
+// the household draft travels in the tool arguments and results (see tools.ts).
 import express from "express";
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
-import { z } from "zod";
+import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
+import { AnswerError, buildTools, loadContext, type Tool } from "./tools.js";
+import { UnitError } from "./units.js";
+import { EngineError } from "./engine.js";
 
 const PORT = Number(process.env.PORT ?? 8080);
 // Browser origins allowed to call /mcp (comma-separated), e.g. the simulator's URL.
@@ -13,48 +16,42 @@ const PORT = Number(process.env.PORT ?? 8080);
 const ALLOWED_ORIGINS = new Set(
   (process.env.MCP_ALLOWED_ORIGINS ?? "").split(",").map((o) => o.trim()).filter(Boolean),
 );
-// Test-only latency probe on the hello tool. Off unless explicitly enabled, so the model
-// never sees a delay knob in production.
-const LATENCY_PROBE = process.env.UNCLAIMED_LATENCY_PROBE === "1";
-// Upper bound for the latency probe, so the knob can't be used to tie up the server.
-const MAX_DELAY_MS = 10_000;
 
-function buildServer(): McpServer {
-  const server = new McpServer({ name: "unclaimed", version: "0.1.0" });
+// Tools are built once from the engine's dictionary and schema (retried until the engine is up).
+let tools: Tool[] = [];
+async function init(): Promise<void> {
+  for (let attempt = 1; ; attempt++) {
+    try {
+      tools = buildTools(await loadContext());
+      console.log(JSON.stringify({ ready: true, tools: tools.map((t) => t.name) }));
+      return;
+    } catch (e) {
+      console.error(JSON.stringify({ waiting_for_engine: attempt, error: String(e) }));
+      await new Promise((r) => setTimeout(r, Math.min(30_000, 1000 * attempt)));
+    }
+  }
+}
 
-  server.registerTool(
-    "hello",
-    {
-      title: "Say hello",
-      description:
-        "Greets the person and confirms the Unclaimed benefits screener is reachable. " +
-        "Use when the person asks to test or say hello to Unclaimed.",
-      inputSchema: {
-        name: z.string().max(80).optional().describe("First name to greet, if the person gave one"),
-        ...(LATENCY_PROBE && {
-          delay_ms: z
-            .number()
-            .int()
-            .min(0)
-            .max(MAX_DELAY_MS)
-            .optional()
-            .describe("Test only: wait this many milliseconds before answering (latency probe)"),
-        }),
-      },
-    },
-    async ({ name, delay_ms }: { name?: string; delay_ms?: number }) => {
-      if (LATENCY_PROBE && delay_ms) await new Promise((r) => setTimeout(r, delay_ms));
-      const who = name ? `, ${name}` : "";
-      const text =
-        `Hello${who}! This is Unclaimed. I can check which benefits your household may be missing. ` +
-        `Soon I'll ask a few short questions to find out.`;
-      return {
-        content: [{ type: "text", text }],
-        structuredContent: { greeting: text },
-      };
-    },
-  );
-
+function buildServer(): Server {
+  const server = new Server({ name: "unclaimed", version: "0.2.0" }, { capabilities: { tools: {} } });
+  server.setRequestHandler(ListToolsRequestSchema, async () => ({
+    tools: tools.map(({ name, title, description, inputSchema }) => ({ name, title, description, inputSchema })),
+  }));
+  server.setRequestHandler(CallToolRequestSchema, async (req) => {
+    const tool = tools.find((t) => t.name === req.params.name);
+    if (!tool) return { isError: true, content: [{ type: "text", text: `Unknown tool ${req.params.name}` }] };
+    try {
+      const result = await tool.run(req.params.arguments ?? {});
+      return { content: [{ type: "text", text: JSON.stringify(result) }], structuredContent: result };
+    } catch (e) {
+      // Answers the model can fix (bad unit, unknown person) or a busy engine: tell the model, not a crash.
+      const message = e instanceof Error ? e.message : String(e);
+      const expected = e instanceof AnswerError || e instanceof UnitError || (e instanceof EngineError && e.status < 500);
+      // Log the kind only: messages can echo the person's answers.
+      if (!expected) console.error(JSON.stringify({ tool: tool.name, error: e instanceof Error ? e.name : "unknown" }));
+      return { isError: true, content: [{ type: "text", text: message }] };
+    }
+  });
   return server;
 }
 
@@ -71,7 +68,7 @@ app.use("/mcp", (req, res, next) => {
 app.use(express.json({ limit: "256kb" }));
 
 app.get("/health", (_req, res) => {
-  res.json({ ok: true });
+  res.status(tools.length ? 200 : 503).json({ ok: tools.length > 0 });
 });
 
 app.post("/mcp", async (req, res) => {
@@ -125,4 +122,5 @@ app.use((err: unknown, _req: express.Request, res: express.Response, next: expre
 
 app.listen(PORT, () => {
   console.log(`unclaimed mcp-server listening on :${PORT}/mcp`);
+  void init();
 });

@@ -7,12 +7,15 @@ import time
 from contextlib import asynccontextmanager
 from dataclasses import asdict
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Path as PathParam
+from pydantic import BaseModel, Field
 
 from . import think_ahead
 from .calculate import calculate
 from .dictionary import load
-from .household import Household
+from .geo import locate
+from .gross_up import gross_from_take_home
+from .household import MAX_MONEY, Household
 from .interview import conditional_on_declined
 from .programs import PROGRAMS, SUPPORTED_STATES
 
@@ -77,6 +80,38 @@ def dictionary() -> dict:
         "statements": [g.statement for g in d.assumed if g.statement],
         "structure": d.structure,
     }
+
+
+@app.get("/zip/{zip_code}")
+def zip_lookup(zip_code: str = PathParam(pattern=r"^\d{5}$")) -> dict:
+    """Which supported states (and counties) a ZIP is in, from the HUD crosswalk: the MCP
+    server asks here instead of carrying its own ZIP data."""
+    return {"zip": zip_code, "states": locate(zip_code, SUPPORTED_STATES)}
+
+
+class GrossUp(BaseModel):
+    household: Household
+    person: str
+    question: str = Field(description="A question whose answer is pay before taxes (answer.basis: before_tax)")
+    take_home: float = Field(gt=0, le=MAX_MONEY, description="Take-home pay, USD per year")
+
+
+@app.post("/gross_up")
+def gross_up_endpoint(req: GrossUp) -> dict:
+    """Pay before taxes that leaves the given take-home pay, with PolicyEngine's tax rules."""
+    q = next((q for q in load().questions if q.id == req.question), None)
+    if not q or q.answer.get("basis") != "before_tax":
+        raise HTTPException(status_code=422, detail=f"{req.question} is not asked as pay before taxes")
+    if req.person not in {p.id for p in req.household.people}:
+        raise HTTPException(status_code=422, detail=f"no person {req.person}")
+
+    def work():
+        t = time.perf_counter()
+        with _lock:
+            waited = time.perf_counter() - t
+            return {"gross": round(gross_from_take_home(req.household, req.person, req.take_home, req.question), 2)}, waited
+    result, ms, wait_ms = _run("gross_up", req.household, work)
+    return {**result, "ms": ms, "wait_ms": wait_ms}
 
 
 def _run(name: str, household: Household, work) -> tuple[dict, int, int]:

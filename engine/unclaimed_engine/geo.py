@@ -50,6 +50,16 @@ def counties_for_zip(zip_code: str, state: str) -> list[tuple[str, float]]:
     return [c for c in _table().get(zip_code, []) if c[0].endswith(f"_{state}")]
 
 
+def locate(zip_code: str, states: tuple[str, ...]) -> dict[str, list[str]]:
+    """State -> counties (largest share first) for a ZIP, among `states`."""
+    out: dict[str, list[str]] = {}
+    for county, _ in _table().get(zip_code, []):
+        state = county.rsplit("_", 1)[1]
+        if state in states:
+            out.setdefault(state, []).append(county)
+    return out
+
+
 def resolve_county(zip_code: str, state: str) -> tuple[str | None, list[str]]:
     """(county, candidates). county is None when the ZIP is split and the person must be asked."""
     counties = counties_for_zip(zip_code, state)

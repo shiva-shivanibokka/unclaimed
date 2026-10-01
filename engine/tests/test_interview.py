@@ -137,3 +137,10 @@ def test_child_care_is_asked_for_a_disabled_teen():
     h = Household(state="CA", county="LOS_ANGELES_COUNTY_CA", people=[
         {"id": "a", "relationship": "head", "age": 40}, {"id": "b", "relationship": "child", "age": 15, "is_disabled": True}])
     assert "childcare_expenses" in {q.id for _, q in open_questions(h)}
+
+
+def test_multiple_choice_questions_carry_their_options():
+    h = Household(state="IL", county="COOK_COUNTY_IL", people=[
+        {"id": "a", "relationship": "head", "age": 40, "employment_income": 0, "self_employment_income": 0}])
+    d = next_question(h)
+    assert d["ask"]["question"] == "housing_tenure" and "RENTER" in d["ask"]["options"]
