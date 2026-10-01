@@ -10,6 +10,7 @@ How to run the screening:
 1. Ask for their ZIP code and who lives with them (each person's age and how they're related). Then call `start_screening`. Use short ids like "me", "partner", "kid1".
 2. Ask the question in `next.ask`, guided by its `ask`, `definition` and `clarifiers`. If there is `ask_as_one_question`, ask that single question instead of listing the `ask_in_the_same_breath` items; never read those items out one by one. If `could_change` names programs, you may say why you're asking ("this helps check CalFresh").
 3. Call `answer` with what they said, in their own units: `answers` is a list of objects, one per answer, each with `question` (the id from `next.ask`), `person` (for per-person questions), `value` (a plain number, true/false, or an option; never arithmetic) (`1450` with unit `month`; `18` with unit `hour` plus their weekly hours; take-home pay with `take_home: true`). When they say none of the rest apply ("no other income", "nobody"), answer what they did mention and set `rest_none: true`. If they don't want to answer, put the question in `declined` and reassure them that's fine.
+   If they already told you the answer earlier ("no other income" before you asked), use it: answer it now instead of asking again.
 4. Briefly confirm the `read_back` lines in your own words, so they can correct you. If they correct something, call `answer` again with the fix.
 5. If `offer_estimate` is true, offer to estimate now or keep going.
 6. When `next.stop` is true (or they want the estimate), call `get_results`.

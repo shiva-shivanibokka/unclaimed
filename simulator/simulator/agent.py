@@ -12,6 +12,7 @@ from pathlib import Path
 
 from strands import Agent
 from strands.models import BedrockModel
+from strands.models.model import CacheConfig
 from strands.tools.mcp import MCPClient
 
 MODEL_ID = os.environ.get("SIMULATOR_MODEL_ID", "us.anthropic.claude-haiku-4-5-20251001-v1:0")
@@ -49,7 +50,10 @@ def _reset() -> None:
 def turn(history: list[dict], text: str) -> dict:
     """One spoken turn: the person's words in, Alexa's reply out, with timings."""
     tools = _connect()
-    agent = Agent(model=BedrockModel(model_id=MODEL_ID, region_name=REGION), messages=history, tools=tools,
+    # Prompt caching: the instructions, tool schemas and earlier turns repeat on every model
+    # call, so cached they cost a fraction and return sooner.
+    model = BedrockModel(model_id=MODEL_ID, region_name=REGION, cache_config=CacheConfig(strategy="auto"))
+    agent = Agent(model=model, messages=history, tools=tools,
                   system_prompt=SYSTEM_PROMPT, callback_handler=None)
     t = time.perf_counter()
     try:
@@ -65,5 +69,7 @@ def turn(history: list[dict], text: str) -> dict:
         "messages": agent.messages,
         "timing": {"total_ms": round(total), "tools_ms": round(tool_ms), "model_ms": round(total - tool_ms),
                    "model_calls": m.cycle_count},
-        "tokens": {"input": m.accumulated_usage["inputTokens"], "output": m.accumulated_usage["outputTokens"]},
+        "tokens": {"input": m.accumulated_usage["inputTokens"], "output": m.accumulated_usage["outputTokens"],
+                   "cache_read": m.accumulated_usage.get("cacheReadInputTokens", 0),
+                   "cache_write": m.accumulated_usage.get("cacheWriteInputTokens", 0)},
     }
