@@ -192,4 +192,18 @@ def next_question(h: Household) -> dict:
     pid, qid = decision.ask.key
     return {"stop": False, "core": False, "ask": _question_view(pid, DICTIONARY.question(qid)),
             "together": [_question_view(*_view_key(t)) for t in decision.ask.together],
-            "asked": asked, "offer_estimate": asked >= ESTIMATE_OFFER_AFTER, "top_candidates": why}
+            "asked": asked, "offer_estimate": asked >= ESTIMATE_OFFER_AFTER, "top_candidates": why,
+            "unanswered": _depends_on_unanswered(decision.ranked)}
+
+
+def _depends_on_unanswered(ranked) -> dict[str, list[str]]:
+    """Programs whose eligibility, for the household or any one person, could still change
+    with a question not asked yet: program -> question keys. An estimate given now must
+    say "if ...", never a flat "you qualify" (the engine reads a missing answer as 0/no)."""
+    out: dict[str, list[str]] = {}
+    for s in ranked:
+        for outcome in s.flips:
+            keys = out.setdefault(outcome.split(batch.PERSON_SEP)[0], [])
+            if _key(*s.candidate.key) not in keys:
+                keys.append(_key(*s.candidate.key))
+    return out

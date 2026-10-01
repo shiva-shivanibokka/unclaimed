@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readBack, toYearly, UnitError } from "../src/units.js";
 
-const pay = { type: "money" as const, person_units: ["hour", "week", "two_weeks", "half_month", "month", "year"] };
+const pay = { type: "money" as const, person_units: ["hour", "week", "two_weeks", "half_month", "month", "year"], hours_from: "hours" };
 
 test("pay in the person's units becomes dollars per year", () => {
   assert.equal(toYearly(pay, 1450, "month"), 17_400);

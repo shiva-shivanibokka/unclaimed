@@ -24,9 +24,9 @@ Stages overlap on purpose. The riskiest unknowns are answered first. Each stage 
 - [x] WSL2 Ubuntu 26.04 with Node 24 (nvm) and AWS CLI v2
 - [x] Publish the repo to GitHub: https://github.com/shiva-shivanibokka/unclaimed (public, AGPL-3.0, topics set)
 - [x] Hello MCP server (TypeScript, Streamable HTTP, stateless, JSON responses). Verified it negotiates protocol `2025-11-25`; local smoke test: warm calls 2–7 ms
-- [ ] Hello web simulator: Echo Show–style frame, push-to-talk (browser STT/TTS), MCP client with a Strands + Bedrock brain
-- [ ] Host the simulator + MCP server publicly (free, no login, rate-limited). Judges can't be expected to bring their own Bedrock access to run it locally
-- [ ] Measure per-turn latency (our MCP server + simulator brain; the real Alexa+ round trip isn't measurable without access); record it
+- [x] Hello web simulator (built in Stage 4): Echo Show–style frame, push-to-talk (browser STT/TTS), MCP client with a Strands + Bedrock brain
+- [x] Host the simulator + MCP server publicly (free, no login, rate-limited; Stage 4, `infra/`). Judges can't be expected to bring their own Bedrock access to run it locally
+- [x] Measure per-turn latency (our MCP server + simulator brain; the real Alexa+ round trip isn't measurable without access); record it (Stage 4 below)
 - [x] Log every friction point in `docs/friction-log.md` (5 entries so far)
 
 Decisions and answers (Sep 30):
@@ -114,12 +114,34 @@ Independent reviewer: 1 blocker, 6 majors, 6 minors, all verified; fixed or acce
 - Held up: batching isolation (batched = unbatched for diverse households), pregnancy, working grandparent, SSDI, large savings, CA child support, API error paths, no household data in logs, the library has no domain knowledge.
 
 ## Stage 4: MCP server + Alexa+ integration (Oct 9 – Oct 15)
-- [ ] Tools: start_screening, answer, get_results, get_plan
-- [ ] Answer schemas (amount + frequency + before/after taxes), validation, conversion, read-back
-- [ ] Sign-in (only if required)
-- [ ] Deploy the MCP server publicly (free, no login: judges must be able to test it)
-- [ ] Unclaimed Alexa+ simulator (web app): browser speech in/out, Echo Show-style frame, a Strands agent on Bedrock acting as the Alexa+ orchestrator and calling our MCP server over Streamable HTTP; rate-limited so public judge access can't run up the Bedrock bill
-- [ ] Tier C: 40–60 simulated conversations
+- [x] Tools: start_screening, answer, get_results. get_plan moves to Stage 5 (it reads the plan cards)
+- [x] Answer schemas (amount + frequency + before/after taxes), validation, conversion, read-back
+- [x] Sign-in: not required (account linking is optional for Alexa+; nothing is stored)
+- [x] Deploy the MCP server publicly (free, no login: judges must be able to test it): ECS Express Mode, `infra/deploy.sh`
+- [x] Unclaimed Alexa+ simulator (web app): browser speech in/out, Echo Show-style frame, a Strands agent on Bedrock acting as the Alexa+ orchestrator and calling our MCP server over Streamable HTTP; rate-limited so public judge access can't run up the Bedrock bill
+- [ ] Tier C: 40–60 simulated conversations. Runs end to end (`eval/tier_c.py`; first 3 cases: 0 false "you qualify", 0 missed); the full run waits on a Bedrock quota increase (Claude Haiku 4.5 is at 10 requests/minute on this account; support case filed Oct 1)
+
+Latency (Oct 1; the real Alexa+ round trip isn't measurable without access):
+- Simulator turn: ~1.5 s per model call; a turn that calls a tool is two calls, ~3.4 s, of which the MCP tool is ~15 ms when the engine's think-ahead already has the answer.
+- MCP `answer`, scripted screening with no pause between answers (the worst case: think-ahead never gets a head start): median 0.8 s locally, 2.3 s on AWS (1 vCPU shared by the engine and its think-ahead). A person takes seconds to answer, which is when think-ahead runs; Stage 6 measures it with realistic pauses and sizes the task.
+
+### Stage 4 adversarial review (Oct 1)
+Independent reviewer (code, data and deploy; explicit hard-coding audit): 2 high, 7 medium, a hard-coding list, 4 low; all verified. Fixed unless marked accepted.
+- **High:** results gave a flat "you qualify" for programs that hinged on a question not asked yet (an estimate before the questions run out: the engine reads a missing answer as 0/no), and could be computed in the engine's default county. Now `/next` reports, for an early stop, which programs could still change with which unasked question (`unanswered`), and `get_results` marks those programs `conditional_on` alongside declined answers; it gives no results until the essentials (location, pay) are in. After a normal stop nothing unasked can change eligibility (the stop rule), so nothing is added.
+- **High:** the simulator's Bedrock bill could be run up with a fabricated history (400 KB resent every turn) and no per-turn caps. Now: history ≤ 150 KB (a long screening is about a third of that), replies capped at 4,096 tokens, at most 6 model calls per turn, and a daily budget of tokens billed at the full rate (new input, cache writes, output) in place of a daily turn count.
+- **Medium:** "none of the rest" silently recorded a "no" the person never said (heat not included in the rent). The yes/no answers it fills in are now read back, and the utilities group asks about heat in the rent.
+- **Medium:** two partners' take-home pay was converted one at a time, the first seeing the other's pay as $0 (joint taxes understated). Each conversion now starts from the take-home figure and runs again once the other's pay before taxes is known.
+- **Medium:** answering a question after declining it made the engine reject the household. An answer now replaces the decline.
+- **Medium:** the engine sidecar listened on all interfaces; in AWS it now listens on localhost only (`UVICORN_HOST`).
+- **Medium:** an engine failure was reported as "busy, try again", so the model would retry something that fails every time. Failure is now 500 ("retrying won't help"), busy stays 503; unexpected errors no longer echo internal messages.
+- **Medium:** deploy image tags could mislabel content (untracked files and the root `.dockerignore` didn't make a build "dirty"), and `SKIP_BUILD` didn't check the image exists (it didn't, once: an infra-only commit pointed at a tag never pushed). Both fixed.
+- **Medium, accepted:** one client can keep the single-threaded engine busy for others within its 300 requests/minute. The engine's own slot limit bounds the work; acceptable for a demo, revisited in Stage 6 with load numbers.
+- **Hard-coding, fixed:** state names (prompt, tool text: now from the engine's `/programs`); question ids in the MCP server (hourly pay's hours question is now declared in the dictionary as `hours_from`; ZIP/county come from the dictionary's `structure`); the unit list (now from the dictionary's `person_units`); the model id in three places and the rate limits in two (now `simulator/simulator/defaults.env`, read by the simulator, Tier C and `deploy.sh`); the region (from the AWS environment); ports repeated through `deploy.sh` (named once there); the server version (from `package.json`); the results card guessing why an amount is $0; drifting numbers in comments and READMEs.
+- **Hard-coding, accepted:** each image's default port in its Dockerfile, and the `uv` version pinned in two Dockerfiles (each image is built on its own).
+- **Low, fixed:** person ids containing a dot; "none of the rest" while the county is being asked; read-backs out of order when hours came after pay; the take-home test's IL exemption is now the official $2,925 (IDOR Bulletin FY 2026-15) and the tolerance $5, not $300.
+- **Low, accepted:** correcting hours after giving hourly pay doesn't recompute the pay (the model re-sends both, as the tool asks).
+- New tests: early-estimate conditions (engine), dictionary `hours_from` validation, dotted person ids, location answers, read-back order (MCP), and the simulator's client identity, rate limit, token budget and history checks.
+- Held up: X-Forwarded-For handling on both services, the Origin check, the Bedrock permission scoped to one model, the service-linked-role setup, no circular tests.
 
 ## Stage 5: Action plans + screen (Oct 12 – Oct 18)
 - [ ] Plan cards per program per state: what, why you, where/how, bring, next, watch out, handoff

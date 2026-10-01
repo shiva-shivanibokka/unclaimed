@@ -14,4 +14,7 @@ COPY engine/data ./data
 ENV PATH=/app/engine/.venv/bin:$PATH
 USER nobody
 EXPOSE 8000
-CMD ["uvicorn", "unclaimed_engine.app:app", "--host", "0.0.0.0", "--port", "8000"]
+# Host and port via uvicorn's environment variables, so a deployment can override them
+# (in AWS the engine listens on localhost only: infra/deploy.sh).
+ENV UVICORN_HOST=0.0.0.0 UVICORN_PORT=8000
+CMD ["uvicorn", "unclaimed_engine.app:app"]

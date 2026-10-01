@@ -162,13 +162,13 @@ def test_take_home_is_converted_to_pay_before_taxes(client):
     # IL single adult earning $40,000 in 2026, by hand from official figures:
     # FICA 7.65% (SSA: 6.2% + 1.45% Medicare) = $3,060; federal: standard deduction
     # $16,100, 10% to $12,400 then 12% (IRS Rev. Proc. 2025-32) = $2,620; IL: 4.95% flat
-    # (35 ILCS 5/201) after one personal exemption (~$2,900) = ~$1,836.
-    # Take-home ~ $32,484, so converting it back gives ~$40,000 (exemption rounding: +-$300).
+    # (35 ILCS 5/201) after one personal exemption of $2,925 (IDOR Bulletin FY 2026-15)
+    # = $1,835.21. Take-home $32,484.79, so converting it back gives $40,000.
     body = {"household": {"state": "IL", "county": "COOK_COUNTY_IL", "as_of": "2026-09-15",
                           "people": [{"id": "a", "relationship": "head", "age": 35}]},
-            "person": "a", "question": "employment_income", "take_home": 32_484}
+            "person": "a", "question": "employment_income", "take_home": 32_484.79}
     r = client.post("/gross_up", json=body)
-    assert r.status_code == 200 and abs(r.json()["gross"] - 40_000) < 300
+    assert r.status_code == 200 and abs(r.json()["gross"] - 40_000) < 5
     assert client.post("/gross_up", json={**body, "question": "rent"}).status_code == 422
 
 

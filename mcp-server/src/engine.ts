@@ -12,6 +12,7 @@ export interface AnswerSpec {
   unit?: string;
   person_units?: string[];
   basis?: string;
+  hours_from?: string; // for pay per hour: the question giving weekly hours
   min?: number;
   max?: number;
   negative?: boolean;
@@ -53,7 +54,11 @@ async function call(path: string, body?: unknown): Promise<Json> {
   const data = (await res.json().catch(() => ({}))) as Json;
   if (!res.ok) {
     const detail = typeof data.detail === "string" ? data.detail : JSON.stringify(data.detail ?? data);
-    throw new EngineError(res.status === 503 ? "The calculator is busy; try again in a moment." : detail, res.status);
+    const message =
+      res.status === 503 ? "The calculator is busy; try again in a moment."
+      : res.status >= 500 ? "The calculator couldn't work this out; retrying won't help. Apologize and offer to start over."
+      : detail;
+    throw new EngineError(message, res.status);
   }
   return data;
 }
