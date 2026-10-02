@@ -72,15 +72,17 @@ def _reset() -> None:
         _tools = _screens = None
 
 
-def turn(history: list[dict], text: str) -> dict:
-    """One spoken turn: the person's words in, Alexa's reply out, with timings."""
-    tools = _connect()
+def turn(history: list[dict], text: str, *, model_id: str = MODEL_ID, tools: list | None = None,
+         system_prompt: str = SYSTEM_PROMPT) -> dict:
+    """One spoken turn: the person's words in, Alexa's reply out, with timings. By default
+    Alexa uses our MCP server; the research baselines (eval/e3.py) pass their own tools."""
+    tools = _connect() if tools is None else tools
     # Prompt caching: the instructions, tool schemas and earlier turns repeat on every model
     # call, so cached they cost a fraction and return sooner.
-    model = BedrockModel(model_id=MODEL_ID, region_name=REGION, max_tokens=MAX_TOKENS,
+    model = BedrockModel(model_id=model_id, region_name=REGION, max_tokens=MAX_TOKENS,
                          cache_config=CacheConfig(strategy="auto"))
     agent = Agent(model=model, messages=history, tools=tools,
-                  system_prompt=SYSTEM_PROMPT, callback_handler=None)
+                  system_prompt=system_prompt, callback_handler=None)
     calls = 0
 
     def limit(event: BeforeModelCallEvent) -> None:

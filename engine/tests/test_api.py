@@ -111,6 +111,18 @@ def test_next_is_cached_and_thinks_ahead(client):
     assert client.post("/next", json=answered).json()["cached"]
 
 
+def test_results_are_computed_ahead_once_the_interview_stops(client, monkeypatch):
+    import threading
+    from unclaimed_engine import think_ahead
+    from unclaimed_engine.household import Household
+    monkeypatch.setattr(think_ahead, "next_question", lambda h: {"stop": True})
+    monkeypatch.setattr(think_ahead, "results", lambda h: {"programs": []})
+    h, lock = Household(state="CA", people=[{"id": "a", "relationship": "head", "age": 51}]), threading.Lock()
+    think_ahead.decide(h, lock)
+    think_ahead._pool.submit(lambda: None).result()  # single FIFO worker: prefetch is done
+    assert think_ahead.calculate_results(h, lock)[1]  # served from the cache
+
+
 def test_programs_list(client):
     ids = {p["id"] for p in client.get("/programs").json()}
     assert {"snap", "eitc", "medicaid", "ca_eitc", "il_eitc"} <= ids

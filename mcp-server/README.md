@@ -8,8 +8,10 @@ TypeScript MCP server for Alexa+ (Streamable HTTP, MCP spec 2025-11-25). Statele
 |---|---|
 | `start_screening` | ZIP + who lives there → the household draft and the first question (state from the engine's ZIP lookup; unsupported states are said so) |
 | `answer` | Answers in the person's units (`1450` per `month`, `18` per `hour`, take-home pay) → converted to the engine's units, read back, next question (or `stop`). Declined questions go in `declined` |
-| `get_results` | Programs, amounts, who is covered, and what's conditional on a declined answer; the assumption statements to say |
-| `get_plan` | Stage 5 |
+| `get_results` | Programs, amounts, who is covered, why they qualify, and what's conditional ("if ...") on an unasked or declined answer or on something the calculator can't check; the assumption statements to say; programs worth checking that aren't calculated |
+| `get_plan` | For the programs the person picks: how and where to apply, what to bring, what happens next, what to watch out for (plan cards from the engine's `/plans/{state}`) |
+
+`get_results` and `get_plan` also name a screen (`_meta.ui.resourceUri` → `ui://unclaimed/screen`, MCP Apps spec 2026-01-26): `ui/screen.html`, result tiles and the plan with a QR code. Self-contained: the QR library is inlined, nothing loads from outside.
 
 Single source: questions, phrasing, answer types, allowed units, options and the household JSON schema are read from the engine at startup (`/dictionary`, `/programs`, `/openapi.json`); ZIP data from `/zip/{zip}`; take-home → pay before taxes from `/gross_up` (PolicyEngine's tax rules). This server defines only calendar facts (weeks per year, …) in `src/units.ts`.
 
