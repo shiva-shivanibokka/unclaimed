@@ -1,10 +1,7 @@
-program: school_meals
+programs: [school_meals]
 state: CA
 what: Breakfast and lunch at school for your children, free or at a lower price.
-apply:
-  - how: in_person
-    where: Your child's school or school district office
-    url: https://www.fns.usda.gov/cn/applying-free-and-reduced-price-school-meals
+apply: [ca_school]
 bring:
   - The school's meal application form; ask the school or district for one.
   - Your household's income information.

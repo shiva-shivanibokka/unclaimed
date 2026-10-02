@@ -39,8 +39,9 @@ function speak(words) {
 // ---- MCP Apps host (spec 2026-01-26) --------------------------------------------------
 // The MCP server declares which tools show a screen (tool _meta.ui.resourceUri) and serves
 // the screen's HTML; this page shows it in a sandboxed frame (an opaque origin: it can't
-// reach this page, its storage or the network) and hands it the tool's input and result.
-// One simplification: the spec's separate-origin proxy frame is replaced by that sandbox.
+// reach this page or its storage, and its content-security policy allows only the domains
+// the server declared) and hands it the tool's input and result. One simplification: the
+// spec's separate-origin proxy frame is replaced by that sandbox.
 const PROTOCOL = "2026-01-26";
 let screens = null; // {tools: {name: uri}, screens: {uri: {html, meta}}}
 let shown = null; // the tool call on screen
@@ -75,7 +76,9 @@ function latestScreenCall() {
 // What the view may load: only what the server declared (here, nothing outside the page).
 function cspFor(meta) {
   const csp = meta?.csp ?? {};
-  const list = (domains) => (domains ?? []).join(" ");
+  // Only well-formed https origins go into the policy: anything else could rewrite it.
+  const origin = /^https:\/\/[a-z0-9.-]+(:\d{1,5})?$/i;
+  const list = (domains) => (Array.isArray(domains) ? domains : []).filter((d) => origin.test(d)).join(" ");
   return [
     "default-src 'none'",
     `script-src 'unsafe-inline' ${list(csp.resourceDomains)}`,
@@ -105,7 +108,7 @@ window.addEventListener("message", (e) => {
         theme: "dark", displayMode: "inline", platform: "web", locale: "en-US",
         containerDimensions: { width: Math.round(box.width), height: Math.round(box.height) },
         deviceCapabilities: { touch: "ontouchstart" in window, hover: matchMedia("(hover: hover)").matches },
-        toolInfo: { tool: { name: shown.name } },
+        toolInfo: { id: shown.id, tool: { name: shown.name } },
       },
     } });
   } else if (m.method === "ui/notifications/initialized") {
@@ -120,10 +123,24 @@ window.addEventListener("message", (e) => {
   }
 });
 
+// Before a screen goes away the view gets ui/resource-teardown (spec: SHOULD), briefly.
+async function teardown() {
+  if (!frame) return;
+  const old = frame;
+  const done = new Promise((resolve) => {
+    const onReply = (e) => { if (e.source === old.contentWindow && e.data?.id === "teardown") resolve(); };
+    window.addEventListener("message", onReply);
+    setTimeout(resolve, 300);
+  });
+  post({ id: "teardown", method: "ui/resource-teardown", params: {} });
+  await done;
+}
+
 async function showScreen() {
   await loadScreens().catch(() => null);
   const call = screens && latestScreenCall();
   if (!call || call.id === shown?.id) return;
+  await teardown();
   shown = call;
   const screen = screens.screens[call.uri];
   frame = document.createElement("iframe");
@@ -134,7 +151,8 @@ async function showScreen() {
   $("screen").classList.add("has-app");
 }
 
-function clearScreen() {
+async function clearScreen() {
+  await teardown();
   shown = frame = null;
   app.replaceChildren();
   $("screen").classList.remove("has-app");

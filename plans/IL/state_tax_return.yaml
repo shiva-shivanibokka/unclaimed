@@ -1,24 +1,18 @@
-program: il_eitc
+programs: [il_eitc, il_ctc]
 state: IL
-what: An Illinois tax credit for people who work, claimed on your state tax return, that can come back to you as a refund.
-apply:
-  - how: tax_return
-    where: MyTax Illinois (free online filing of Form IL-1040, no account needed)
-    url: https://mytax.illinois.gov/
-  - how: tax_return
-    where: Form IL-1040 with Schedule IL-E/EITC, filed on paper, by a tax preparer or with tax software
-    url: https://tax.illinois.gov/forms/incometax/currentyear/individual/il-1040-schedule-il-e-eic-instr.html
+what: Illinois tax credits for people who work and for families with young children, claimed together on your state tax return.
+apply: [mytax_illinois, il_schedule_eitc]
 bring:
   - Your completed federal tax return and schedules
   - W-2 and 1099 forms
   - Social Security numbers or ITINs for you and your children
   - Your bank routing and account numbers, for a faster direct-deposit refund
 next:
-  - Fill out Schedule IL-E/EITC and file it with your IL-1040.
-  - Include a copy of pages 1 and 2 and Schedule 1 of your federal Form 1040.
-  - The credit may result in a refund; filing online gets your refund faster.
+  - Claim the Illinois EITC first on Schedule IL-E/EITC, then complete Step 5 of the schedule to figure the Child Tax Credit.
+  - File the schedule with your IL-1040, with a copy of pages 1 and 2 and Schedule 1 of your federal Form 1040.
+  - The credits may result in a refund; filing online gets your refund faster.
 watch_out:
-  - File an Illinois return to get the credit even if you owe no tax or don't have to file.
+  - File an Illinois return to get the credits even if you owe no tax or don't have to file.
   - If you did not get the federal EITC or have children with ITINs, complete the Expanded EITC Worksheet.
   - Mismatched names, Social Security numbers or ITINs can delay or deny your claim.
   - Missed it in a past year? File an amended IL-1040-X with Schedule IL-E/EITC.
@@ -26,6 +20,7 @@ handoff: https://mytax.illinois.gov/
 sources:
   - https://tax.illinois.gov/programs/eitc.html
   - https://tax.illinois.gov/programs/eitc/other-faqs.html
+  - https://tax.illinois.gov/individuals/credits/child-tax-credit.html
   - https://tax.illinois.gov/research/publications/pubs/illinois-earned-income-tax-credit-information.html
   - https://tax.illinois.gov/programs/mytax/il-1040.html
   - https://tax.illinois.gov/forms/incometax/currentyear/individual/il-1040-schedule-il-e-eic-instr.html

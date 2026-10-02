@@ -1,17 +1,7 @@
-program: snap
+programs: [snap]
 state: CA
 what: Monthly money for food on an EBT card, usable at most grocery stores and farmers markets that take EBT.
-apply:
-  - how: online
-    where: BenefitsCal
-    url: https://benefitscal.com/
-  - how: phone
-    where: CalFresh Benefits Helpline
-    url: https://www.cdss.ca.gov/inforesources/calfresh
-    phone: "1-877-847-3663"
-  - how: in_person
-    where: Your county social services office (also by mail or fax)
-    url: https://www.cdss.ca.gov/county-offices
+apply: [benefitscal, calfresh_helpline, ca_county_office]
 bring:
   - Photo ID, like a driver's license, state ID or passport.
   - Proof of where you live, like a lease or a bill with your address.

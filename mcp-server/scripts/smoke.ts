@@ -60,7 +60,11 @@ while (!next.stop) {
   for (const line of r.read_back) if (!line.endsWith(": no") && !line.includes(": $0")) console.log("   read back:", line);
 }
 const results = await call("get_results", { household });
-for (const p of results.programs.filter((p: any) => p.eligible)) console.log(`  ${p.name}: ${p.amount ?? "covered"} ${p.per ?? ""}`);
+const eligible = results.programs.filter((p: any) => p.eligible);
+for (const p of eligible) console.log(`  ${p.name}: ${p.amount ?? "covered"} ${p.per ?? ""}  why: ${p.why?.join("; ") ?? "-"}${p.if_also ? `  if: ${p.if_also.join(" ")}` : ""}`);
+console.log("  also check:", results.also_check.map((p: any) => p.name).join(", ") || "-");
+const { plans } = await call("get_plan", { household, programs: [...eligible, ...results.also_check].map((p: any) => p.id) });
+for (const p of plans) console.log(`  plan: ${Object.values(p.names).join(" and ")} -> ${p.apply[0].where}`);
 for (const [name, xs] of Object.entries(ms)) {
   const sorted = [...xs].sort((a, b) => a - b);
   console.log(`${name.padEnd(16)} n=${xs.length} median ${sorted[Math.floor(sorted.length / 2)]} ms, max ${sorted.at(-1)} ms`);

@@ -1,14 +1,7 @@
-program: ssi
+programs: [ssi]
 state: US
 what: Monthly payments from Social Security for people with disabilities and older adults who have little or no income or resources.
-apply:
-  - how: online
-    where: Social Security online application (adults applying because of a disability)
-    url: https://secure.ssa.gov/iClaim/dib
-  - how: phone
-    where: Social Security (call to set up an appointment by phone or in person; TTY 1-800-325-0778)
-    url: https://www.ssa.gov/apply/ssi
-    phone: "1-800-772-1213"
+apply: [ssa_online, ssa_phone]
 bring:
   - Your Social Security number and where you were born.
   - Pay stubs or other proof of current income.
@@ -28,7 +21,7 @@ watch_out:
   - Only send documents if Social Security asks for them, to avoid delays.
   - When you apply, Social Security also checks for other benefits you may be able to get.
   - Once on SSI, report your wages, other income and changes in what you own or where you live every month.
-  - The online application is for adults with a disability; for SSI at age 65 or older, call for an appointment.
+  - Some adults can apply online; everyone else, including people 65 or older, calls for an appointment.
 handoff: https://www.ssa.gov/apply/ssi
 sources:
   - https://www.ssa.gov/apply/ssi

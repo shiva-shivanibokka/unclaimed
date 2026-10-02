@@ -1,14 +1,7 @@
-program: lifeline
+programs: [lifeline]
 state: IL
 what: A monthly discount on one phone or internet service for your household.
-apply:
-  - how: online
-    where: Lifeline National Verifier (FCC / USAC)
-    url: https://getinternet.gov/apply?id=nv_home
-  - how: mail
-    where: Lifeline Support Center, PO Box 1000, Horseheads, NY 14845
-    url: https://www.lifelinesupport.org/how-to-apply/
-    phone: "1-800-234-9473"
+apply: [lifeline_national_verifier, lifeline_support_center]
 bring:
   - Your name as it appears on your Social Security card or state ID
   - Last four digits of your Social Security number, or a Tribal ID number

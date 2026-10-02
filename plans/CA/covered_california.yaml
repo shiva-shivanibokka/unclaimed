@@ -1,0 +1,33 @@
+programs: [medicaid, chip, aca_ptc]
+state: CA
+what: One Covered California application checks every family member for Medi-Cal (health, dental and vision care at little or no cost), children's coverage through Medi-Cal for Children or a county children's program in some counties, and financial help that lowers the monthly premium for a plan bought through Covered California.
+apply: [covered_california_online, covered_california_phone, covered_california_enroller, covered_california_mail]
+bring:
+  - Your household size and who lives with you
+  - Social Security numbers for everyone applying, if they have one
+  - Federal tax information, if you file taxes
+  - Immigration documents, for anyone who is not a citizen
+  - Income information for everyone in the household, and employer information for everyone who works
+next:
+  - You usually don't send papers up front; your details are checked against government records first.
+  - Your results show which program each family member qualifies for.
+  - For Medi-Cal, a packet comes in the mail listing the health plans you can choose; pick one within 30 days, or Medi-Cal picks one for you.
+  - The Medi-Cal or county children's program office contacts you with next steps; after that, your county handles your Medi-Cal and any questions about it.
+  - For a Covered California plan, choose a plan, enroll and pay your first bill online or wait for a bill from the insurance company; your ID card comes in the mail after payment, but you can use your plan before it arrives.
+  - Each year Covered California sends Form 1095-A by Jan. 31 for your taxes.
+watch_out:
+  - You can apply for Medi-Cal any time of year; for a Covered California plan, enroll during open enrollment, Nov. 1 to Jan. 31, unless a major life change like a move, a new baby or lost coverage opens a special enrollment.
+  - Put the whole family on one application, and apply for your child even if you think you won't qualify; a child can qualify for a different program than the parent, like Medi-Cal while the parent gets a Covered California plan.
+  - Medi-Cal is run by the state and your county, not Covered California, so take coverage questions to your county.
+  - Report changes such as income or household size within 30 days by signing in or calling.
+  - You must reconcile the premium credit on your federal tax return; if your income was higher than you estimated, you may pay some back.
+handoff: https://apply.coveredca.com/static/lw-web/account-creation/choose-application
+sources:
+  - https://www.coveredca.com/apply/
+  - https://www.coveredca.com/health/medi-cal/
+  - https://www.coveredca.com/coverage-basics/medi-cal/children
+  - https://www.coveredca.com/support/before-you-buy/when-to-apply-medi-cal/
+  - https://www.coveredca.com/get-help/find-an-enroller
+  - https://www.coveredca.com/support/financial-help/income-changes/
+  - https://www.coveredca.com/learning-center/tax-forms-and-filing/irs-form-1095-a/
+last_verified: 2026-10-01

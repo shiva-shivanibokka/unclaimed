@@ -1,28 +1,20 @@
-program: ca_eitc
+programs: [ca_eitc, ca_yctc]
 state: CA
-what: CalEITC is a California tax credit for working people that can give you cash back or lower the tax you owe, claimed on your state tax return.
-apply:
-  - how: tax_return
-    where: CalFile, free e-filing straight to the Franchise Tax Board
-    url: https://www.ftb.ca.gov/file/ways-to-file/online/calfile/index.asp
-  - how: in_person
-    where: Free tax help at a VITA site
-    url: https://www.ftb.ca.gov/help/free-tax-help/index.html
-  - how: tax_return
-    where: Your California return with form FTB 3514 attached, if you file on paper
-    url: https://www.ftb.ca.gov/file/personal/credits/california-earned-income-tax-credit.html
+what: CalEITC, for working people, and the Young Child Tax Credit, for families with a young child, are California tax credits that can give you cash back or lower the tax you owe, claimed on your state tax return.
+apply: [calfile, ftb_vita, ftb_3514_paper]
 bring:
   - Photo ID for you and your spouse
   - Social Security cards or ITIN letters for you, your spouse and your children
+  - Birth dates for everyone in your household
   - W-2s and 1099s for all your work income
   - Last year's tax return, if you have it
   - Bank routing and account numbers for direct deposit
 next:
-  - File your California return and claim CalEITC on form FTB 3514, or follow your tax software's steps.
+  - File your California return and claim both credits on form FTB 3514, or follow your tax software's steps.
   - A refund normally takes up to three weeks if you e-file, or up to three months on paper; some returns need extra review.
   - Check your refund on FTB's Where's my refund page with your Social Security number, ZIP code and exact refund amount.
 watch_out:
-  - You only get the credit by filing a California tax return.
+  - You only get the credits by filing a California tax return.
   - You can usually claim CalEITC for up to four past years by filing or amending those returns.
   - CalFile needs a MyFTB account, and you can only register if you filed a California return in one of the last five years.
   - VITA sites are generally open February through May, so plan ahead for free help.
@@ -31,6 +23,7 @@ sources:
   - https://www.ftb.ca.gov/file/personal/credits/california-earned-income-tax-credit.html
   - https://www.ftb.ca.gov/file/personal/credits/caleitc/index.html
   - https://www.ftb.ca.gov/file/personal/credits/caleitc/eligibility-and-credit-information.html
+  - https://www.ftb.ca.gov/file/personal/credits/young-child-tax-credit.html
   - https://www.ftb.ca.gov/file/ways-to-file/online/calfile/index.asp
   - https://www.ftb.ca.gov/help/free-tax-help/index.html
   - https://www.irs.gov/individuals/checklist-for-free-tax-return-preparation

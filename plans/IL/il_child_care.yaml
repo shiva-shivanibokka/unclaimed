@@ -1,10 +1,7 @@
-program: il_child_care
+programs: [il_child_care]
 state: IL
 what: Help paying for child care while you work or go to school, through the Child Care Assistance Program (CCAP).
-apply:
-  - how: online
-    where: Digital CCAP Application (Illinois Department of Early Childhood)
-    url: https://www.getchildcareil.org/
+apply: [il_ccap_online]
 bring:
   - Two recent pay stubs
   - Your most recent tax return

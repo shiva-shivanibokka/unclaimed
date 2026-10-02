@@ -1,15 +1,8 @@
 name: LIHEAP home energy bill help
-program: liheap
+programs: [liheap]
 state: CA
 what: LIHEAP helps pay heating and cooling bills, including wood, propane or oil, helps in an energy emergency such as a shutoff, and can weatherize your home for free.
-apply:
-  - how: in_person
-    where: Your local LIHEAP provider (find it by city or ZIP on the CSD map)
-    url: https://www.csd.ca.gov/Pages/FindServicesInYourArea.aspx?ct=Energy_Bill
-  - how: phone
-    where: California 2-1-1, free help finding local services any time
-    url: https://www.211ca.org/
-    phone: "2-1-1"
+apply: [csd_liheap_provider, ca_211]
 bring:
   - Government-issued photo ID, such as a driver's license, state ID, tribal ID or passport
   - Proof of income from every source for everyone in your household, usually dated within the last six weeks
