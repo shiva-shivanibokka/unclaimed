@@ -29,6 +29,14 @@ test("hourly pay works when hours come in the same call, in any order and either
   assert.equal(said[1], "hours: 30");
 });
 
+test("an amount of zero needs no unit, any other amount does", async () => {
+  // Models often answer "none" without a unit; refusing it derailed simulated screenings.
+  const h = household();
+  await applyAnswers(ctx, h, [{ question: "wages", person: "me", value: 0 }]);
+  assert.equal((h.people[0] as any).wages, 0);
+  await assert.rejects(applyAnswers(ctx, household(), [{ question: "wages", person: "me", value: 100 }]), /per what/);
+});
+
 test("a person id with a dot still finds the question", async () => {
   const h = { state: "CA", people: [{ id: "kid.1", relationship: "child", age: 16 }] };
   await applyAnswers(ctx, h, [{ question: "kid.1.is_disabled", value: true }]);

@@ -171,6 +171,11 @@ export async function applyAnswers(ctx: Context, household: Json, answers: Answe
     const spec = q.answer;
     if (spec.type === "money") {
       if (typeof a.value !== "number") throw new AnswerError(`${a.question} needs a number of dollars`);
+      if (a.value === 0) { // $0 is $0 per anything: "none" needs no unit
+        owner[q.id] = 0;
+        said[at] = `${q.definition.split(".")[0]}: none`;
+        continue;
+      }
       const unit = a.unit ?? (spec.person_units?.length === 1 ? spec.person_units[0] : undefined);
       if (!unit) throw new AnswerError(`${a.question}: say per what (${spec.person_units!.join(", ")})`);
       if (a.take_home && spec.basis !== "before_tax") throw new AnswerError(`${a.question} isn't pay; take_home doesn't apply`);
