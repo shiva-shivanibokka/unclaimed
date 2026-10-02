@@ -19,15 +19,14 @@ watch_out:
   - You can apply for Medi-Cal any time of year; for a Covered California plan, enroll during open enrollment, Nov. 1 to Jan. 31, unless a major life change like a move, a new baby or lost coverage opens a special enrollment.
   - Put the whole family on one application, and apply for your child even if you think you won't qualify; a child can qualify for a different program than the parent, like Medi-Cal while the parent gets a Covered California plan.
   - Medi-Cal is run by the state and your county, not Covered California, so take coverage questions to your county.
-  - Report changes such as income or household size within 30 days by signing in or calling.
+  - Report changes such as income, address or household size; for a Covered California plan, sign in and update within 30 days, and for Medi-Cal, tell your county office within 10 days.
   - You must reconcile the premium credit on your federal tax return; if your income was higher than you estimated, you may pay some back.
 handoff: https://apply.coveredca.com/static/lw-web/account-creation/choose-application
 sources:
-  - https://www.coveredca.com/apply/
-  - https://www.coveredca.com/health/medi-cal/
+  - https://www.coveredca.com/enrollment
+  - https://www.coveredca.com/coverage-basics/medi-cal
   - https://www.coveredca.com/coverage-basics/medi-cal/children
-  - https://www.coveredca.com/support/before-you-buy/when-to-apply-medi-cal/
   - https://www.coveredca.com/get-help/find-an-enroller
-  - https://www.coveredca.com/support/financial-help/income-changes/
-  - https://www.coveredca.com/learning-center/tax-forms-and-filing/irs-form-1095-a/
+  - https://www.coveredca.com/account/guide-to-your-account
+  - https://www.coveredca.com/account/tax-forms
 last_verified: 2026-10-01

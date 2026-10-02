@@ -59,7 +59,7 @@ def _check(case: dict, full: Household) -> None:
                 raise ValueError(f"{case['id']}: {k} does not apply to {p['id']}")
 
 
-def run(case: dict, decide=next_question, on_turn=None) -> dict:
+def run(case: dict, decide=next_question, on_turn=None, max_turns: int = MAX_TURNS) -> dict:
     """Interview `case` with `decide` (the Question Engine, or a policy to compare it with:
     eval/experiments.py), calling on_turn(h, decision) before each answer."""
     truth = _truth(case)
@@ -67,8 +67,8 @@ def run(case: dict, decide=next_question, on_turn=None) -> dict:
     _check(case, full)
     declines = set(case.get("declines", []))
     h = _start(case)
-    turns, latencies = [], []
-    while len(turns) < MAX_TURNS:
+    turns, latencies, questions = [], [], 0
+    while len(turns) < max_turns:
         t = time.perf_counter()
         d = decide(h)
         latencies.append((time.perf_counter() - t) * 1000)
@@ -77,6 +77,7 @@ def run(case: dict, decide=next_question, on_turn=None) -> dict:
         if d["stop"]:
             break
         turns.append(d["ask"]["question"])
+        questions += 1 + len(d["together"])  # a group asked in one breath counts each question
         if d["ask"]["question"] == "county":
             h = h.model_copy(update={"county": case["county"]})
             continue
@@ -89,7 +90,7 @@ def run(case: dict, decide=next_question, on_turn=None) -> dict:
     # Programs that depend on a declined answer are reported as "if ...", not "you qualify".
     conditional = set(conditional_on_declined(h))
     return {
-        "id": case["id"], "turns": len(turns), "asked": turns, "hit_turn_cap": len(turns) >= MAX_TURNS,
+        "id": case["id"], "turns": len(turns), "questions": questions, "asked": turns, "hit_turn_cap": len(turns) >= max_turns,
         "decision_ms": latencies,
         "false_qualify": sorted(p for p in want if got[p][0] and not want[p][0]
                                 and p.split(PERSON_SEP)[0] not in conditional),

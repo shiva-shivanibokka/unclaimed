@@ -13,6 +13,7 @@ The MCP server and engine must be running for `run` (MCP_URL), with Bedrock cred
 """
 
 import argparse
+import re
 import json
 import statistics
 import sys
@@ -25,6 +26,8 @@ RESULTS = ROOT / "eval" / "results"
 CASES = RESULTS / "tier_c_cases.json"
 SCORECARD = ROOT / "docs" / "scorecard.md"
 MAX_TURNS = 40  # safety net for the simulation; a screening is ~10-20 turns
+# The person ends with this word (PERSON_PROMPT); models sometimes write it in lower case.
+DONE = re.compile(r"\bDONE\W*$", re.IGNORECASE)
 
 
 # ---- prepare (engine environment) --------------------------------------------------------
@@ -137,7 +140,7 @@ def converse(case: dict) -> dict:
             tokens[k] += out["tokens"].get(k, 0)
         transcript += [("person", said), ("alexa", out["reply"])]
         reply = str(person(out["reply"])).strip()
-        if "DONE" in reply:
+        if DONE.search(reply):
             transcript.append(("person", reply))
             break
         said = reply
@@ -164,8 +167,8 @@ def _summary(rows: list[dict]) -> str:
         "the simulator's Alexa (Strands agent on Bedrock) runs the screening through the MCP server.", "",
         "| Metric | Value |", "|---|---|",
         f"| Reached results | {len(done)} / {len(ok)} |",
-        f"| False \"you qualify\" (target 0) | **{sum(1 for r in done if r['false_qualify'])}** conversations |",
-        f"| Missed a program they qualify for | {sum(1 for r in done if r['missed'])} conversations |",
+        f"| False \"you qualify\" (target 0) | **{sum(1 for r in ok if r['false_qualify'])}** of {len(ok)} conversations |",
+        f"| Missed a program they qualify for (a conversation that never reached results missed them all) | {sum(1 for r in ok if r['missed'])} of {len(ok)} conversations |",
         f"| Turns (person + Alexa pairs): median / max | {statistics.median(r['turns'] for r in ok):.0f} / {max(r['turns'] for r in ok)} |" if ok else "",
         f"| Alexa turn time: median / p95 | {statistics.median(ms):.0f} / {ms[int(0.95 * (len(ms) - 1))]:.0f} ms |" if ms else "",
         f"| Alexa tokens: input / cached / output | {tok['input']:,} / {tok['cache_read']:,} / {tok['output']:,} |",

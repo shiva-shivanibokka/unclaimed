@@ -21,9 +21,9 @@ not_calculated:
 handoff: https://www.cpuc.ca.gov/industries-and-topics/electrical-energy/electric-costs/care-fera-program
 sources:
   - https://www.cpuc.ca.gov/industries-and-topics/electrical-energy/electric-costs/care-fera-program
-  - https://www.pge.com/en_US/residential/save-energy-money/help-paying-your-bill/longer-term-assistance/care/care.page
-  - https://www.sce.com/residential/assistance/care-fera
+  - https://www.pge.com/en/account/billing-and-assistance/financial-assistance/california-alternate-rates-for-energy-program.html
+  - https://www.sce.com/save-money/income-qualified-programs/care-fera
   - https://www.sdge.com/fera
   - https://www.sdge.com/residential/pay-bill/get-payment-bill-assistance/assistance-programs
-  - https://www.socalgas.com/save-money-and-energy/assistance-programs/california-alternate-rates-for-energy
+  - https://www.socalgas.com/billing-payment/assistance-programs/california-alternate-rates-for-energy
 last_verified: 2026-10-01

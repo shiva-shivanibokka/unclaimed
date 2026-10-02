@@ -18,7 +18,7 @@ Architecture: [docs/architecture.md](docs/architecture.md). Evaluation: [docs/sc
 Needs Linux or macOS (on Windows, WSL2: PolicyEngine-US has paths longer than Windows allows), [uv](https://docs.astral.sh/uv/), Node 24+, and for the simulator only, AWS credentials with Amazon Bedrock access to the model in `simulator/simulator/defaults.env`. Three terminals, from the repo root:
 
 ```bash
-# 1. The engine (PolicyEngine + Question Engine); first start installs and warms up for a minute
+# 1. The engine (PolicyEngine + Question Engine); ready when /health says "ready": true
 cd engine && uv sync && uv run uvicorn unclaimed_engine.app:app --port 8000
 ```
 ```bash

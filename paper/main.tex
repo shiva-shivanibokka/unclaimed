@@ -21,7 +21,7 @@
 \maketitle
 
 \begin{abstract}
-Language-model agents are increasingly asked to interview people and then make determinations that matter to them. In public benefits, the most harmful error is a \fq: telling a household it qualifies for help it will be denied. We study where the decisions of such an agent should live. Our system, built for Alexa+, lets the language model only phrase questions and explain results. Which question to ask next, when to stop, and what the household qualifies for are decided by code: a value-of-information policy that runs batched what-if simulations through an exact rules engine (PolicyEngine-US), over explicit known, unknown and declined state, so that no missing answer silently becomes a default. We evaluate against full-information reference answers on handwritten and generated households covering every eligibility cutoff, and in simulated conversations where a second model plays the person. \todo{one sentence of headline results from E1--E3, from the generated tables}. Code, households and transcripts are open source.
+Language-model agents are increasingly asked to interview people and then make determinations that matter to them. In public benefits, the most harmful error is a \fq: telling a household it qualifies for help it will be denied. We study where the decisions of such an agent should live. Our system, built for Alexa+, lets the language model only phrase questions and explain results. Which question to ask next, when to stop, and what the household qualifies for are decided by code: a value-of-information policy that runs batched what-if simulations through an exact rules engine (PolicyEngine-US), over explicit known, unknown and declined state, so that no missing answer silently becomes a default. We evaluate against full-information reference answers on handwritten and generated households covering every eligibility cutoff, and in simulated conversations where a second model plays the person. \todo{one sentence of headline results from E1--E3, from the generated tables}. Code, households and the E3 conversation transcripts are open source.
 \end{abstract}
 
 \section{Introduction}
@@ -47,7 +47,7 @@ We argue that for an interviewing agent, \emph{where the decisions live} matters
 
 \section{System}
 \todo{Figure: architecture (voice -> model -> MCP tools -> engine).}
-\paragraph{Roles.} The agent runs as an Alexa+ add-on: an MCP server exposes four tools (start a screening, answer, get results, get a plan to apply). The model calls them and speaks; it receives the next question, the reasons it matters, and the results, never a rule to apply.
+\paragraph{Roles.} The agent is built to Alexa+'s published requirements for add-ons (an MCP server) and evaluated in our own Alexa+ simulator, since add-on tooling is not public: the MCP server exposes four tools (start a screening, answer, get results, get a plan to apply). The model calls them and speaks; it receives the next question, the reasons it matters, and the results, never a rule to apply.
 
 \paragraph{State.} The household draft travels inside every tool call (nothing is stored). Each fact is \emph{known}, \emph{unknown} or \emph{declined}. Unknown and declined facts are never sent to the engine, which would read them as 0, ``no'', the first county in the state, or ``citizen''. Inputs the programs read that we never ask about are covered by statements true of the engine's default (``no farm income''), checked by a coverage test that traces every input the programs read.
 
@@ -63,7 +63,7 @@ with $w$ large enough that any eligibility flip outranks any ordinary dollar cha
 \paragraph{Reference.} For every household, the reference is the engine's answer with every question answered. Agreement with the reference is not real-world accuracy; the engine is tested separately against official figures (\todo{n} tests citing USDA, IRS and state sources).
 \paragraph{Households.} Tier A: handwritten California and Illinois households, including each failure found by independent reviews. Tier B: generated households, pairwise combinations of inputs and every program's income cutoff $\pm\$1$, restricted to answers that can exist at each age.
 \paragraph{Oracle interviews.} An oracle answers each question from the household's truth (and declines what the case declines). This isolates the policy from language.
-\paragraph{Simulated conversations.} A model plays the person from the household's facts, in everyday units (``about fourteen fifty a month''), and is always a different model family from the agent where possible.
+\paragraph{Simulated conversations.} A model plays the person from the household's facts, in everyday units (``about fourteen fifty a month''). In E3 the person is always played by the other model family from the agent's, since assistant models role-playing users are unrealistically cooperative \citep{naous2025userlm}.
 \paragraph{Metric.} A \fq\ is a program shown as ``you qualify'' that the reference says the household does not qualify for. We also report programs missed, hedged results (true eligibility shown only as ``if \ldots''), questions asked and cost.
 
 \section{Experiments}

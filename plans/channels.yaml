@@ -68,13 +68,13 @@ covered_california_online:
   how: online
   where: Covered California (about 30 minutes; one application checks every family member)
   url: https://apply.coveredca.com/static/lw-web/account-creation/choose-application
-  source: https://www.coveredca.com/apply/
+  source: https://www.coveredca.com/enrollment
 covered_california_phone:
   how: phone
   where: Covered California, Monday to Friday, 8 a.m. to 6 p.m.
-  url: https://www.coveredca.com/apply/
+  url: https://www.coveredca.com/enrollment
   phone: "1-800-300-1506"
-  source: https://www.coveredca.com/apply/
+  source: https://www.coveredca.com/enrollment
 covered_california_enroller:
   how: in_person
   where: A free certified enroller or licensed agent near you
@@ -83,8 +83,8 @@ covered_california_enroller:
 covered_california_mail:
   how: mail
   where: Paper application to Covered California, P.O. Box 989725, West Sacramento, CA 95798-9725
-  url: https://www.coveredca.com/apply/
-  source: https://www.coveredca.com/apply/
+  url: https://www.coveredca.com/enrollment
+  source: https://www.coveredca.com/enrollment
 calfile:
   how: tax_return
   where: CalFile, free e-filing straight to the Franchise Tax Board
@@ -110,13 +110,13 @@ pge_care_fera:
   where: PG&E (CARE and FERA application)
   url: https://energyinsight.pge.com/carefera?care_lang=english
   phone: "1-866-743-5832"
-  source: https://www.pge.com/en_US/residential/save-energy-money/help-paying-your-bill/longer-term-assistance/care/care.page
+  source: https://www.pge.com/en/account/billing-and-assistance/financial-assistance/california-alternate-rates-for-energy-program.html
 sce_care_fera:
   how: online
   where: Southern California Edison (SCE)
   url: https://www.sce.com/apps/iqp
   phone: "1-800-798-5723"
-  source: https://www.sce.com/residential/assistance/care-fera
+  source: https://www.sce.com/save-money/income-qualified-programs/care-fera
 sdge_care_fera:
   how: online
   where: San Diego Gas & Electric (SDG&E)
@@ -128,7 +128,7 @@ socalgas_care:
   where: SoCalGas
   url: https://myaccount.socalgas.com/ui/care?prefLang=en
   phone: "1-800-427-2200"
-  source: https://www.socalgas.com/save-money-and-energy/assistance-programs/california-alternate-rates-for-energy
+  source: https://www.socalgas.com/billing-payment/assistance-programs/california-alternate-rates-for-energy
 ca_lifeline_provider:
   how: phone
   where: A participating phone company (find one with Provider Search on the California LifeLine site)
@@ -154,26 +154,26 @@ ca_211:
 ca_school:
   how: in_person
   where: Your child's school or school district office
-  url: https://www.fns.usda.gov/cn/applying-free-and-reduced-price-school-meals
-  source: https://www.fns.usda.gov/cn/applying-free-and-reduced-price-school-meals
+  url: https://www.fna.usda.gov/schoolmeals/model-application
+  source: https://www.fna.usda.gov/schoolmeals/model-application
 ca_wic_office:
   how: in_person
   where: Your local WIC office (find one by city or ZIP and set up an appointment)
-  url: https://www.myfamily.wic.ca.gov/Home/HowCanIGetWIC
-  source: https://www.myfamily.wic.ca.gov/Home/HowCanIGetWIC
+  url: https://myfamily.wic.ca.gov/Home/HowCanIGetWIC
+  source: https://myfamily.wic.ca.gov/Home/HowCanIGetWIC
 ca_wic_phone:
   how: phone
   where: California WIC Program
-  url: https://www.myfamily.wic.ca.gov/Home/HowCanIGetWIC
+  url: https://myfamily.wic.ca.gov/Home/HowCanIGetWIC
   phone: "1-800-852-5770"
-  source: https://www.myfamily.wic.ca.gov/Home/ContactUs
+  source: https://myfamily.wic.ca.gov/Home/ContactUs
 
 # --- Illinois ---
 abe_online:
   how: online
   where: ABE (Application for Benefits Eligibility)
-  url: https://abe.illinois.gov/abe/access/
-  source: https://abe.illinois.gov/abe/access/
+  url: https://abe.illinois.gov/access/
+  source: https://abe.illinois.gov/access/
 idhs_helpline:
   how: phone
   where: IDHS Help Line / ABE Customer Call Center

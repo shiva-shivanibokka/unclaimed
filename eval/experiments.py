@@ -13,6 +13,7 @@ are in; programs that an unasked or declined question could still change are "if
 
 Run from engine/ (its environment):  uv run python ../eval/experiments.py [e1] [e2] [--workers N]
 Raw results go to eval/results/; the tables to docs/research-results.md (generated: don't edit).
+Don't run alongside eval/e3.py (both rewrite docs/research-results.md).
 """
 
 import argparse
@@ -43,6 +44,9 @@ from unclaimed_engine.interview import (  # noqa: E402
 RESULTS = ROOT / "eval" / "results"
 OUT = ROOT / "docs" / "research-results.md"
 POLICIES = ("engine", "every", "fixed", "random")
+# Asking every question can take far more turns than an interview; the cap only guards
+# against a policy that never ends, and cap hits are reported.
+E1_MAX_TURNS = 500
 
 
 # ---- E1: question-selection policies ------------------------------------------------------
@@ -82,7 +86,7 @@ def policy(name: str, case_id: str):
 
 def _e1_case(name: str, case: dict) -> dict:
     try:
-        return {"policy": name, **simulate.run(case, decide=policy(name, case["id"]))}
+        return {"policy": name, **simulate.run(case, decide=policy(name, case["id"]), max_turns=E1_MAX_TURNS)}
     except Exception as e:  # a broken case is a finding, not a crash
         return {"policy": name, "id": case["id"], "error": f"{type(e).__name__}: {e}"}
 
@@ -129,32 +133,42 @@ def e1_table(results: list[dict]) -> str:
     for r in results:
         by[r["policy"]].append(r)
     lines = ["## E1: question selection", "",
-             "Same households, same oracle, same question groups; only the choice of the next question differs.", "",
-             "| Policy | Households | False \"you qualify\" | Missed a program | Questions: median / p95 / max | Errors |",
-             "|---|---|---|---|---|---|"]
+             "Same households, same oracle, same question groups; only the choice of the next question differs. "
+             "Questions count each question asked (a group asked in one breath counts each one); turns count what "
+             "Alexa says (a group is one turn).", "",
+             "| Policy | Households | False \"you qualify\" | Missed a program | Questions: median / p95 / max | "
+             "Turns: median | Hit the turn cap | Errors |",
+             "|---|---|---|---|---|---|---|---|"]
     for name in POLICIES:
         rows = by.get(name, [])
         ok = [r for r in rows if "error" not in r]
-        turns = sorted(r["turns"] for r in ok)
-        spread = f"{statistics.median(turns):.0f} / {turns[int(0.95 * (len(turns) - 1))]} / {turns[-1]}" if turns else "-"
+        qs = sorted(r["questions"] for r in ok)
+        spread = f"{statistics.median(qs):.0f} / {qs[int(0.95 * (len(qs) - 1))]} / {qs[-1]}" if qs else "-"
+        turns = f"{statistics.median(r['turns'] for r in ok):.0f}" if ok else "-"
         lines.append(f"| {name} | {len(ok)} | {_pct(sum(1 for r in ok if r['false_qualify']), len(ok))} | "
-                     f"{_pct(sum(1 for r in ok if r['missed']), len(ok))} | {spread} | {len(rows) - len(ok)} |")
+                     f"{_pct(sum(1 for r in ok if r['missed']), len(ok))} | {spread} | {turns} | "
+                     f"{sum(1 for r in ok if r['hit_turn_cap'])} | {len(rows) - len(ok)} |")
     return "\n".join(lines) + "\n"
 
 
 def e2_table(results: list[dict]) -> str:
     ok = [r for r in results if "error" not in r]
+    # Every household counts at every point: after its interview stops, its results stay
+    # what they were at the stop (so the rows compare the same households).
+    last = max((len(r["turns"]) for r in ok), default=0)
     at = defaultdict(list)
     for r in ok:
-        for row in r["turns"]:
-            at[row["asked"]].append(row)
+        for k in range(last):
+            if r["turns"]:
+                at[k].append(r["turns"][min(k, len(r["turns"]) - 1)])
     lines = ["## E2: results shown mid-interview", "",
-             "If results were shown after this many questions of the Question Engine's interview: households where they "
+             "If results were shown after this many turns of the Question Engine's interview (households whose interview "
+             "had already stopped count with their final results): households where they "
              "would claim at least one program the full answer says they don't qualify for. *Naive* takes the engine's "
              "answer with unknowns read as 0/no; *tracked* is what `get_results` shows (no results before the essentials, "
              "\"if ...\" where an unasked or declined answer could change eligibility). *Hedged* is the share of true "
              "claims shown as \"if ...\" rather than \"you qualify\": the cost of being safe.", "",
-             "| Questions asked | Households | Naive: false \"you qualify\" | Tracked: false \"you qualify\" | Tracked: no results yet | Hedged true claims |",
+             "| Turns | Households | Naive: false \"you qualify\" | Tracked: false \"you qualify\" | Tracked: no results yet | Hedged true claims |",
              "|---|---|---|---|---|---|"]
     for k in sorted(at):
         rows = at[k]
@@ -190,8 +204,9 @@ def main() -> None:
             e2 = pool.map(_e2_case, cases, chunksize=1)
             (RESULTS / "e2.json").write_text(json.dumps(e2, indent=1))
             sections["e2"] = e2_table(e2) + f"\nRun on {date.today()} from `{version}`.\n"
-    OUT.write_text("# Research results\n\nGenerated by `eval/experiments.py` (don't edit by hand); the plan is "
-                   "`docs/research-plan.md`. Tier A and Tier B households, oracle answers.\n\n"
+    OUT.write_text("# Research results\n\nGenerated by `eval/experiments.py` (E1, E2: Tier A and B households, "
+                   "oracle answers) and `eval/e3.py` (E3: simulated conversations); don't edit by hand. The plan is "
+                   "`docs/research-plan.md`.\n\n"
                    + "\n".join(sections[k] for k in sorted(sections)), encoding="utf-8")
     print(f"-> {OUT}")
 

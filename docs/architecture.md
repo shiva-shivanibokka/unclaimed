@@ -32,7 +32,7 @@ The language model phrases questions and explains results; it never chooses what
 2. What-ifs: each candidate at a low and a high realistic answer, all batched into one PolicyEngine simulation. Questions asked together (a group like "other income") are tried together.
 3. Score: eligibility flips (weighted far above dollars) plus the dollar swing, divided by the question's cost (how hard or sensitive it is to ask).
 4. Stop when no candidate flips anything and none moves a benefit by the stop threshold a month; otherwise ask the top one. After a set number of questions, offer "estimate now or keep going". Tuning lives in `interview.py`.
-5. **Think-ahead:** while the person answers, the likely next households (the asked question answered "no", or its main question "yes") are decided in the background, and once the interview stops the results are computed too. Guesses never delay a real request.
+5. **Think-ahead:** while the person answers, the likely next households (the asked question answered "no", or its main question "yes") are decided in the background, and once the interview stops the results are computed too. A guess never starts while a real request is waiting; a real request waits at most for the one guess already running.
 
 ## Known, unknown, declined
 PolicyEngine silently reads anything missing as a default (0/no, the first county in the state, citizen). We never let a default stand in for an answer:

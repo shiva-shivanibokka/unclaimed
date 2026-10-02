@@ -164,8 +164,29 @@ Independent reviewer (cards against the agencies' pages, engine, MCP server, scr
 - Held up: the screen loads nothing from outside, the frame is sandboxed, every card line traced to a cited agency page.
 
 ## Stage 6: Harden and polish (Oct 17 – Oct 21)
-- [ ] Fix the scorecard's worst cases; latency; error handling
-- [ ] Friction log complete; README; architecture doc final
+- [x] Fix the scorecard's worst cases; latency; error handling. Rerun on the Stage 5 code: no false "you qualify" and nothing missed in either tier, so there were no worst cases to fix (numbers in `docs/scorecard.md`). Latency: once the interview stops, the engine computes the results ahead (results are always asked for next), so `get_results` no longer recomputes them. Error handling held up in review (the engine's busy/failed split from Stage 4; the simulator's messages for limits, oversize history and an unreachable Alexa or screen)
+- [x] Plan cards: `engine/scripts/check_plan_links.py` opens every link and separates pages that are gone, agency sites that refuse scripts (open by hand), and pages that redirect elsewhere (re-check what the card cites). First run: the CA WIC site stopped answering on `www.` (fixed); the redirected pages were re-read and the cards updated
+- [x] Friction log complete (no new Amazon-tool friction in Stages 5–6); README rewritten to run from a fresh clone; architecture doc final; component READMEs and the eval README brought up to date
+- [ ] Latency measured with realistic pauses on AWS (the scripted run has no pauses, the worst case for think-ahead)
+
+### Research piece (added Oct 1)
+The project is also written up as a research paper (arXiv): `docs/research-plan.md` (question, experiments, threats to validity), `docs/research-results.md` (generated), `paper/` (draft, verified references, tables generated from the result files). Experiments: E1 question-selection policies and E2 results shown mid-interview (oracle, free); E3 the same simulated people talking with our design, a model with the calculator as a tool, and a model alone, on Amazon Nova and Claude Haiku (Bedrock, capped at $60 in total).
+
+### Stage 6 adversarial review (Oct 1)
+Independent reviewer (engine change, research code, link checker, docs; hard-coding audit): 5 high, 6 medium, 7 low, all verified. Most were in the research code, where a flaw would have reached a paper. Fixed unless marked accepted.
+- **High:** the "model alone" baseline was given Alexa's prompt saying "your tools do every eligibility decision; you only talk" and then told to decide on its own. Alexa's voice and speaking rules now live in `simulator/simulator/voice.md`, shared by every design; how to run our tools stays in `prompt.md`.
+- **High:** the calculator baseline couldn't see why the engine refused its input (an HTTP error without the engine's message), while our design gets the message. It now gets the engine's message.
+- **High:** E3 and Tier C counted errors only among conversations that reached results, so a design that gave up on hard households looked better. Every conversation now counts; one that never reached results counts as missing every program the household qualifies for.
+- **High:** E3's cost guard undercounted (cached input subtracted twice; failed conversations cost $0; the budget restarted at $0 on every run; no reserve for conversations in flight). Fixed; the budget is now the total of every E3 run so far.
+- **High:** the paper claimed the agent runs as an Alexa+ add-on (it runs in our simulator, built to Alexa+'s published MCP requirements), that the simulated person is a different model family (it now always is, in E3), and that transcripts are published (E3's now go to `paper/data/`).
+- **Medium:** think-ahead didn't re-check the cache after waiting, so a request could wait for a guess and then compute the same thing again; it now re-checks. Guessing results for a household with declined answers could hold the engine for seconds; those aren't guessed now. The docs' "guesses never delay a request" is corrected to "at most one guess already running".
+- **Medium:** E2's rows mixed different households (each dropped out when its interview stopped); a stopped household now keeps its final results. E1 counted turns, not questions (a group asked together counts each question now), stopped the "ask everything" policy at 60 turns (now 500, with cap hits reported).
+- **Medium:** the link checker passed redirects to other pages, treated a vanished domain as "open by hand", and failed on one server error. Fixed (DNS check, one retry, redirects listed).
+- **Medium:** E3's results file could be lost by a crash mid-write (now replaced in one step); E3 and the E1/E2 runner both rewrite `docs/research-results.md` (don't run them at the same time: said in both).
+- **Low, fixed:** the new think-ahead test left entries in the shared cache; "DONE" from the simulated person was case-sensitive; the cache-size comment; the README's warm-up claim; the demo script's unsourced opening line (now the IRS's own EITC figure).
+- **Low, accepted:** non-citizen cases' oracle truth uses 1 year in the US while the person is told "anything not listed is zero" (both are under every program's 5-year bar); E3's prices are typed in from the AWS pricing page (only used to stop at the budget; the bill is the truth).
+- Held up: cache keys (kind, household, date) and no mutation of cached results; E1 policies differ only in question choice; E2's "tracked" matches what `get_results` reports; no truth leaks to the agents; the calculator baseline gets the engine's real household schema; every citation key exists.
+- Found while verifying: the scorecard's decision times were inflated by other work on the same machine during the run; it is rerun on an idle machine before its timings are used.
 
 ## Prize strategy
 - Primary track: Alexa+ (1st place includes the Amazon team meeting)

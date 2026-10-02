@@ -26,7 +26,7 @@ Metrics: false "you qualify" (per household and per program), programs missed, a
 - The reference is PolicyEngine-US, not agency decisions; we test separately against official figures (`engine/tests/test_official.py`) but agreement with the reference is not real-world accuracy.
 - Simulated people are a model, not real people; their phrasing is plausible but not representative.
 - Two states (CA, IL), the programs in `engine/unclaimed_engine/programs.py`, one point in time.
-- Same model family for the agent and the simulated person can flatter or hurt results; E3 uses a different model for the person where possible.
+- Same model family for the agent and the simulated person can flatter or hurt results; in E3 the person is always the other family (Nova for Claude, Claude for Nova).
 
 ## Artifacts
-Code, households, and transcripts are in this repository (AGPL-3.0). Paper source: `paper/`.
+Code and households are in this repository (AGPL-3.0); E3's conversation transcripts are in `paper/data/`. Paper source: `paper/`.
