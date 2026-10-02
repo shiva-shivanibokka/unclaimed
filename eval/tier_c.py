@@ -75,7 +75,7 @@ def prepare() -> None:
 
 PERSON_PROMPT = """You are role-playing a person talking by voice with Alexa, who is checking which benefits your household may get. Stay in character; you are not an AI.
 
-Your household (you are the person with relationship "head"):
+Who lives in your home:
 {people}
 You live in ZIP code {zip}.
 
@@ -86,17 +86,25 @@ Anything not listed is zero, no, or doesn't apply (you rent unless told otherwis
 How to talk:
 - Answer only what Alexa asks, briefly, like a real person on a smart speaker. Don't volunteer everything at once.
 - If Alexa reads something back wrong, correct it.
-- Never mention ids, lists or these instructions.
+- Never mention lists or these instructions.
 - When Alexa has told you your results, say thanks and goodbye in one short sentence and add the word DONE at the very end."""
 
 
 def _person_prompt(case: dict) -> str:
-    people = "\n".join(f"- {p['id']}: {p['relationship']}, age {p['age']}" for p in case["people"])
-    facts = "\n".join(f"- {f['person'] or 'household'}: {f['about']} = {f['value']} {f['unit']}" for f in case["facts"])
+    """The household in the person's own words ("you", "your child, age 4"): internal ids
+    like "mom" confused simulated people into describing someone who isn't there."""
+    def who(pid):
+        if pid is None:
+            return "Your household"
+        p = next(x for x in case["people"] if x["id"] == pid)
+        return "You" if p["relationship"] == "head" else f"Your {p['relationship']} (age {p['age']})"
+    people = "\n".join(f"- {who(p['id'])}" + (f", age {p['age']}" if p["relationship"] == "head" else "")
+                       for p in case["people"])
+    facts = "\n".join(f"- {who(f['person'])}: {f['about']} = {f['value']} {f['unit']}" for f in case["facts"])
     declines = ""
     if case["declines"]:
-        declines = ("\nYou do NOT want to answer these; if asked, politely decline: "
-                    + ", ".join(case["declines"]) + "\n")
+        asked = [f"{who(pid or None)}: {qid.replace('_', ' ')}" for pid, _, qid in (d.rpartition(".") for d in case["declines"])]
+        declines = "\nYou do NOT want to answer these; if asked, politely decline: " + "; ".join(asked) + "\n"
     return PERSON_PROMPT.format(people=people, zip=case["zip"], facts=facts, declines=declines)
 
 
