@@ -131,7 +131,6 @@ export function noneForTheRest(ctx: Context, asked: Json[], skip: Set<string>): 
       question: x.question,
       ...(x.person && { person: x.person }),
       value: q.answer.type === "bool" ? false : 0,
-      ...(q.answer.type === "money" && { unit: q.answer.person_units?.at(-1) }),
     }));
 }
 
@@ -223,7 +222,7 @@ export function buildTools(ctx: Context): Tool[] {
       question: { type: "string", description: "Question id from `ask` (or ask_in_the_same_breath), e.g. rent" },
       person: { type: "string", description: "Person id, for questions asked per person" },
       value: { type: ["number", "boolean", "string"], description: "Dollars as a number, true/false, a number, or one of the options" },
-      unit: { type: "string", enum: units, description: `For money: per what, as the person said it (${units.join(", ")})` },
+      unit: { type: "string", enum: units, description: `For money: per what, as the person said it (${units.join(", ")}); not needed for 0` },
       take_home: { type: "boolean", description: "For pay: true if the amount is take-home (after taxes); it is converted to pay before taxes" },
     },
   };

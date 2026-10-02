@@ -58,7 +58,7 @@ test("'none of the rest' fills what wasn't answered or declined with zero / no",
   const asked = [{ question: "wages", person: "me" }, { question: "is_disabled", person: "me" }, { question: "hours", person: "me" }];
   const filled = noneForTheRest(ctx, asked, new Set(["me.hours"]));
   assert.deepEqual(filled, [
-    { question: "wages", person: "me", value: 0, unit: "year" },
+    { question: "wages", person: "me", value: 0 },
     { question: "is_disabled", person: "me", value: false },
   ]);
 });

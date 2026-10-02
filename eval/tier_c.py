@@ -63,7 +63,9 @@ def prepare() -> None:
         out.append({
             "id": case["id"], "zip": case.get("zip") or by_county[case["county"]], "county": case.get("county"),
             "people": [{k: p[k] for k in ("id", "relationship", "age")} for p in case["people"]],
-            "facts": facts, "declines": case.get("declines", []),
+            "facts": facts,
+            "declines": [{"person": pid or None, "about": d.question(qid).definition}
+                         for pid, _, qid in (x.rpartition(".") for x in case.get("declines", []))],
             "truth": {p["id"]: {"eligible": p["eligible"], "people": p.get("eligible_people")} for p in result["programs"]},
         })
     RESULTS.mkdir(exist_ok=True)
@@ -103,8 +105,9 @@ def _person_prompt(case: dict) -> str:
     facts = "\n".join(f"- {who(f['person'])}: {f['about']} = {f['value']} {f['unit']}" for f in case["facts"])
     declines = ""
     if case["declines"]:
-        asked = [f"{who(pid or None)}: {qid.replace('_', ' ')}" for pid, _, qid in (d.rpartition(".") for d in case["declines"])]
-        declines = "\nYou do NOT want to answer these; if asked, politely decline: " + "; ".join(asked) + "\n"
+        asked = [f"{who(x['person'])}: {x['about']}" for x in case["declines"]]
+        declines = ("\nYou know these but do NOT want to share them; whenever Alexa asks, even again, politely decline: "
+                    + "; ".join(asked) + "\n")
     return PERSON_PROMPT.format(people=people, zip=case["zip"], facts=facts, declines=declines)
 
 
