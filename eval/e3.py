@@ -24,6 +24,7 @@ are kept. Don't run alongside eval/experiments.py (both rewrite docs/research-re
 
 import argparse
 import json
+import math
 import os
 import statistics
 import sys
@@ -211,16 +212,27 @@ def _tool_calls(history: list[dict]) -> dict[str, dict]:
 
 # ---- report -------------------------------------------------------------------------------
 
+def mcnemar(a: dict[str, bool], b: dict[str, bool]) -> float:
+    """Exact two-sided McNemar p-value for paired yes/no outcomes on the same households."""
+    both = a.keys() & b.keys()
+    only_a = sum(1 for k in both if a[k] and not b[k])
+    only_b = sum(1 for k in both if b[k] and not a[k])
+    n = only_a + only_b
+    return min(1.0, 2 * sum(math.comb(n, k) for k in range(min(only_a, only_b) + 1)) / 2 ** n) if n else 1.0
+
+
 def table(rows: list[dict]) -> str:
     lines = ["## E3: where decisions live", "",
              "Simulated conversations: a model plays each Tier A household in everyday words, always from the other "
              "model family than Alexa's. Same people and same Alexa model within a block; only the design differs. "
              "Scored on the results screen, over every conversation that ran (a conversation that never reached "
              "results told the person nothing: it counts as missing every program they qualify for). A false \"you "
-             "qualify\" is a program shown as \"qualify\" that the full-information answer says they don't qualify for.", "",
-             "| Model | Design | Conversations | Reached results | False \"you qualify\" | Missed a program | "
-             "Eligible programs shown as \"maybe\" | Turns: median | Cost | Errors |",
-             "|---|---|---|---|---|---|---|---|---|---|"]
+             "qualify\" is a program shown as \"qualify\" that the full-information answer says they don't qualify for; "
+             "a false \"maybe\" one shown as \"maybe\" (\"if ...\"). *vs split: p* is the exact two-sided McNemar test "
+             "of the design against ours on the same households (conversations with a false \"you qualify\").", "",
+             "| Model | Design | Conversations | Reached results | False \"you qualify\" | vs split: p | False \"maybe\" | "
+             "Missed a program | Eligible programs shown as \"maybe\" | Turns: median | Cost | Errors |",
+             "|---|---|---|---|---|---|---|---|---|---|---|---|"]
     for model in sorted({r["model"] for r in rows}):
         for design in DESIGNS:
             rs = [r for r in rows if r["model"] == model and r["design"] == design]
@@ -234,9 +246,13 @@ def table(rows: list[dict]) -> str:
             missed = sum(1 for r in ok if r["missed"] or (not r["finished"] and r["eligible"]))
             hedged = sum(len(r["hedged"]) for r in ok)
             eligible = sum(len(r["eligible"]) for r in ok)
+            split = {r["id"]: bool(r["false_qualify"]) for r in rows
+                     if r["model"] == model and r["design"] == "split" and "error" not in r}
+            p = "-" if design == "split" else f"{mcnemar(split, {r['id']: bool(r['false_qualify']) for r in ok}):.1g}"
             lines.append(
                 f"| `{model.split('.')[-1]}` | {design} | {n} | {pct(sum(1 for r in ok if r['finished']))} | "
-                f"{pct(sum(1 for r in ok if r['false_qualify']))} | {pct(missed)} | {hedged} of {eligible} | "
+                f"{pct(sum(1 for r in ok if r['false_qualify']))} | {p} | {pct(sum(1 for r in ok if r['false_maybe']))} | "
+                f"{pct(missed)} | {hedged} of {eligible} | "
                 f"{statistics.median(r['turns'] for r in ok) if ok else '-'} | ${sum(r['cost'] for r in rs):.2f} | "
                 f"{len(rs) - n} |")
     return "\n".join(lines) + f"\n\nRun on {date.today()}.\n"
@@ -264,7 +280,8 @@ def main() -> None:
     done = {(r["id"], r["design"]) for r in rows if "error" not in r}
     jobs = [(c, d) for d in args.designs for c in cases if (c["id"], d) not in done]  # resumable
     lock = threading.Lock()
-    state = {"spent": sum(r["cost"] for f in DATA.glob("e3-*.json") for r in json.loads(f.read_text())),
+    # Every row ever paid for counts toward the budget, superseded ones (e3v1-*) included.
+    state = {"spent": sum(r["cost"] for f in DATA.glob("e3*.json") for r in json.loads(f.read_text())),
              "running": 0, "worst": 0.0}
 
     def one(job):
