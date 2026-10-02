@@ -99,3 +99,6 @@ Venue notes in the bib come from the arXiv comment field or the publisher. Where
 - **OpenFisca** and other rules-as-code engines: not checked, left out.
 - One Crossref record lists the CAT book's second editor as "Gees A.W. Glas"; the bib uses the correct name "Cees A. W. Glas".
 - PolicyEngine has no canonical paper we could confirm; it is cited as software (year = repository creation, 2021).
+- **Participation figures (added Oct 2):** `irs2026eitcparticipation` (IRS EITC Central, national EITC participation 80.8% for tax year 2022; page reviewed Aug 19, 2026) and `usda2025snapparticipation` (USDA "Reaching Those in Need", 88% of eligible people received SNAP in FY 2022; page updated Apr 18, 2025; the site now answers at fna.usda.gov). Both read on the agencies' pages on Oct 2.
+
+Build: `tectonic main.tex` (or pdflatex + bibtex); the tables come from `python tables.py`.
