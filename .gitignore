@@ -21,3 +21,6 @@ eval/results/
 Thumbs.db
 .vscode/
 .idea/
+
+# Paper build output (the source is what arXiv takes)
+paper/main.pdf
