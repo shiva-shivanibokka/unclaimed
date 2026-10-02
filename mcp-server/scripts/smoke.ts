@@ -1,10 +1,13 @@
 // Smoke test: a full screening through the official MCP client, with a scripted person
 // answering whatever is asked (in their own units), and the time of every call.
-// Usage: npm run smoke -- [url]   (default http://localhost:8080/mcp; the engine must be up)
+// Usage: npm run smoke -- [url] [pause seconds]   (default http://localhost:8080/mcp, no pause; the engine
+// must be up). A pause before each answer stands in for the person talking, which is when
+// the engine thinks ahead; with no pause every answer is the worst case.
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 
 const url = new URL(process.argv[2] ?? "http://localhost:8080/mcp");
+const pauseMs = Number(process.argv[3] ?? 0) * 1000;
 
 // A Los Angeles mom of two: $18/hour for 30 hours, $1,450 rent, no other income.
 const person: Record<string, { value: number | boolean | string; unit?: string }> = {
@@ -54,11 +57,13 @@ while (!next.stop) {
   for (const a of [...answers]) {
     if (a.unit === "hour") answers.push({ question: "weekly_hours_worked", person: a.person, value: person.weekly_hours_worked.value });
   }
+  await new Promise((done) => setTimeout(done, pauseMs));
   r = await call("answer", { household, answers });
   household = r.household;
   next = r.next;
   for (const line of r.read_back) if (!line.endsWith(": no") && !line.includes(": $0")) console.log("   read back:", line);
 }
+await new Promise((done) => setTimeout(done, pauseMs));
 const results = await call("get_results", { household });
 const eligible = results.programs.filter((p: any) => p.eligible);
 for (const p of eligible) console.log(`  ${p.name}: ${p.amount ?? "covered"} ${p.per ?? ""}  why: ${p.why?.join("; ") ?? "-"}${p.if_also ? `  if: ${p.if_also.join(" ")}` : ""}`);

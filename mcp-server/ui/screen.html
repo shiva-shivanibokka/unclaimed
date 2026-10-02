@@ -49,11 +49,12 @@ const money = (x) => "$" + Math.round(x).toLocaleString("en-US");
 const people = (ids) => `for ${ids.length} ${ids.length === 1 ? "person" : "people"}`;
 
 function results(r) {
-  const yes = r.programs.filter((p) => p.eligible);
+  // Eligible, or not yet but an answer we don't have could change that ("maybe").
+  const yes = r.programs.filter((p) => p.eligible || p.conditional_on);
   // No amount: the engine reports who is covered instead (health coverage).
   const tiles = yes.map((p) => el("div", { className: "tile" + (p.conditional_on || p.if_also ? " if" : "") },
     el("h2", { textContent: p.name }),
-    el("div", { className: "amount", textContent: p.amount === undefined ? "Covered" : p.amount > 0 ? `${money(p.amount)} / ${p.per}` : "Qualifies" }),
+    el("div", { className: "amount", textContent: !p.eligible ? "Maybe" : p.amount === undefined ? "Covered" : p.amount > 0 ? `${money(p.amount)} / ${p.per}` : "Qualifies" }),
     p.eligible_people ? el("div", { className: "muted", textContent: people(p.eligible_people) }) : null,
     p.if_also ? el("div", { className: "tag", textContent: `If: ${p.if_also.join(" ")}` }) : null,
     p.conditional_on ? el("div", { className: "tag", textContent: "Depends on an answer we don't have" }) : null));

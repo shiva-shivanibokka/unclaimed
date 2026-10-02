@@ -129,6 +129,17 @@ def _eligibility(full, incomes: list[float]) -> list[dict]:
             for r in batch.evaluate(full, [{(head, "employment_income"): x} for x in incomes])]
 
 
+def _first_flip(full, program: str, lo: int, hi: int) -> int:
+    """The lowest whole-dollar income in (lo, hi] where `program` flips, narrowed in two
+    passes ($25, then $1) rather than trying every dollar."""
+    for sub in (25, 1):
+        grid = [*range(lo, hi, sub), hi]
+        r = _eligibility(full, grid)
+        i = next(j for j in range(1, len(r)) if r[j][program] != r[j - 1][program])
+        lo, hi = grid[i - 1], grid[i]
+    return hi
+
+
 def cutoffs(step: int = 500, top: int = 120_000) -> list[dict]:
     """Households $1 below and above every earnings level where a program's eligibility flips."""
     out = []
@@ -143,9 +154,7 @@ def cutoffs(step: int = 500, top: int = 120_000) -> list[dict]:
         for program in coarse[0]:
             for i in range(1, len(grid)):
                 if coarse[i][program] != coarse[i - 1][program]:
-                    lo = grid[i - 1]
-                    fine = _eligibility(full, list(range(lo, lo + step + 1)))
-                    flip = next(lo + j for j in range(1, len(fine)) if fine[j][program] != fine[j - 1][program])
+                    flip = _first_flip(full, program, grid[i - 1], grid[i])
                     for side, income in (("below", flip - 1), ("at", flip)):
                         out.append(_case(f"cut-{state}-{shape}-{program}-{flip}-{side}",
                                          {**base, "earnings": income}))
