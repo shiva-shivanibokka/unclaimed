@@ -32,47 +32,51 @@ SYSTEM_PROMPT = VOICE + "\n" + (Path(__file__).parent / "prompt.md").read_text(e
 
 _lock = threading.Lock()
 _mcp: MCPClient | None = None
-_tools: list | None = None
-_screens: dict | None = None  # the MCP server's screens (MCP Apps), read once per connection
+
+
+def _client() -> MCPClient:
+    """One long-lived client to the MCP server (reconnects after a failure)."""
+    global _mcp
+    with _lock:
+        if _mcp is None:
+            _mcp = MCPClient(url=MCP_URL)
+            _mcp.start()
+        return _mcp
 
 
 def _connect() -> list:
-    """The MCP server's tools, from one long-lived client (reconnects after a failure)."""
-    global _mcp, _tools
-    with _lock:
-        if _tools is None:
-            if _mcp is not None:
-                try:
-                    _mcp.stop(None, None, None)
-                except Exception:
-                    pass
-            _mcp = MCPClient(url=MCP_URL)
-            _mcp.start()
-            _tools = _mcp.list_tools_sync()
-        return _tools
+    """The MCP server's tools, listed fresh for every turn: a deploy of the MCP server can
+    change them while this service keeps running."""
+    return _client().list_tools_sync()
 
 
 def screens() -> dict:
     """Which tools show a screen, and each screen's HTML, as the MCP server declares them
-    (tool `_meta.ui.resourceUri`, read with resources/read). The browser hosts them."""
-    global _screens
-    tools = _connect()
-    with _lock:
-        if _screens is None:
-            uris = {t.tool_name: ((t.mcp_tool.meta or {}).get("ui") or {}).get("resourceUri") for t in tools}
-            uris = {name: uri for name, uri in uris.items() if uri}
-            html = {}
-            for uri in set(uris.values()):
-                content = _mcp.read_resource_sync(uri).contents[0]
-                html[uri] = {"html": content.text, "meta": (content.meta or {}).get("ui", {})}
-            _screens = {"tools": uris, "screens": html}
-        return _screens
+    (tool `_meta.ui.resourceUri`, read with resources/read). Read on every page load, for
+    the same reason as the tools. The browser hosts them."""
+    try:
+        client = _client()
+        uris = {t.tool_name: ((t.mcp_tool.meta or {}).get("ui") or {}).get("resourceUri") for t in _connect()}
+        uris = {name: uri for name, uri in uris.items() if uri}
+        html = {}
+        for uri in set(uris.values()):
+            content = client.read_resource_sync(uri).contents[0]
+            html[uri] = {"html": content.text, "meta": (content.meta or {}).get("ui", {})}
+    except Exception:
+        _reset()  # reconnect on the next call
+        raise
+    return {"tools": uris, "screens": html}
 
 
 def _reset() -> None:
-    global _tools, _screens
+    global _mcp
     with _lock:
-        _tools = _screens = None
+        if _mcp is not None:
+            try:
+                _mcp.stop(None, None, None)
+            except Exception:
+                pass
+        _mcp = None
 
 
 def turn(history: list[dict], text: str, *, model_id: str = MODEL_ID, tools: list | None = None,

@@ -186,7 +186,8 @@ Independent reviewer (engine change, research code, link checker, docs; hard-cod
 - **Low, fixed:** the new think-ahead test left entries in the shared cache; "DONE" from the simulated person was case-sensitive; the cache-size comment; the README's warm-up claim; the demo script's unsourced opening line (now the IRS's own EITC figure).
 - **Low, accepted:** non-citizen cases' oracle truth uses 1 year in the US while the person is told "anything not listed is zero" (both are under every program's 5-year bar); E3's prices are typed in from the AWS pricing page (only used to stop at the budget; the bill is the truth).
 - Held up: cache keys (kind, household, date) and no mutation of cached results; E1 policies differ only in question choice; E2's "tracked" matches what `get_results` reports; no truth leaks to the agents; the calculator baseline gets the engine's real household schema; every citation key exists.
-- Found while verifying: the scorecard's decision times were inflated by other work on the same machine during the run; it is rerun on an idle machine before its timings are used.
+- Found while verifying: the scorecard's decision times were inflated by other work on the same machine during the run; rerun on an idle machine (Tier B's households were also found in two passes instead of trying every dollar: the same 437 households).
+- Found while deploying: the simulator read the MCP server's tools and screens once at startup and kept them. Started mid-rollout, it kept the old screen; after a change to a tool's input it would have called the tool the old way. It now lists the tools every turn and reads the screens on every page load.
 
 ## Prize strategy
 - Primary track: Alexa+ (1st place includes the Amazon team meeting)
