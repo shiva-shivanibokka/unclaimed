@@ -190,6 +190,13 @@ Independent reviewer (engine change, research code, link checker, docs; hard-cod
 - Found by the E3 conversations: a ZIP split between counties broke every screening through the API (think-ahead looked up the county question in the dictionary, where it has no entry), since think-ahead arrived in Stage 3; the scorecard missed it because it calls the interview directly. Fixed, with a test through the API.
 - Found while deploying: the simulator read the MCP server's tools and screens once at startup and kept them. Started mid-rollout, it kept the old screen; after a change to a tool's input it would have called the tool the old way. It now lists the tools every turn and reads the screens on every page load.
 
+### Review of the fixes found by E3 (Oct 2)
+Independent reviewer on the three changes made after the Stage 6 review (split-ZIP think-ahead, the simulated person's household in plain words, an amount of zero needing no unit): no high findings.
+- **Low-medium, fixed:** the simulated person was told to decline a question by its internal id ("housing tenure") while the same prompt said "you rent unless told otherwise"; in one Nova conversation the person gave in and said they rent. Declines now use the dictionary's definition and say to keep declining if asked again. The 18 conversations of the three households that decline something were rerun with it (old rows kept in `paper/data/e3v1-declines.json`).
+- **Low, fixed:** `noneForTheRest` still attached a unit to its zero answers (no longer needed); the `unit` field now says it isn't needed for 0, so models learn the rule from the schema rather than from an error.
+- **Low, accepted:** two children of the same age would read alike in the simulated person's prompt (no Tier A household has that); while the county is being asked, think-ahead guesses nothing (latency only).
+- Checked, not a gap: money answers' bounds (`min`, `negative`) are enforced by the engine's household schema, which the MCP server passes errors on from.
+
 ## Prize strategy
 - Primary track: Alexa+ (1st place includes the Amazon team meeting)
 - Mini-challenge 1: AWS Builder. It requires Bedrock / AgentCore / Strands / Kiro / SageMaker with documented integration (plain hosting does not count). Plan: the same Strands agent on Bedrock powers both the public simulator and the Tier C test harness (plus an LLM playing the person); consider hosting the MCP server on AgentCore Runtime if latency allows.
