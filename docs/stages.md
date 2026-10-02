@@ -197,6 +197,16 @@ Independent reviewer on the three changes made after the Stage 6 review (split-Z
 - **Low, accepted:** two children of the same age would read alike in the simulated person's prompt (no Tier A household has that); while the county is being asked, think-ahead guesses nothing (latency only).
 - Checked, not a gap: money answers' bounds (`min`, `negative`) are enforced by the engine's household schema, which the MCP server passes errors on from.
 
+### Review of E4 and the paper's results (Oct 2)
+Independent reviewer on the failure analysis (`eval/e4.py`), the table generator and the paper's results sections: 1 high, 7 medium, 4 low, all verified and fixed.
+- **High:** E4 counted programs "missed" by conversations that never showed results as the model leaving out what the calculator found ("overrode"). They now have their own cause ("no results"); with that, the model almost never left out a program the calculator reported, and the paper's claim that misses were "split between" the two causes is corrected.
+- **Medium:** E4 now uses the last calculation the engine accepted *before* the results were shown (one Nova conversation calculated again afterwards), and counts calculator calls the engine refused (the calculator tool hands errors back as a result, so they weren't marked failed: the baselines' "0 refused" was an artifact).
+- **Medium:** the paper said the tool design's errors came from asking "too little"; E4 can't tell missing facts from wrong ones, so it now says "the facts it gave the calculator".
+- **Medium:** E3 now reports false "maybe" (our design moves some claims to "if ...": about a third of its conversations show one) and an exact paired McNemar test against our design, generated with the table.
+- **Medium:** the paper misdescribed the two Haiku conversations of our design that never reached results. Checked against the data and the engine: after "rent or own?" was declined, the interview asked the rent ("if you rent"), as designed; the person declined again, the model never recorded it, and results stayed withheld. Now described as that, and the follow-up within a declined topic is a stated limitation.
+- **Medium:** E2's tracked false "you qualify" cases (`pair-011` and `pair-028`: CTC; `pair-036`: Medicaid), diagnosed on Oct 1 as eligibility depending on two unanswered facts (an immigration status and a later answer); the paper said what-ifs vary "one question at a time", but questions asked together are varied together. Corrected.
+- **Low, fixed:** "a small and a larger model" vs "two small models" (now "two model families"); E4 records the commit the calculator was re-run on; E3's budget guard now counts superseded rows too; E4 asserts every program it scores is in the calculator's output.
+
 ## Prize strategy
 - Primary track: Alexa+ (1st place includes the Amazon team meeting)
 - Mini-challenge 1: AWS Builder. It requires Bedrock / AgentCore / Strands / Kiro / SageMaker with documented integration (plain hosting does not count). Plan: the same Strands agent on Bedrock powers both the public simulator and the Tier C test harness (plus an LLM playing the person); consider hosting the MCP server on AgentCore Runtime if latency allows.

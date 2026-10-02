@@ -42,35 +42,35 @@ Run on 2026-10-01 from `1de4b81-dirty`.
 
 ## E3: where decisions live
 
-Simulated conversations: a model plays each Tier A household in everyday words, always from the other model family than Alexa's. Same people and same Alexa model within a block; only the design differs. Scored on the results screen, over every conversation that ran (a conversation that never reached results told the person nothing: it counts as missing every program they qualify for). A false "you qualify" is a program shown as "qualify" that the full-information answer says they don't qualify for.
+Simulated conversations: a model plays each Tier A household in everyday words, always from the other model family than Alexa's. Same people and same Alexa model within a block; only the design differs. Scored on the results screen, over every conversation that ran (a conversation that never reached results told the person nothing: it counts as missing every program they qualify for). A false "you qualify" is a program shown as "qualify" that the full-information answer says they don't qualify for; a false "maybe" one shown as "maybe" ("if ..."). *vs split: p* is the exact two-sided McNemar test of the design against ours on the same households (conversations with a false "you qualify").
 
-| Model | Design | Conversations | Reached results | False "you qualify" | Missed a program | Eligible programs shown as "maybe" | Turns: median | Cost | Errors |
-|---|---|---|---|---|---|---|---|---|---|
-| `nova-2-lite-v1:0` | split | 38 | 38 (100%) | 1 (3%) | 10 (26%) | 50 of 234 | 13.0 | $7.46 | 0 |
-| `nova-2-lite-v1:0` | tool | 38 | 28 (74%) | 18 (47%) | 24 (63%) | 0 of 234 | 5.0 | $0.92 | 0 |
-| `nova-2-lite-v1:0` | alone | 38 | 38 (100%) | 37 (97%) | 13 (34%) | 24 of 234 | 5.0 | $0.33 | 0 |
-| `claude-haiku-4-5-20251001-v1:0` | split | 38 | 36 (95%) | 0 (0%) | 8 (21%) | 25 of 234 | 15.0 | $5.90 | 0 |
-| `claude-haiku-4-5-20251001-v1:0` | tool | 38 | 35 (92%) | 15 (39%) | 11 (29%) | 0 of 234 | 6.0 | $0.48 | 0 |
-| `claude-haiku-4-5-20251001-v1:0` | alone | 38 | 37 (97%) | 25 (66%) | 28 (74%) | 52 of 234 | 7.0 | $0.58 | 0 |
+| Model | Design | Conversations | Reached results | False "you qualify" | vs split: p | False "maybe" | Missed a program | Eligible programs shown as "maybe" | Turns: median | Cost | Errors |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| `nova-2-lite-v1:0` | split | 38 | 38 (100%) | 1 (3%) | - | 14 (37%) | 10 (26%) | 50 of 234 | 13.0 | $7.46 | 0 |
+| `nova-2-lite-v1:0` | tool | 38 | 28 (74%) | 18 (47%) | 8e-05 | 0 (0%) | 24 (63%) | 0 of 234 | 5.0 | $0.92 | 0 |
+| `nova-2-lite-v1:0` | alone | 38 | 38 (100%) | 37 (97%) | 3e-11 | 22 (58%) | 13 (34%) | 24 of 234 | 5.0 | $0.33 | 0 |
+| `claude-haiku-4-5-20251001-v1:0` | split | 38 | 36 (95%) | 0 (0%) | - | 13 (34%) | 8 (21%) | 25 of 234 | 15.0 | $5.90 | 0 |
+| `claude-haiku-4-5-20251001-v1:0` | tool | 38 | 35 (92%) | 15 (39%) | 6e-05 | 2 (5%) | 11 (29%) | 0 of 234 | 6.0 | $0.48 | 0 |
+| `claude-haiku-4-5-20251001-v1:0` | alone | 38 | 37 (97%) | 25 (66%) | 6e-08 | 21 (55%) | 28 (74%) | 52 of 234 | 7.0 | $0.58 | 0 |
 
 Run on 2026-10-02.
 
 ## E4: why the designs go wrong
 
-From the E3 rows (`eval/e4.py`). For the `tool` design, each wrong program is traced by re-running the calculator on the last household the model passed it: **overrode** = the calculator said the opposite of what the model showed; **wrong facts** = the calculator agreed with the model on what it was given (too few questions, or answers passed wrong); **no calculation** = it never ran.
+From the E3 rows (`eval/e4.py`, calculator re-run on `d954a42-dirty`). For the `tool` design, each wrong program is traced by re-running the calculator on the last household the engine accepted from the model before it showed results: **overrode** = the calculator said the opposite of what the model showed; **wrong facts** = the calculator agreed with the model on what it was given (facts missing or passed wrong: not told apart); **no calculation** = no accepted calculation; **no results** = the conversation never showed results, so it missed everything. Refused tool calls: errors from our MCP server, or an engine error handed back by the calculator.
 
-| Model | Wrong programs (tool design) | overrode | wrong facts | no calculation |
-|---|---|---|---|---|
-| `nova-2-lite-v1:0` | shown as "qualify", not eligible (24) | 0 | 24 | 0 |
-| `nova-2-lite-v1:0` | eligible, not shown (104) | 56 | 48 | 0 |
-| `claude-haiku-4-5-20251001-v1:0` | shown as "qualify", not eligible (18) | 0 | 18 | 0 |
-| `claude-haiku-4-5-20251001-v1:0` | eligible, not shown (27) | 14 | 13 | 0 |
+| Model | Wrong programs (tool design) | overrode | wrong facts | no calculation | no results |
+|---|---|---|---|---|---|
+| `nova-2-lite-v1:0` | shown as "qualify", not eligible (24) | 0 | 24 | 0 | 0 |
+| `nova-2-lite-v1:0` | eligible, not shown (104) | 2 | 37 | 0 | 65 |
+| `claude-haiku-4-5-20251001-v1:0` | shown as "qualify", not eligible (18) | 0 | 18 | 0 | 0 |
+| `claude-haiku-4-5-20251001-v1:0` | eligible, not shown (27) | 0 | 11 | 0 | 16 |
 
-| Model | Design | Didn't reach results | Failed tool calls | Programs most often shown as "qualify" wrongly |
+| Model | Design | Didn't reach results | Refused tool calls | Programs most often shown as "qualify" wrongly |
 |---|---|---|---|---|
 | `nova-2-lite-v1:0` | split | 0 of 38 | 24 of 510 | eitc (1) |
-| `nova-2-lite-v1:0` | tool | 10 of 38 | 0 of 139 | ca_care (8), il_tanf (5), ca_calworks (3), ca_yctc (1) |
+| `nova-2-lite-v1:0` | tool | 10 of 38 | 13 of 139 | ca_care (8), il_tanf (5), ca_calworks (3), ca_yctc (1) |
 | `nova-2-lite-v1:0` | alone | 0 of 38 | 0 of 56 | chip (23), ca_child_care (13), ca_calworks (12), ca_yctc (11) |
 | `claude-haiku-4-5-20251001-v1:0` | split | 2 of 38 | 47 of 524 | - |
-| `claude-haiku-4-5-20251001-v1:0` | tool | 3 of 38 | 0 of 98 | ca_care (13), eitc (3), ca_calworks (1), ssi (1) |
+| `claude-haiku-4-5-20251001-v1:0` | tool | 3 of 38 | 1 of 98 | ca_care (13), eitc (3), ca_calworks (1), ssi (1) |
 | `claude-haiku-4-5-20251001-v1:0` | alone | 1 of 38 | 0 of 37 | chip (9), eitc (8), ca_eitc (7), ca_fera (5) |
