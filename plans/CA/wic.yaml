@@ -1,14 +1,7 @@
-program: wic
+programs: [wic]
 state: CA
 what: Benefits to buy healthy foods, plus nutrition advice and breastfeeding support, for growing families.
-apply:
-  - how: in_person
-    where: Your local WIC office (find one by city or ZIP and set up an appointment)
-    url: https://www.myfamily.wic.ca.gov/Home/HowCanIGetWIC
-  - how: phone
-    where: California WIC Program
-    url: https://www.myfamily.wic.ca.gov/Home/HowCanIGetWIC
-    phone: "1-800-852-5770"
+apply: [ca_wic_office, ca_wic_phone]
 bring:
   - ID for yourself and for each child you are signing up.
   - Proof of your address, like an ID, paycheck, rent paper or utility bill.
@@ -32,4 +25,5 @@ sources:
   - https://www.myfamily.wic.ca.gov/Home/HowCanIGetWIC
   - https://www.myfamily.wic.ca.gov/Home/WicCardAndApp
   - https://www.myfamily.wic.ca.gov/
+  - https://www.myfamily.wic.ca.gov/Home/ContactUs
 last_verified: 2026-10-01

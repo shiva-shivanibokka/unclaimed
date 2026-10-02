@@ -1,20 +1,7 @@
-program: medicaid
+programs: [medicaid]
 state: IL
 what: Free or low-cost health coverage from Illinois Medicaid, including doctor visits, hospital care and prescriptions.
-apply:
-  - how: online
-    where: ABE (Application for Benefits Eligibility)
-    url: https://abe.illinois.gov/abe/access/
-  - how: phone
-    where: ABE Customer Call Center / IDHS Help Line
-    url: https://www.dhs.state.il.us/page.aspx?item=33698
-    phone: "1-800-843-6154"
-  - how: in_person
-    where: Your local IDHS Family Community Resource Center
-    url: https://www.dhs.state.il.us/page.aspx?module=12
-  - how: mail
-    where: Paper form IL444-2378B, mailed or faxed to your Family Community Resource Center
-    url: https://www.dhs.state.il.us/page.aspx?item=33698
+apply: [abe_online, idhs_helpline, idhs_office, idhs_paper_form]
 bring:
   - Photo ID or other proof of who you are
   - Proof of where you live

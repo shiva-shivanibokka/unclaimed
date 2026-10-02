@@ -1,20 +1,7 @@
-program: chip
+programs: [chip]
 state: IL
 what: Health coverage for children through Illinois All Kids, including check-ups, shots, doctor visits and prescriptions.
-apply:
-  - how: online
-    where: ABE (Application for Benefits Eligibility)
-    url: https://abe.illinois.gov/abe/access/
-  - how: phone
-    where: All Kids Hotline
-    url: https://hfs.illinois.gov/medicalprograms/allkids/application.html
-    phone: "1-866-255-5437"
-  - how: in_person
-    where: An All Kids Application Agent or your local IDHS Family Community Resource Center
-    url: https://hfs.illinois.gov/medicalclients/medicalprograms.html
-  - how: mail
-    where: All Kids paper application (English or Spanish) from HFS
-    url: https://hfs.illinois.gov/medicalprograms/allkids/application.html
+apply: [abe_online, all_kids_hotline, all_kids_agent, all_kids_paper]
 bring:
   - Proof of where you live
   - Social Security numbers for everyone applying

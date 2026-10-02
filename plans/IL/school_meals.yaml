@@ -1,10 +1,7 @@
-program: school_meals
+programs: [school_meals]
 state: IL
 what: Free or lower-cost breakfast and lunch for children at school.
-apply:
-  - how: in_person
-    where: Your child's school (one Household Eligibility Application per household, per school district)
-    url: https://www.isbe.net/Documents/68-06.pdf
+apply: [il_school]
 bring:
   - Names of everyone in your household, and each student's school and grade
   - A SNAP or TANF case number, if anyone in the household gets them

@@ -1,11 +1,7 @@
-program: wic
+programs: [wic]
 state: IL
 what: Healthy foods, nutrition advice and breastfeeding support for pregnant women, new mothers, babies and young children.
-apply:
-  - how: in_person
-    where: Your local WIC office (find it with the IDHS Office Locator, then call for an appointment)
-    url: https://www.dhs.state.il.us/page.aspx?module=12
-    phone: "1-800-843-6154"
+apply: [il_wic_office, idhs_helpline]
 bring:
   - Proof of identity, like a driver's license, photo ID or your child's birth certificate
   - Proof of income, like pay stubs or a tax form

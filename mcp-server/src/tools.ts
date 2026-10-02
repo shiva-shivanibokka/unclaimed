@@ -24,7 +24,7 @@ export interface Context {
   questions: Map<string, Question>;
   programNames: Map<string, string>;
   states: string[]; // the states the engine's programs cover
-  plans: Record<string, Record<string, Json>>; // state -> program -> plan card (engine /plans)
+  plans: Record<string, Record<string, Json>>; // state -> card id -> plan card (engine /plans)
   householdSchema: Json; // the engine's Household JSON schema; its refs point at `defs`
   defs: Json; // schema definitions, placed at the root of each tool's input schema
   personBase: Json; // the engine's Person schema: id, relationship, age
@@ -103,11 +103,9 @@ function isLocation(ctx: Context, question: string) {
   return question in ctx.dictionary.structure && question !== "people";
 }
 
-/** Why a program says yes: the yes/no facts the calculator found true, in its own words
- * (e.g. "Meets SNAP gross income test"). */
-export function reasons(explain: Json[]): string[] {
-  const yes = (v: unknown) => v === true || (v !== null && typeof v === "object" && Object.values(v).includes(true));
-  return explain.filter((f) => yes(f.value ?? f.by_person)).map((f) => f.label);
+/** The plan card for each program in a state: program id -> card. */
+export function cardsByProgram(ctx: Context, state: string): Map<string, Json> {
+  return new Map(Object.values(ctx.plans[state] ?? {}).flatMap((c) => (c.programs as string[]).map((p) => [p, c] as const)));
 }
 
 function key(person: string | undefined, question: string) {
@@ -312,8 +310,9 @@ export function buildTools(ctx: Context): Tool[] {
       description:
         "Calculate which programs the household qualifies for and how much, once the questions stop (or when the person " +
         "wants an estimate now). Programs with `conditional_on` depend on an answer the person declined or wasn't asked yet: " +
-        "say 'if ...', never a flat 'you qualify'. `why` lists the rules the household meets, in the calculator's words: " +
-        "say them plainly. Say the `we_assumed` statements briefly. If `ready` is false, ask `next.ask` first: " +
+        "say 'if ...', never a flat 'you qualify'; so do programs with `if_also` (a condition the calculator can't " +
+        "check, like which utility serves the home): say it as 'if ...'. `why` lists the tests the household meets, in " +
+        "the calculator's words: say them plainly. Say the `we_assumed` statements briefly. If `ready` is false, ask `next.ask` first: " +
         "no estimate is possible without it. Then offer the plan (get_plan) for the programs they want to apply for.",
       inputSchema: {
         type: "object",
@@ -322,6 +321,7 @@ export function buildTools(ctx: Context): Tool[] {
         $defs: ctx.defs,
       },
       run: async ({ household }) => {
+        const cards = cardsByProgram(ctx, household.state);
         // Before the questions run out, an unasked answer is read by the engine as 0/no: the
         // essentials (location, pay) must be in, and what's still open makes results conditional.
         const next = await engine.next(household);
@@ -342,14 +342,14 @@ export function buildTools(ctx: Context): Tool[] {
             ...(p.eligible_people && { eligible_people: p.eligible_people }),
             ...(p.amount !== undefined && { amount: p.amount, per: p.per }),
             ...(conditional[p.id] && { conditional_on: conditional[p.id] }),
-            ...(p.eligible && { why: reasons(p.explain ?? []) }),
+            ...(p.eligible && { why: p.why }),
+            ...(p.eligible && cards.get(p.id)?.not_calculated && { if_also: cards.get(p.id)!.not_calculated }),
           })),
           declined: r.assumptions.filter((a: Json) => a.status === "declined").map((a: Json) => key(a.person, a.question)),
           we_assumed: r.statements,
           // Programs with a plan card that the calculator doesn't model: worth a look, no verdict.
-          also_check: Object.entries(ctx.plans[household.state] ?? {})
-            .filter(([, card]) => !card.calculated)
-            .map(([id, card]) => ({ id, name: card.name, what: card.what })),
+          also_check: [...cards].filter(([p]) => !ctx.programNames.has(p))
+            .map(([id, card]) => ({ id, name: card.names[id], what: card.what })),
         };
       },
     },
@@ -363,22 +363,30 @@ export function buildTools(ctx: Context): Tool[] {
         "what to bring; the screen shows the full list with a code that opens the application on their phone.",
       inputSchema: {
         type: "object",
-        required: ["state", "programs"],
+        required: ["household", "programs"],
         properties: {
-          state: { type: "string", enum: ctx.states, description: "The household's state (household.state)" },
+          household: { ...ctx.householdSchema, description: "The household draft, unchanged" },
           programs: {
             type: "array",
             minItems: 1,
-            items: { type: "string", enum: [...new Set(Object.values(ctx.plans).flatMap((p) => Object.keys(p)))] },
-            description: "Program ids from get_results",
+            items: { type: "string" },
+            description: "Program ids from get_results (programs and also_check)",
           },
         },
+        $defs: ctx.defs,
       },
-      run: async ({ state, programs }) => {
-        const cards = ctx.plans[state];
-        const missing = (programs as string[]).filter((p) => !cards[p]);
-        if (missing.length) throw new AnswerError(`no plan for ${missing.join(", ")} in ${state}`);
-        return { plans: (programs as string[]).map((id) => ({ id, ...cards[id] })) };
+      run: async ({ household, programs }) => {
+        const cards = cardsByProgram(ctx, household.state);
+        const missing = (programs as string[]).filter((p) => !cards.has(p));
+        if (missing.length) throw new AnswerError(`no plan for ${missing.join(", ")} here: use ids from get_results`);
+        // Programs applied for together share one plan, named for the ones asked about.
+        const plans = [...new Set((programs as string[]).map((p) => cards.get(p)!))];
+        return {
+          plans: plans.map(({ state: _, names, ...card }) => ({
+            ...card,
+            names: Object.fromEntries(Object.entries<string>(names).filter(([p]) => (programs as string[]).includes(p))),
+          })),
+        };
       },
     },
   ];

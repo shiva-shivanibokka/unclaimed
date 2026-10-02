@@ -86,14 +86,12 @@ def dictionary() -> dict:
 
 @app.get("/plans/{state}")
 def plans_for(state: str = PathParam(pattern=r"^[A-Z]{2}$")) -> dict:
-    """What to do next for each program in a state (plans/), with the program's name from
-    the program list. Static: the MCP server reads it once."""
+    """What to do next, per application, in a state (plans/): card id -> card, with the
+    ways to apply spelled out and program names from the program list. Static: the MCP
+    server reads it once."""
     if state not in SUPPORTED_STATES:
         raise HTTPException(status_code=404, detail=f"{state} isn't a supported state")
-    names = {p.id: p.name_in(state) for p in PROGRAMS}
-    return {program: {**{k: v for k, v in card.items() if k not in ("program", "state")},
-                      "name": names.get(program, card.get("name")), "calculated": program in names}
-            for program, card in plans.for_state(state).items()}
+    return plans.for_state(state)
 
 
 @app.get("/zip/{zip_code}")

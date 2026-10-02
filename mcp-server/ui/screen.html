@@ -46,13 +46,16 @@ const el = (tag, props = {}, ...kids) => {
   return n;
 };
 const money = (x) => "$" + Math.round(x).toLocaleString("en-US");
-const PER = { month: "a month", year: "a year" };
+const people = (ids) => `for ${ids.length} ${ids.length === 1 ? "person" : "people"}`;
 
 function results(r) {
   const yes = r.programs.filter((p) => p.eligible);
-  const tiles = yes.map((p) => el("div", { className: "tile" + (p.conditional_on ? " if" : "") },
+  // No amount: the engine reports who is covered instead (health coverage).
+  const tiles = yes.map((p) => el("div", { className: "tile" + (p.conditional_on || p.if_also ? " if" : "") },
     el("h2", { textContent: p.name }),
-    el("div", { className: "amount", textContent: p.amount === undefined ? "Coverage" : p.amount > 0 ? `${money(p.amount)} ${PER[p.per] ?? ""}` : "Qualifies" }),
+    el("div", { className: "amount", textContent: p.amount === undefined ? "Covered" : p.amount > 0 ? `${money(p.amount)} / ${p.per}` : "Qualifies" }),
+    p.eligible_people ? el("div", { className: "muted", textContent: people(p.eligible_people) }) : null,
+    p.if_also ? el("div", { className: "tag", textContent: `If: ${p.if_also.join(" ")}` }) : null,
     p.conditional_on ? el("div", { className: "tag", textContent: "Depends on an answer we don't have" }) : null));
   const more = (r.also_check ?? []).map((p) => p.name).join(", ");
   return [
@@ -70,7 +73,7 @@ function qr(url) {
   code.make();
   const box = el("div", { className: "qr" });
   box.innerHTML = code.createSvgTag({ cellSize: 4, margin: 2, scalable: true });
-  box.append(el("div", { textContent: "Scan to apply on your phone" }));
+  box.append(el("div", { textContent: "Scan to open on your phone" }));
   return box;
 }
 
@@ -83,10 +86,11 @@ function plans(r) {
     const first = p.apply[0];
     return el("article", { className: "plan" },
       el("div", {},
-        el("h2", { textContent: p.name }),
+        el("h2", { textContent: Object.values(p.names).join(" and ") }),
         el("p", { className: "muted", textContent: p.what }),
         el("p", { className: "how", textContent: `Apply: ${first.where}${first.phone ? " · " + first.phone : ""}` }),
-        el("div", { className: "cols" }, list("Bring", p.bring), list("Then", p.next))),
+        el("div", { className: "cols" }, list("Bring", p.bring), list("Then", p.next)),
+        list("Watch out", [...(p.not_calculated ?? []), ...p.watch_out])),
       qr(p.handoff));
   }))];
 }

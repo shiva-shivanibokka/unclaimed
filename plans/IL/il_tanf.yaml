@@ -1,20 +1,7 @@
-program: il_tanf
+programs: [il_tanf]
 state: IL
 what: Monthly cash help for families with children or a pregnant woman, paid on an Illinois Link card or to your bank.
-apply:
-  - how: online
-    where: ABE (Application for Benefits Eligibility)
-    url: https://abe.illinois.gov/abe/access/
-  - how: phone
-    where: IDHS Help Line
-    url: https://www.dhs.state.il.us/page.aspx?item=33698
-    phone: "1-800-843-6154"
-  - how: in_person
-    where: Your local IDHS Family Community Resource Center (if homeless, the nearest one)
-    url: https://www.dhs.state.il.us/page.aspx?module=12
-  - how: mail
-    where: Paper form IL444-2378B, mailed or faxed to your Family Community Resource Center
-    url: https://www.dhs.state.il.us/page.aspx?item=33698
+apply: [abe_online, idhs_helpline, idhs_office, idhs_paper_form]
 bring:
   - Photo ID or other proof of who you are
   - Proof of where you live
@@ -32,6 +19,7 @@ watch_out:
   - Not cooperating with child support can take your name off the medical card.
   - Tell your caseworker about a new job, a move, family changes or a missed appointment.
   - Most TANF families can also get SNAP and medical help, so apply for those too.
+  - If you are homeless, apply at the nearest Family Community Resource Center.
 handoff: https://abe.illinois.gov/abe/access/
 sources:
   - https://www.dhs.state.il.us/page.aspx?item=30358

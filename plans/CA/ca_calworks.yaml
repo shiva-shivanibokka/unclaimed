@@ -1,13 +1,7 @@
-program: ca_calworks
+programs: [ca_calworks]
 state: CA
 what: Monthly cash aid for families with children, plus help getting a job, paid on an EBT card.
-apply:
-  - how: online
-    where: BenefitsCal
-    url: https://benefitscal.com/
-  - how: in_person
-    where: Your county social services office (also by mail or fax)
-    url: https://www.cdss.ca.gov/county-offices
+apply: [benefitscal, ca_county_office]
 bring:
   - Photo ID, like a driver's license, state ID or passport.
   - Birth certificates for everyone applying.

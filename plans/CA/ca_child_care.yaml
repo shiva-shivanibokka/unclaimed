@@ -1,17 +1,7 @@
-program: ca_child_care
+programs: [ca_child_care]
 state: CA
 what: Help paying for child care at a center, a family child care home, or with a relative or friend you choose.
-apply:
-  - how: phone
-    where: Your local child care Resource and Referral (R&R) agency
-    url: https://rrnetwork.org/family-services/find-child-care
-    phone: "1-800-KIDS-7933"
-  - how: in_person
-    where: Your county's Alternative Payment Program (APP)
-    url: https://www.cappaonline.com/aps-in-california
-  - how: in_person
-    where: Your county social services office, if you get CalWORKs
-    url: https://www.cdss.ca.gov/county-offices
+apply: [ca_child_care_rr, ca_alternative_payment, ca_county_office]
 bring:
   - Proof of all your household's income.
   - Proof of why you need care, like your work schedule, school or training enrollment.
@@ -28,6 +18,7 @@ watch_out:
   - A relative or friend who watches your child may need a TrustLine background check to get paid.
   - The agency tells you in writing when an income increase must be reported; keep that letter.
   - You can appeal any change the agency makes to your child care help.
+  - Apply through your county social services office only if you get CalWORKs.
 handoff: https://rrnetwork.org/family-services/find-child-care
 sources:
   - https://www.cdss.ca.gov/inforesources/calworks-child-care/parent-information-and-resources

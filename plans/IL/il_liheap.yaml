@@ -1,14 +1,7 @@
-program: il_liheap
+programs: [il_liheap]
 state: IL
 what: Once-a-year help paying your heating or electric bill, usually paid straight to your utility company.
-apply:
-  - how: online
-    where: Help Illinois Families Request for Services form (DCEO)
-    url: https://dceo.illinois.gov/communityservices/homeweatherization/communityactionagencies/helpillinoisfamilies.html
-    phone: "1-833-711-0374"
-  - how: in_person
-    where: Your county's local LIHEAP agency (Where to Apply list)
-    url: https://dceo.illinois.gov/communityservices/homeweatherization/communityactionagencies.html
+apply: [help_illinois_families, il_liheap_agency]
 bring:
   - Proof of the last 30 days of income for everyone in the household
   - Your most recent heating and/or electric bill from the last 30 days

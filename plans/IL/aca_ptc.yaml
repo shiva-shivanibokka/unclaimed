@@ -1,14 +1,7 @@
-program: aca_ptc
+programs: [aca_ptc]
 state: IL
 what: A tax credit that lowers your monthly health insurance bill when you buy a plan through Get Covered Illinois, the state's official marketplace.
-apply:
-  - how: online
-    where: Get Covered Illinois (Illinois's own marketplace, not HealthCare.gov)
-    url: https://enroll.getcovered.illinois.gov/hix/
-  - how: phone
-    where: Get Covered Illinois Customer Assistance Center
-    url: https://getcovered.illinois.gov/
-    phone: "1-866-311-1119"
+apply: [get_covered_illinois_online, get_covered_illinois_phone]
 bring:
   - Social Security numbers for everyone applying, if they have them
   - Birth dates for everyone in the household

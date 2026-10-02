@@ -144,10 +144,24 @@ Independent reviewer (code, data and deploy; explicit hard-coding audit): 2 high
 - Held up: X-Forwarded-For handling on both services, the Origin check, the Bedrock permission scoped to one model, the service-linked-role setup, no circular tests.
 
 ## Stage 5: Action plans + screen (Oct 12 – Oct 18)
-- [x] Plan cards per program per state: what, why you, where/how, bring, next, watch out, handoff. 29 cards in `plans/` (CA 14, IL 12, and 3 federal cards shared by both states), checked on load (`engine/unclaimed_engine/plans.py`): no amounts or eligibility rules (those come from the calculator), https sources, a handoff link. "Why you" is the calculator's own facts (`why` in get_results). CA LIHEAP isn't calculated: a card only, offered as "also worth checking"
+- [x] Plan cards per program per state: what, why you, where/how, bring, next, watch out, handoff. Cards in `plans/`, one per application (programs applied for together share one, like the EITC and Child Tax Credit on a tax return), with ways to apply defined once in `plans/channels.yaml`; checked on load (`engine/unclaimed_engine/plans.py`): no amounts or eligibility rules (those come from the calculator), https sources, a handoff link. "Why you" is the calculator's own facts (`why` in get_results). CA LIHEAP isn't calculated: a card only, offered as "also worth checking"
 - [x] Every card has source URLs + a last-verified date (Oct 1: read on the agencies' own pages)
 - [x] MCP App: result cards, checklist, QR code. One screen (`mcp-server/ui/screen.html`, `ui://unclaimed/screen`) for get_results and get_plan, per the MCP Apps spec (2026-01-26); the QR code is drawn on the screen from the card's handoff link (library inlined: nothing loads from outside). The simulator now hosts MCP Apps (sandboxed frame, the spec's messages) instead of drawing its own cards
 - [x] get_plan tool (moved from Stage 4)
+
+### Stage 5 adversarial review (Oct 1)
+Independent reviewer (cards against the agencies' pages, engine, MCP server, screen, simulator host; explicit hard-coding audit of code and data files): 2 high, 4 medium, 5 low; all verified. Fixed unless marked accepted.
+- **High:** CARE and FERA were shown as "you qualify" although they also depend on which utility serves the home, which the calculator can't check. Cards can now list `not_calculated` conditions; results carry them as `if_also`, and the screen and the agent say "if ..." for those programs.
+- **High:** "why you" listed every fact the engine explains, including ones that were false (a "no" shown as a reason). The engine now returns `why`: only the yes/no tests a program passed, for the people who qualify. Tests check these are yes/no variables and that a CA parent's CalFresh reasons are the tests actually met.
+- **Medium:** the CA Lifeline card left out the federal National Verifier route; added.
+- **Medium:** the screen didn't say who was covered by health coverage, and dropped cards' watch-outs for conditions; both shown now.
+- **Medium (hard-coding):** the same phone numbers, links and steps were typed into several cards (the federal tax credits, Medi-Cal/CHIP/Covered California, CARE/FERA, the state tax credits). Ways to apply are now defined once in `plans/channels.yaml`, and programs applied for together share one card; a test fails if a program has two cards in a state.
+- **Medium:** nothing caught a card going stale, and some cards repeated eligibility rules. Cards now fail the tests after `plans.MAX_AGE_DAYS` without re-verification; rules moved to the engine or to `not_calculated`. **Accepted:** no automatic link check yet (Stage 6).
+- **Low, fixed:** the simulator's MCP Apps host: CSP domains are validated, the view gets the tool's id, and a view is torn down (`ui/resource-teardown`) before it's replaced; "per" and coverage wording on tiles; the QR caption; the WIC contact source and SSI wording; an outdated YCTC line; a test that hard-coded "CalFresh" (names come from the program list); card counts in this file.
+- **Low, fixed:** `get_plan` took a state the model could get wrong; it now takes the household, and a shared card is titled with only the programs asked about.
+- **Low, accepted:** `also_check` offers CA LIHEAP to every CA household (it isn't calculated, so there's no verdict to filter on).
+- New tests: card checks on load (fields, https, no amounts, channels, handoff, one card per program, staleness, folder and state), `why` polarity, card lookup by program (MCP); the smoke test now also fetches the plans.
+- Held up: the screen loads nothing from outside, the frame is sandboxed, every card line traced to a cited agency page.
 
 ## Stage 6: Harden and polish (Oct 17 – Oct 21)
 - [ ] Fix the scorecard's worst cases; latency; error handling

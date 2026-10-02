@@ -252,7 +252,14 @@ def _program_result(sim: Simulation, program: Program, state: str, year: str, mo
         result["eligible_people"] = [pid for pid, ok in zip(person_ids, people) if ok]
     if program.coverage:
         result.pop("amount")  # value of coverage, not money paid to the person
-    result["explain"] = [_explain(sim, v, year, month, person_ids) for v in program.explain]
+    facts = [_explain(sim, v, year, month, person_ids) for v in (*program.why, *program.explain)]
+    result["explain"] = facts
+    if result["eligible"]:
+        # Reasons: the program's yes/no tests that came out yes, for the household or, for a
+        # per-person test, for someone the program covers.
+        who = result.get("eligible_people") or person_ids
+        result["why"] = [f["label"] for f in facts[:len(program.why)]
+                         if f.get("value") is True or any(f.get("by_person", {}).get(pid) is True for pid in who)]
     return result
 
 

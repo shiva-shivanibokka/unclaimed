@@ -5,6 +5,7 @@ from fastapi.testclient import TestClient
 
 from unclaimed_engine.app import app
 from unclaimed_engine.household import COUNTIES
+from unclaimed_engine.programs import PROGRAMS
 
 
 @pytest.fixture(scope="module")
@@ -76,9 +77,11 @@ def test_programs_point_at_real_engine_variables():
     for p in PROGRAMS:
         assert p.variable in system.variables, p.id
         assert p.eligibility is None or p.eligibility in system.variables, p.id
-        assert p.explain, f"{p.id} has no explain variables"
-        for v in p.explain:
+        assert p.why or p.explain, f"{p.id} has no explain variables"
+        for v in (*p.why, *p.explain):
             assert v in system.variables, (p.id, v)
+        for v in p.why:  # reasons are yes/no tests
+            assert system.variables[v].value_type is bool, (p.id, v)
         assert set(p.states) <= set(SUPPORTED_STATES), p.id
 
 
@@ -180,5 +183,24 @@ def test_zip_lookup_reads_the_crosswalk(client):
 
 def test_plans_carry_the_program_list_names(client):
     ca = client.get("/plans/CA").json()
-    assert ca["snap"]["name"] == "CalFresh" and ca["snap"]["calculated"]  # the name from /programs
+    snap = next(p for p in PROGRAMS if p.id == "snap")
+    card = next(c for c in ca.values() if "snap" in c["programs"])
+    assert card["names"]["snap"] == snap.name_in("CA")  # the name from the program list
+    assert all(a["url"].startswith("https://") for a in card["apply"])  # channels spelled out
     assert client.get("/plans/TX").status_code == 404
+
+
+def test_why_lists_only_reasons_to_qualify(client):
+    # A parent with a job-insurance offer: that fact explains the ACA credit result but is
+    # never a reason to qualify, so it must not appear in `why`.
+    r = client.post("/calculate", json={"state": "CA", "county": "LOS_ANGELES_COUNTY_CA", "as_of": "2026-09-15",
+                                        "people": [{"id": "a", "relationship": "head", "age": 30, "employment_income": 28_000,
+                                                    "has_job_health_insurance": True},
+                                                   {"id": "k", "relationship": "child", "age": 4}]}).json()
+    labels = {f["variable"]: f["label"] for p in r["programs"] for f in p["explain"]}
+    reasons = {labels[v] for p in PROGRAMS for v in p.why if v in labels}
+    eligible = [p for p in r["programs"] if p["eligible"]]
+    assert eligible and all(set(p["why"]) <= reasons for p in eligible)
+    # (Here CalFresh passes the net income test but not the federal gross test: California's
+    # broader eligibility, so a reason is only ever a test the household actually met.)
+    assert labels["meets_snap_net_income_test"] in next(p for p in eligible if p["id"] == "snap")["why"]

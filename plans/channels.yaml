@@ -1,0 +1,255 @@
+# Ways to apply, each defined once and named by id in the cards (see README.md).
+# `source` is the agency page that shows this url / phone.
+
+# --- Every state ---
+irs_free_file:
+  how: tax_return
+  where: IRS Free File (do your own federal return online for free)
+  url: https://www.irs.gov/e-file-do-your-taxes-for-free
+  source: https://www.irs.gov/e-file-do-your-taxes-for-free
+vita_tce_locator:
+  how: in_person
+  where: Free tax help from IRS-certified volunteers (VITA or TCE site)
+  url: https://freetaxassistance.for.irs.gov/s/sitelocator
+  phone: "1-800-906-9887"
+  source: https://www.irs.gov/individuals/free-tax-return-preparation-for-qualifying-taxpayers
+ssa_online:
+  how: online
+  where: Social Security online application (some adults)
+  url: https://secure.ssa.gov/iClaim/dib
+  source: https://www.ssa.gov/apply/ssi
+ssa_phone:
+  how: phone
+  where: Social Security (call to set up an appointment by phone or in person; TTY 1-800-325-0778)
+  url: https://www.ssa.gov/apply/ssi
+  phone: "1-800-772-1213"
+  source: https://www.ssa.gov/apply/ssi
+lifeline_national_verifier:
+  how: online
+  where: Lifeline National Verifier (FCC / USAC)
+  url: https://getinternet.gov/apply?id=nv_home
+  source: https://www.lifelinesupport.org/how-to-apply/
+lifeline_support_center:
+  how: mail
+  where: Lifeline Support Center, PO Box 1000, Horseheads, NY 14845
+  url: https://www.lifelinesupport.org/how-to-apply/
+  phone: "1-800-234-9473"
+  source: https://www.lifelinesupport.org/how-to-apply/
+
+# --- California ---
+benefitscal:
+  how: online
+  where: BenefitsCal
+  url: https://benefitscal.com/
+  source: https://benefitscal.com/
+calfresh_helpline:
+  how: phone
+  where: CalFresh Benefits Helpline
+  url: https://www.cdss.ca.gov/inforesources/calfresh
+  phone: "1-877-847-3663"
+  source: https://www.cdss.ca.gov/inforesources/calfresh
+ca_county_office:
+  how: in_person
+  where: Your county social services office (also by mail or fax)
+  url: https://www.cdss.ca.gov/county-offices
+  source: https://www.cdss.ca.gov/county-offices
+ca_child_care_rr:
+  how: phone
+  where: Your local child care Resource and Referral (R&R) agency
+  url: https://rrnetwork.org/family-services/find-child-care
+  phone: "1-800-KIDS-7933"
+  source: https://rrnetwork.org/family-services/find-child-care
+ca_alternative_payment:
+  how: in_person
+  where: Your county's Alternative Payment Program (APP)
+  url: https://www.cappaonline.com/aps-in-california
+  source: https://www.cappaonline.com/aps-in-california
+covered_california_online:
+  how: online
+  where: Covered California (about 30 minutes; one application checks every family member)
+  url: https://apply.coveredca.com/static/lw-web/account-creation/choose-application
+  source: https://www.coveredca.com/apply/
+covered_california_phone:
+  how: phone
+  where: Covered California, Monday to Friday, 8 a.m. to 6 p.m.
+  url: https://www.coveredca.com/apply/
+  phone: "1-800-300-1506"
+  source: https://www.coveredca.com/apply/
+covered_california_enroller:
+  how: in_person
+  where: A free certified enroller or licensed agent near you
+  url: https://www.coveredca.com/get-help/find-an-enroller
+  source: https://www.coveredca.com/get-help/find-an-enroller
+covered_california_mail:
+  how: mail
+  where: Paper application to Covered California, P.O. Box 989725, West Sacramento, CA 95798-9725
+  url: https://www.coveredca.com/apply/
+  source: https://www.coveredca.com/apply/
+calfile:
+  how: tax_return
+  where: CalFile, free e-filing straight to the Franchise Tax Board
+  url: https://www.ftb.ca.gov/file/ways-to-file/online/calfile/index.asp
+  source: https://www.ftb.ca.gov/file/ways-to-file/online/calfile/index.asp
+ftb_vita:
+  how: in_person
+  where: Free tax help at a VITA site
+  url: https://www.ftb.ca.gov/help/free-tax-help/index.html
+  source: https://www.ftb.ca.gov/help/free-tax-help/index.html
+ftb_3514_paper:
+  how: tax_return
+  where: Your California return with form FTB 3514 attached, if you file on paper
+  url: https://www.ftb.ca.gov/file/personal/credits/california-earned-income-tax-credit.html
+  source: https://www.ftb.ca.gov/file/personal/credits/california-earned-income-tax-credit.html
+cpuc_care_fera:
+  how: online
+  where: CPUC list of every utility's CARE and FERA page and phone number
+  url: https://www.cpuc.ca.gov/industries-and-topics/electrical-energy/electric-costs/care-fera-program
+  source: https://www.cpuc.ca.gov/industries-and-topics/electrical-energy/electric-costs/care-fera-program
+pge_care_fera:
+  how: online
+  where: PG&E (CARE and FERA application)
+  url: https://energyinsight.pge.com/carefera?care_lang=english
+  phone: "1-866-743-5832"
+  source: https://www.pge.com/en_US/residential/save-energy-money/help-paying-your-bill/longer-term-assistance/care/care.page
+sce_care_fera:
+  how: online
+  where: Southern California Edison (SCE)
+  url: https://www.sce.com/apps/iqp
+  phone: "1-800-798-5723"
+  source: https://www.sce.com/residential/assistance/care-fera
+sdge_care_fera:
+  how: online
+  where: San Diego Gas & Electric (SDG&E)
+  url: https://www.sdge.com/assistance-programs/account-lookup/care-fera
+  phone: "1-877-646-5525"
+  source: https://www.sdge.com/residential/pay-bill/get-payment-bill-assistance/assistance-programs
+socalgas_care:
+  how: online
+  where: SoCalGas
+  url: https://myaccount.socalgas.com/ui/care?prefLang=en
+  phone: "1-800-427-2200"
+  source: https://www.socalgas.com/save-money-and-energy/assistance-programs/california-alternate-rates-for-energy
+ca_lifeline_provider:
+  how: phone
+  where: A participating phone company (find one with Provider Search on the California LifeLine site)
+  url: https://www.californialifeline.com/
+  source: https://www.cpuc.ca.gov/consumer-support/financial-assistance-savings-and-discounts/lifeline
+ca_lifeline_call_center:
+  how: phone
+  where: California LifeLine Call Center for general questions, Monday to Friday, 7 a.m. to 7 p.m.
+  url: https://www.cpuc.ca.gov/consumer-support/financial-assistance-savings-and-discounts/lifeline
+  phone: "1-866-272-0349"
+  source: https://www.cpuc.ca.gov/consumer-support/financial-assistance-savings-and-discounts/lifeline
+csd_liheap_provider:
+  how: in_person
+  where: Your local LIHEAP provider (find it by city or ZIP on the CSD map)
+  url: https://www.csd.ca.gov/Pages/FindServicesInYourArea.aspx?ct=Energy_Bill
+  source: https://www.csd.ca.gov/Pages/FindServicesInYourArea.aspx?ct=Energy_Bill
+ca_211:
+  how: phone
+  where: California 2-1-1, free help finding local services any time
+  url: https://www.211ca.org/
+  phone: "2-1-1"
+  source: https://www.csd.ca.gov/Pages/LIHEAPProgram.aspx
+ca_school:
+  how: in_person
+  where: Your child's school or school district office
+  url: https://www.fns.usda.gov/cn/applying-free-and-reduced-price-school-meals
+  source: https://www.fns.usda.gov/cn/applying-free-and-reduced-price-school-meals
+ca_wic_office:
+  how: in_person
+  where: Your local WIC office (find one by city or ZIP and set up an appointment)
+  url: https://www.myfamily.wic.ca.gov/Home/HowCanIGetWIC
+  source: https://www.myfamily.wic.ca.gov/Home/HowCanIGetWIC
+ca_wic_phone:
+  how: phone
+  where: California WIC Program
+  url: https://www.myfamily.wic.ca.gov/Home/HowCanIGetWIC
+  phone: "1-800-852-5770"
+  source: https://www.myfamily.wic.ca.gov/Home/ContactUs
+
+# --- Illinois ---
+abe_online:
+  how: online
+  where: ABE (Application for Benefits Eligibility)
+  url: https://abe.illinois.gov/abe/access/
+  source: https://abe.illinois.gov/abe/access/
+idhs_helpline:
+  how: phone
+  where: IDHS Help Line / ABE Customer Call Center
+  url: https://www.dhs.state.il.us/page.aspx?item=33698
+  phone: "1-800-843-6154"
+  source: https://www.dhs.state.il.us/page.aspx?item=33698
+idhs_office:
+  how: in_person
+  where: Your local IDHS Family Community Resource Center
+  url: https://www.dhs.state.il.us/page.aspx?module=12
+  source: https://www.dhs.state.il.us/page.aspx?module=12
+idhs_paper_form:
+  how: mail
+  where: Paper form IL444-2378B, mailed or faxed to your Family Community Resource Center
+  url: https://www.dhs.state.il.us/page.aspx?item=33698
+  source: https://www.dhs.state.il.us/page.aspx?item=33698
+il_wic_office:
+  how: in_person
+  where: Your local WIC office (find it with the IDHS Office Locator, then call for an appointment)
+  url: https://www.dhs.state.il.us/page.aspx?module=12
+  source: https://www.dhs.state.il.us/page.aspx?module=12
+all_kids_hotline:
+  how: phone
+  where: All Kids Hotline
+  url: https://hfs.illinois.gov/medicalprograms/allkids/application.html
+  phone: "1-866-255-5437"
+  source: https://hfs.illinois.gov/medicalprograms/allkids/application.html
+all_kids_agent:
+  how: in_person
+  where: An All Kids Application Agent or your local IDHS Family Community Resource Center
+  url: https://hfs.illinois.gov/medicalclients/medicalprograms.html
+  source: https://hfs.illinois.gov/medicalclients/medicalprograms.html
+all_kids_paper:
+  how: mail
+  where: All Kids paper application (English or Spanish) from HFS
+  url: https://hfs.illinois.gov/medicalprograms/allkids/application.html
+  source: https://hfs.illinois.gov/medicalprograms/allkids/application.html
+get_covered_illinois_online:
+  how: online
+  where: Get Covered Illinois (Illinois's own marketplace, not HealthCare.gov)
+  url: https://enroll.getcovered.illinois.gov/hix/
+  source: https://getcovered.illinois.gov/get-started/how-to-enroll.html
+get_covered_illinois_phone:
+  how: phone
+  where: Get Covered Illinois Customer Assistance Center
+  url: https://getcovered.illinois.gov/
+  phone: "1-866-311-1119"
+  source: https://getcovered.illinois.gov/
+il_ccap_online:
+  how: online
+  where: Digital CCAP Application (Illinois Department of Early Childhood)
+  url: https://www.getchildcareil.org/
+  source: https://www.getchildcareil.org/
+mytax_illinois:
+  how: tax_return
+  where: MyTax Illinois (free online filing of Form IL-1040, no account needed)
+  url: https://mytax.illinois.gov/
+  source: https://tax.illinois.gov/programs/mytax/il-1040.html
+il_schedule_eitc:
+  how: tax_return
+  where: Form IL-1040 with Schedule IL-E/EITC, filed on paper, by a tax preparer or with tax software
+  url: https://tax.illinois.gov/forms/incometax/currentyear/individual/il-1040-schedule-il-e-eic-instr.html
+  source: https://tax.illinois.gov/forms/incometax/currentyear/individual/il-1040-schedule-il-e-eic-instr.html
+help_illinois_families:
+  how: online
+  where: Help Illinois Families Request for Services form (DCEO)
+  url: https://dceo.illinois.gov/communityservices/homeweatherization/communityactionagencies/helpillinoisfamilies.html
+  phone: "1-833-711-0374"
+  source: https://dceo.illinois.gov/communityservices/homeweatherization/communityactionagencies/helpillinoisfamilies.html
+il_liheap_agency:
+  how: in_person
+  where: Your county's local LIHEAP agency (Where to Apply list)
+  url: https://dceo.illinois.gov/communityservices/homeweatherization/communityactionagencies.html
+  source: https://dceo.illinois.gov/communityservices/homeweatherization/communityactionagencies.html
+il_school:
+  how: in_person
+  where: Your child's school (one Household Eligibility Application per household, per school district)
+  url: https://www.isbe.net/Documents/68-06.pdf
+  source: https://www.isbe.net/Documents/68-06.pdf
