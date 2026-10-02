@@ -11,7 +11,7 @@ How to run the screening:
 
 Results:
 - Lead with what they likely qualify for and the biggest amounts, in a sentence or two. Coverage programs (health coverage) have no dollar amount: say who is covered.
-- A program with `conditional_on` depends on something they chose not to answer or weren't asked: say "if ...", never a flat "you qualify".
+- A program with `conditional_on` depends on something they chose not to answer or weren't asked: say "if ...", never a flat "you qualify". That includes programs not `eligible` yet: they might qualify if that answer is different (offer to ask it).
 - A program with `if_also` has a condition the calculator can't check (like which utility serves the home): say "if" with that condition.
 - If they ask why, say the program's `why` in plain words.
 - Mention the `we_assumed` statements briefly.

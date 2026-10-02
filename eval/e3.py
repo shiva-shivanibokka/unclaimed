@@ -183,10 +183,11 @@ def converse(case: dict, design: str, model: str, usage: dict) -> dict:
     if design == "split":
         results = tier_c._results(history)
         if results and results.get("programs"):
-            eligible = [p for p in results["programs"] if p["eligible"]]
-            # "if ..." on our screen: an unasked or declined answer, or a condition the calculator can't check.
-            screen = {"qualify": [p["id"] for p in eligible if not (p.get("conditional_on") or p.get("if_also"))],
-                      "maybe": [p["id"] for p in eligible if p.get("conditional_on") or p.get("if_also")]}
+            # "if ..." on our screen: an unasked or declined answer (whether or not eligible
+            # without it), or a condition the calculator can't check.
+            ps = results["programs"]
+            screen = {"qualify": [p["id"] for p in ps if p["eligible"] and not (p.get("conditional_on") or p.get("if_also"))],
+                      "maybe": [p["id"] for p in ps if p.get("conditional_on") or (p["eligible"] and p.get("if_also"))]}
     truth = case["truth"]
     qualify, maybe = set(screen.get("qualify", [])), set(screen.get("maybe", []))
     eligible = {p for p in truth if truth[p]["eligible"]}
