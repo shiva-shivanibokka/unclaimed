@@ -1,0 +1,93 @@
+% Draft. Numbers in the results come from paper/tables/*.tex, generated from
+% docs/research-results.md and docs/scorecard.md by paper/tables.py: never type them here.
+\documentclass[11pt]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{amsmath}
+\usepackage{booktabs}
+\usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage[hidelinks]{hyperref}
+\usepackage[numbers,sort&compress]{natbib}
+\newcommand{\todo}[1]{\textcolor{red}{[TODO: #1]}}
+\newcommand{\fq}{false ``you qualify''}
+
+\title{Talk, Don't Decide: Separating Conversation from Decision\\in a Benefits-Screening Agent}
+\author{\todo{Author name and affiliation}}
+\date{}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+Language-model agents are increasingly asked to interview people and then make determinations that matter to them. In public benefits, the most harmful error is a \fq: telling a household it qualifies for help it will be denied. We study where the decisions of such an agent should live. Our system, built for Alexa+, lets the language model only phrase questions and explain results. Which question to ask next, when to stop, and what the household qualifies for are decided by code: a value-of-information policy that runs batched what-if simulations through an exact rules engine (PolicyEngine-US), over explicit known, unknown and declined state, so that no missing answer silently becomes a default. We evaluate against full-information reference answers on handwritten and generated households covering every eligibility cutoff, and in simulated conversations where a second model plays the person. \todo{one sentence of headline results from E1--E3, from the generated tables}. Code, households and transcripts are open source.
+\end{abstract}
+
+\section{Introduction}
+Each year a large share of people eligible for public benefits never claim them \todo{cite IRS EITC participation and USDA SNAP participation estimates}. Screening tools exist, but they ask long fixed questionnaires. A voice agent can instead hold a conversation: ask a few questions, compute what the household may receive, and tell them how to apply. The risk is that a fluent model gives fluent wrong answers. Models misstate legal and tax rules with confidence \citep{dahl2024legalfictions,blairstanek2023statutory,bock2025taxcalcbench}, and incorrect chatbot suggestions measurably lower the accuracy of the caseworkers who rely on them \citep{gosciak2026socialservices}.
+
+We argue that for an interviewing agent, \emph{where the decisions live} matters as much as how capable the model is. Tool use alone does not settle it: an agent with an exact calculator still decides which facts to collect and when it has enough, and a missing fact passed to a calculator becomes whatever the calculator's default is. We make three contributions:
+\begin{enumerate}
+  \item \textbf{A design} that separates conversation from decision. The model phrases and explains; code chooses each question by its value of information (computed exactly, by simulation), decides when to stop, and computes results. Every answer is known, unknown or declined; results that an unknown could still change say ``if \ldots'' rather than ``you qualify''.
+  \item \textbf{An evaluation method} for interviewing agents: reference answers from full information; oracle interviews over handwritten households and over generated households placed at every program's eligibility cutoff; and simulated conversations with a model playing the person, all scored on \fq.
+  \item \textbf{Evidence} from three experiments: question-selection policies (E1), the effect of tracking unknowns on results shown mid-interview (E2), and the same simulated people talking with three designs that differ only in where decisions live (E3).
+\end{enumerate}
+
+\section{Related work}
+\paragraph{Tool-using agents and their evaluation.} Benchmarks such as $\tau$-bench \citep{yao2024taubench,barres2025tau2bench}, ToolSandbox \citep{lu2024toolsandbox}, AgentBench \citep{liu2023agentbench} and MINT \citep{wang2023mint} evaluate agents that converse with simulated users and call tools, and recent work argues that capability gains have barely improved reliability \citep{rabanser2026agentreliability,raj2026consistency}. We borrow the simulated-user setup but score a single high-stakes determination against an exact reference, and ask a design question rather than a capability one.
+
+\paragraph{Asking the right question.} Clarifying-question work ranks or generates questions by expected value \citep{rao2018learning,aliannejadi2019asking,kuhn2022clam,tamkin2022taskambiguity}, elicits preferences \citep{li2023gate,andukuri2024stargate}, and plans questions in games such as 20 Questions \citep{zhang2023twentyq}. Closest to us, Uncertainty of Thoughts \citep{hu2024uot} and BED-LLM \citep{choudhury2025bedllm,hartmann2026amortising} choose questions by expected information gain using the model's own beliefs, and MediQ \citep{li2024mediq} studies asking and abstaining in clinical reasoning. Our setting has an executable answer function, so we compute a question's value exactly by simulating its possible answers, in the tradition of decision-theoretic expert systems \citep{howard1966information,gorry1968sequential,heckerman1992pathfinder} and adaptive testing \citep{weiss1984cat,vanderlinden2000cat}.
+
+\paragraph{Language models over symbolic engines.} MRKL \citep{karpas2022mrkl}, Toolformer \citep{schick2023toolformer}, ReAct \citep{yao2022react}, and program- or solver-aided reasoning \citep{gao2022pal,lyu2023faithfulcot,pan2023logiclm,ye2023satlm,olausson2023linc} hand computation to code, but leave control (which tool, which inputs, when to stop) with the model. We take control away from the model as well.
+
+\paragraph{Benefits, tax and rules as code.} Encoding law as executable rules \citep{merigoux2021catala,mohun2020crackingcode} makes exact determinations possible; we use PolicyEngine-US \citep{policyengineus}. Language models have been used to draft such encodings \citep{kennan2025airulesascode}, to audit eligibility explanations with a solver \citep{sunny2025neurosymbolic}, and to answer caseworkers' questions \citep{gosciak2026socialservices}; applicants report both reduced burden and overtrust \citep{jo2025trustburden}. To our knowledge, no prior work runs the interview itself from an exact engine and compares that design end to end with model-driven alternatives.
+
+\paragraph{User simulation.} We follow goal-conditioned and prompted user simulation \citep{schatzmann2006survey,schatzmann2007agenda,terragni2023incontext,balog2025usersim}, and take seriously its known limits: simulators drift from their goals, leak information, and, when played by assistant models, are unrealistically cooperative \citep{sekulic2024daus,zhu2024reliablesimulator,dou2025simulatorarena,naous2025userlm}.
+
+\section{System}
+\todo{Figure: architecture (voice -> model -> MCP tools -> engine).}
+\paragraph{Roles.} The agent runs as an Alexa+ add-on: an MCP server exposes four tools (start a screening, answer, get results, get a plan to apply). The model calls them and speaks; it receives the next question, the reasons it matters, and the results, never a rule to apply.
+
+\paragraph{State.} The household draft travels inside every tool call (nothing is stored). Each fact is \emph{known}, \emph{unknown} or \emph{declined}. Unknown and declined facts are never sent to the engine, which would read them as 0, ``no'', the first county in the state, or ``citizen''. Inputs the programs read that we never ask about are covered by statements true of the engine's default (``no farm income''), checked by a coverage test that traces every input the programs read.
+
+\paragraph{Question selection.} Candidates are the unanswered questions whose applicability conditions hold. Each is evaluated at a low and a realistic high answer, all in one batched simulation. With $F(q)$ the eligibility outcomes that differ between the two answers, $\Delta(q)$ the largest change in monthly benefits and $c(q)$ the question's burden,
+\begin{equation}
+  \mathrm{score}(q) = \frac{w\,|F(q)| + \Delta(q)}{c(q)},
+\end{equation}
+with $w$ large enough that any eligibility flip outranks any ordinary dollar change. The interview stops when no candidate flips anything and none changes a benefit by more than a threshold $\tau$ a month. \todo{state $w$ and $\tau$ from interview.py via the generated tables, not by hand.}
+
+\paragraph{Results.} Results are withheld until the essential facts are known. A program is reported as ``if \ldots'' when an unasked or declined answer could still flip it (computed with the same what-ifs) or when it depends on a condition the engine cannot check. A plan for each program (where to apply, what to bring, what happens next) comes from cited, dated cards that may not contain amounts or rules.
+
+\section{Evaluation method}
+\paragraph{Reference.} For every household, the reference is the engine's answer with every question answered. Agreement with the reference is not real-world accuracy; the engine is tested separately against official figures (\todo{n} tests citing USDA, IRS and state sources).
+\paragraph{Households.} Tier A: handwritten California and Illinois households, including each failure found by independent reviews. Tier B: generated households, pairwise combinations of inputs and every program's income cutoff $\pm\$1$, restricted to answers that can exist at each age.
+\paragraph{Oracle interviews.} An oracle answers each question from the household's truth (and declines what the case declines). This isolates the policy from language.
+\paragraph{Simulated conversations.} A model plays the person from the household's facts, in everyday units (``about fourteen fifty a month''), and is always a different model family from the agent where possible.
+\paragraph{Metric.} A \fq\ is a program shown as ``you qualify'' that the reference says the household does not qualify for. We also report programs missed, hedged results (true eligibility shown only as ``if \ldots''), questions asked and cost.
+
+\section{Experiments}
+\subsection{E1: Which question next?}
+Same households, oracle and question groups; only the choice of the next question differs: value of information (ours), every applicable question in a fixed order, a fixed order with our stop rule, and a random order with our stop rule.
+\todo{\input{tables/e1} and discussion.}
+
+\subsection{E2: What if results are shown early?}
+After each question of our interview we compute the results that would be shown, either taking the engine's answer as is (unknowns read as defaults) or as our system reports them.
+\todo{\input{tables/e2}, plot false ``you qualify'' against questions asked.}
+
+\subsection{E3: Where should decisions live?}
+The same simulated people talk with three designs on the same model: \emph{split} (ours), \emph{tool} (the model has the same calculator but chooses the questions, when to stop, and what to report), and \emph{alone} (no tools). All designs end by putting the programs they report on a results screen, which is what we score. We run two model families.
+\todo{\input{tables/e3}; E4 failure categories from transcripts.}
+
+\section{Discussion}
+\todo{after results: what the split buys and what it costs (hedging, latency, engineering of the dictionary); when it does not apply (no executable answer function).}
+
+\section{Limitations}
+The reference is a rules engine, not agency decisions. Two states and the programs the engine models, at one point in time. Simulated people are models, not people, and may be more cooperative and consistent than real ones \citep{naous2025userlm}. The design needs an executable answer function and a dictionary of askable facts, which took most of the engineering effort.
+
+\section*{Ethics and use of AI}
+The system stores nothing about the person, states its assumptions, and tells people that the agency decides. \todo{Disclosure of AI assistance in building the system and drafting the paper, per arXiv policy; the author is responsible for all content.}
+
+\bibliographystyle{plainnat}
+\bibliography{references}
+\end{document}

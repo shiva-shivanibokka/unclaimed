@@ -1,61 +1,76 @@
 # Architecture
 
-## Layers (frontend → service → engine)
-1. **Frontend:** Alexa+ voice + Echo Show MCP App UI (result cards, document checklist, QR handoff). For the hackathon demo this runs in our simulated Alexa+ web app (a Strands agent on Bedrock as the orchestrator), because add-on tooling is allowlist-only
-2. **Service:** MCP server (TypeScript, Streamable HTTP, MCP spec 2025-11-25), stateless. The household draft travels inside tool arguments and results. Validates answers, converts units, reads answers back.
-3. **Engine side:** Python (FastAPI), always warm on AWS:
-   - **Question Engine**: the brain we own
-   - **PolicyEngine-US**: the calculator, pinned version
-   - **Dictionary**: YAML, every askable fact
-   - **ZIP → county crosswalk**: HUD USPS
-   - **Action-plan catalog**: YAML per program per state, with sources
-4. **Build and test** (never in the live path): coverage checker, eval harness (tiers A/B/C), scorecard
+```
+person ──voice──> Alexa+ (here: the simulator, a Strands agent on Amazon Bedrock)
+                     │  MCP over Streamable HTTP (stateless; the household draft rides in every call)
+                     ▼
+                  MCP server (TypeScript) ── screen (MCP Apps) ──> Echo Show
+                     │  HTTP, localhost (same task)
+                     ▼
+                  engine (Python): Question Engine · PolicyEngine-US · dictionary · ZIP→county · plan cards
+```
 
-No database: static data lives in git; results are cached in memory; logs and metrics are anonymous only.
+## Layers
+1. **Frontend.** Alexa+ voice, and the Echo Show screen: an MCP App (`ui://unclaimed/screen`) showing the result tiles and each plan with a QR code. Alexa+ add-on tooling is partner-only, so the demo runs in our simulator: an Echo Show-style page with browser speech, whose brain is a Strands agent on Bedrock calling our MCP server the way Alexa+ calls an add-on, and which hosts the MCP App per the spec (sandboxed frame, the spec's messages).
+2. **MCP server** (`mcp-server/`). Four tools: `start_screening`, `answer`, `get_results`, `get_plan`. Validates answers, converts the person's units (per paycheck, per hour, take-home) to the engine's, reads answers back for confirmation. Holds no state and no program knowledge: questions, phrasing, units, options, programs and the household schema are read from the engine at startup.
+3. **Engine** (`engine/`), always warm (cold start is seconds):
+   - **PolicyEngine-US**, pinned: the calculator. Every eligibility decision and amount.
+   - **Question Engine** (`engine/question_engine/`): a generic library with no benefits knowledge (it takes candidates and a calculator interface).
+   - **The benefits interview** (`interview.py`): the dictionary turned into Question Engine candidates.
+   - **Dictionary** (`dictionary/dictionary.yaml`): every askable fact and the handling of every engine input.
+   - **ZIP → county**: the HUD USPS crosswalk, weighted by residential addresses.
+   - **Plan cards** (`plans/`): per program and state, cited and dated.
+4. **Build and test** (never in the live path): the coverage checker, the eval tiers, the scorecard, the research experiments.
 
-## Question Engine
-Chosen: engine-driven questioning, with light rules in the dictionary. Rejected: a hand-written decision tree (brittle, rewritten per state and per rule change) and letting an LLM pick questions (not repeatable or testable). The LLM only phrases questions.
+No database. Static data lives in git; decisions are cached in memory; logs carry only state, household size and timings.
 
-Loop after every answer:
-1. Candidates = dictionary questions not yet answered, whose `applies_when` is true and whose `requires` are met
-2. What-if: run the engine at each candidate's low and high values, batched in one simulation
-3. Score = eligibility flips (heavily weighted) + dollar swing, divided by `cost`
-4. If nothing flips and no benefit moves more than ~$25/month → stop and show results
-5. Otherwise ask the top question and repeat. No hard cap; after ~10 questions, offer "estimate now or keep going".
-6. Think ahead: precompute likely answers while the person responds (the 500 ms limit)
+## The model talks; code decides
+The language model phrases questions and explains results; it never chooses what to ask, when to stop, or what anyone qualifies for. Rejected alternatives: a hand-written decision tree (rewritten per state and per rule change) and letting the model pick questions (not repeatable, not testable, and the model can't see which answer would change a result).
+
+**Question Engine loop**, after every answer:
+1. Candidates: dictionary questions not answered or declined, whose `applies_when` holds and whose `requires` are met. The essentials (location, who lives there, pay, housing) come first.
+2. What-ifs: each candidate at a low and a high realistic answer, all batched into one PolicyEngine simulation. Questions asked together (a group like "other income") are tried together.
+3. Score: eligibility flips (weighted far above dollars) plus the dollar swing, divided by the question's cost (how hard or sensitive it is to ask).
+4. Stop when no candidate flips anything and none moves a benefit by the stop threshold a month; otherwise ask the top one. After a set number of questions, offer "estimate now or keep going". Tuning lives in `interview.py`.
+5. **Think-ahead:** while the person answers, the likely next households (the asked question answered "no", or its main question "yes") are decided in the background, and once the interview stops the results are computed too. Guesses never delay a real request.
+
+## Known, unknown, declined
+PolicyEngine silently reads anything missing as a default (0/no, the first county in the state, citizen). We never let a default stand in for an answer:
+- Answers are known, unknown, or declined; unknown and declined fields are not sent to the engine, and each comes back as an assumption with the engine's actual default.
+- Inputs the engine reads that we never ask are covered by statements that are true of the default ("no farm income"), said with the results; the coverage checker fails the build if any input the programs read is unclassified.
+- Results that an unasked or declined answer could still change, or that depend on something the calculator can't check (which utility serves the home), say "if ...", never "you qualify". Results aren't given until the essentials are in.
+- Structural engine inputs (tax units, household head, FIPS codes) are derived from the stated relationships, never left to the engine's age-based guesses.
 
 ## Dictionary: exhaustive for the programs in scope
-Every engine input read by the in-scope programs is sorted into exactly one bucket:
-- **Ask:** can change a result for real households
-- **Derive:** computed from other answers (county from ZIP, yearly pay from paycheck × frequency)
-- **Assume, and say so:** rare for this audience (gambling winnings, farm income); listed on the results screen
-- **Out of scope:** only feeds programs we don't cover
+Every engine input the in-scope programs read is in exactly one bucket: **ask** (changes a result for real households), **derive** (county from ZIP, yearly pay from paycheck × frequency), **assume and say so** (rare for this audience), or **out of scope** (feeds only programs we don't cover). The evidence is a trace of which inputs the programs read over a grid of households, and a sensitivity scan of each input on both sides of its default. Each entry: definition, how to ask, answer type and units, what-if range (a checked realistic maximum), `applies_when`, `requires`, `cost`, clarifiers.
 
-The coverage checker traces thousands of generated CA + IL households. The build fails if any read input is unclassified.
+## Plan cards
+One card per application (programs applied for together share one), in `plans/<STATE>/` or `plans/US/` when the process is the same everywhere. Ways to apply (a site, a phone line, an office finder) are defined once in `plans/channels.yaml`. A card holds only the agency's process, cited to the agency's pages and dated; names, amounts and rules come from the engine, and the loader rejects a card with a dollar amount or a percentage. Cards past their re-verification age fail the tests; `engine/scripts/check_plan_links.py` opens every link.
 
-Entry fields: `id`, `engine_field`, `entity`, `definition`, `ask`, `answer` schema, `convert`, `what_if_range`, `applies_when`, `requires`, `cost` (1 easy … 5 sensitive), `clarifiers`.
+## Single source of truth
+Facts owned by others (rules, amounts, engine defaults, county names, ZIP data) are read from their owner. Our own decisions (supported states, the program list, tuning) are defined once and everything else reads them: the MCP server and simulator read the engine's `/programs`, `/dictionary`, `/openapi.json` and `/plans`; the simulator's settings live in `simulator/simulator/defaults.env`, which deployment reads too. Test expectations are the one exception: official figures typed in with citations, because a test that reads its answer from the engine can't catch the engine being wrong.
 
 ## Engine behavior our design depends on
-Measured numbers (latency, warm-up) live only in `engine/README.md`, measured on the pinned version on our machine. This section lists behavior, not measurements.
-- 6,185 variables, 925 of them inputs. Anything not provided silently falls back to a default: usually 0/false, but county defaults to the first county in the state and immigration status defaults to citizen. Our layer reports every such default as an assumption.
-- Some obvious-looking variables are calculated, not inputs: set `employment_income_before_lsr`, `pre_subsidy_rent`, `spm_unit_pre_subsidy_childcare_expenses`, not `employment_income`, `rent`, `childcare_expenses` (setting those overrides the engine's own formula).
-- Tax roles default to an age-based guess (oldest adults become head and spouse), so we always set them from the stated relationships.
-- Units: income inputs are yearly; SNAP and WIC are monthly; Medicaid/CHIP output is the value of coverage, not cash.
-- Cold start is seconds long, so the engine must be always-on, not serverless.
+Pinned by `engine/tests/test_engine_behavior.py`, so an upgrade that changes them fails loudly. Measured numbers live only in `engine/README.md`.
+- Missing inputs silently default (county to the first in the state, immigration status to citizen, numbers to 0).
+- Some obvious-looking variables are calculated, not inputs (`employment_income`, `rent`, `childcare_expenses`): we set the engine's real inputs.
+- Income inputs are yearly; SNAP and WIC are monthly; Medicaid and CHIP report the cost of coverage, not cash.
 - County changes results (ACA credit, CalWORKs), so ZIP → county is load-bearing.
-- Planning-session findings (`engine/research/`, a different machine, and using the calculated variables above as inputs), to be re-verified with our engine's inputs in Stage 2 and 3 tests: batching many variants in one simulation is far cheaper than separate runs; a CA single parent + 2 kids reads ~283 defaulted inputs; at $48K in LA, child care flips SNAP and job-based insurance flips the ACA credit, while at $32K job insurance changes nothing.
+- Many variants of one household batch into one simulation, far cheaper than separate runs.
 
 ## Alexa+ constraints
-Stage 0 answers (sign-in not needed; the 500 ms limit's wording and how we treat it) are recorded once, in `docs/stages.md`.
-- Round-trip response under 500 ms ("must", per the MCP quickstart)
-- Client capabilities: roots only (no elicitation, sampling or push notifications)
-- MCP Apps supported for screen UI; US only
+- Round trip under 500 ms ("must", per the MCP quickstart). Most answers are served from think-ahead; an exact answer nobody guessed is computed on demand (latency in `docs/stages.md`).
+- Client capabilities: roots only (no elicitation, sampling or push notifications), so the server never asks back; everything goes through tool results.
+- MCP Apps for the screen; US only. No sign-in: account linking is optional, and we store nothing.
 
-## Eval
-- Tier A: 30–50 handwritten households
-- Tier B: thousands of generated households (pairwise + every cutoff ±$1; counties grouped by rule region)
-- Tier C: 40–60 simulated conversations (an LLM plays the person, plus an Alexa+ emulator)
-- Scorecard: match vs the full-information answer, questions asked, false "you qualify" (target 0), latency
+## Hosting
+AWS us-east-1, ECS Express Mode (`infra/`): the MCP server with the engine as a localhost-only sidecar in one task, and the simulator in another, each behind a managed load balancer. The simulator is the only part allowed to call Bedrock (one model), and is rate limited per client and by a daily token budget so public access can't run up the bill.
+
+## Evaluation
+- **Tier A:** handwritten CA and IL households, including the cases past reviews broke.
+- **Tier B:** generated households: pairwise combinations of the inputs, and every program's income cutoff ±$1.
+- **Tier C:** simulated conversations: a model plays the person in everyday words, through the real MCP server.
+- Each is compared with the full-information answer. The headline metric is false "you qualify" (target 0); also programs missed, questions asked, amount error, latency. Results: `docs/scorecard.md`. Research experiments on the design itself: `docs/research-plan.md`.
 
 ## Reuse
-The Question Engine targets a generic calculator interface, so the same code can drive a mortgage quick-apply document-requirements interview.
+The Question Engine targets a generic calculator interface (`engine/question_engine/README.md`): the same loop can drive any interview whose outcome a calculator decides, such as a mortgage application's document requirements.

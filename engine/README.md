@@ -11,10 +11,12 @@ Python service that runs [PolicyEngine-US](https://github.com/PolicyEngine/polic
 - `question_engine/`: the generic Question Engine library (no benefits knowledge; see its README)
 - `unclaimed_engine/interview.py`: the benefits interview on top of it: candidates from the dictionary (applies_when, requires), core questions first, household-wide asks, stop rule, results conditional on declined answers
 - `unclaimed_engine/batch.py`: many households in one simulation (what-ifs ~100× faster than one by one)
-- `unclaimed_engine/think_ahead.py`: decision cache + background computation for likely next answers
-- `unclaimed_engine/app.py`: FastAPI (`GET /health`, `GET /programs`, `GET /dictionary`, `POST /next`, `POST /calculate`, schema at `/openapi.json`), warmed up at startup
+- `unclaimed_engine/think_ahead.py`: decision cache + background computation for likely next answers, and for the results once the interview stops
+- `unclaimed_engine/plans.py`: loads and checks the plan cards (`../plans/`)
+- `unclaimed_engine/app.py`: FastAPI (`GET /health`, `GET /programs`, `GET /dictionary`, `GET /plans/{state}`, `GET /zip/{zip}`, `POST /next`, `POST /calculate`, `POST /gross_up`, schema at `/openapi.json`), warmed up at startup
 - `tests/`: results vs. official published figures (USDA, IRS, state law), and the API contract
 - `scripts/measure_latency.py`: warm latency per household shape and per program
+- `scripts/check_plan_links.py`: opens every link in the plan cards
 - `scripts/trace_inputs.py`, `scripts/sensitivity_scan.py`: which inputs the programs read, and which change results (evidence for the dictionary)
 
 Evaluation (tiers A and B, scorecard): `../eval/`, results in `../docs/scorecard.md`.
@@ -54,7 +56,7 @@ curl -s localhost:8000/calculate -H 'content-type: application/json' -d '{
 - **Household shape (v1).** One head, an optional spouse, and children (each younger than the head). Tax roles come from `relationship`, never from PolicyEngine's age-based guess (which would make an 18-year-old the spouse). Children under 19, full-time students under 24, or disabled children are dependents; other adult children file their own return. Structural engine inputs (tax unit IDs, household head, own children, FIPS codes, ZIP) are derived from the structure, never left to engine defaults. Other adults (grandparents, roommates) aren't supported yet.
 - **Limits.** `as_of` within one year of today (the range the official-figure tests cover; outside it the engine errors or extrapolates). Money fields within ±$10M. A given `county` must contain the given `zip`.
 - **Interview (`POST /next`).** Send the household as known so far (answers + `declined`, at most 20); get the next question. If the ZIP is split between counties, the first question is `county` (with `options`); every what-if needs the real county with the ones to ask in the same breath (`together`: the same question for everyone else, or the rest of its group), or `stop`. On stop, `conditional` lists programs that depend on a declined answer (the results say "if ..."). After 10 questions `offer_estimate` is true. Tuning (`FLIP_WEIGHT`, `STOP_BELOW` $25/mo, `ESTIMATE_OFFER_AFTER`) lives in `interview.py`. `cached` says whether think-ahead had it ready; `wait_ms` is time spent waiting for the engine. Results are compared per person too (`medicaid:b`): a declined answer that changes one person's coverage makes that program conditional.
-- **Overload.** At most `UNCLAIMED_MAX_IN_FLIGHT` (default 8) calculations running or waiting; beyond that, 503 at once. `ms` is compute time, `wait_ms` the time spent queued. `/health` stays responsive under load. Engine failures return a generic 503 and log only the error type.
+- **Overload.** At most `UNCLAIMED_MAX_IN_FLIGHT` (default 8) calculations running or waiting; beyond that, 503 at once. `ms` is compute time, `wait_ms` the time spent queued. `/health` stays responsive under load. Engine failures return a generic 500 (retrying won't help) and log only the error type.
 - **Privacy.** Nothing is stored; logs carry only the state, the number of people and the timing.
 
 ## Measured (Sep 30, 2026, Stage 2: dictionary-driven inputs; i7-13700HX, WSL2, warm)

@@ -59,7 +59,9 @@ def _check(case: dict, full: Household) -> None:
                 raise ValueError(f"{case['id']}: {k} does not apply to {p['id']}")
 
 
-def run(case: dict) -> dict:
+def run(case: dict, decide=next_question, on_turn=None) -> dict:
+    """Interview `case` with `decide` (the Question Engine, or a policy to compare it with:
+    eval/experiments.py), calling on_turn(h, decision) before each answer."""
     truth = _truth(case)
     full = apply(_start(case).model_copy(update={"county": case.get("county")}), truth)
     _check(case, full)
@@ -68,8 +70,10 @@ def run(case: dict) -> dict:
     turns, latencies = [], []
     while len(turns) < MAX_TURNS:
         t = time.perf_counter()
-        d = next_question(h)
+        d = decide(h)
         latencies.append((time.perf_counter() - t) * 1000)
+        if on_turn:
+            on_turn(h, d)
         if d["stop"]:
             break
         turns.append(d["ask"]["question"])

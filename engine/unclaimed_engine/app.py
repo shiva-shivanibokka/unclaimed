@@ -16,7 +16,6 @@ from .dictionary import load
 from .geo import locate
 from .gross_up import gross_from_take_home
 from .household import MAX_MONEY, Household
-from .interview import conditional_on_declined
 from .programs import PROGRAMS, SUPPORTED_STATES
 
 log = logging.getLogger("unclaimed.engine")
@@ -150,14 +149,16 @@ def _run(name: str, household: Household, work) -> tuple[dict, int, int]:
 
 @app.post("/calculate")
 def calculate_endpoint(household: Household) -> dict:
+    """Results for the household. Cached, and computed ahead once the interview stops
+    (think_ahead.py)."""
+    hit = False
+
     def work():
-        t = time.perf_counter()
-        with _lock:
-            waited = time.perf_counter() - t
-            # Programs that depend on a declined answer: the results screen says "if ...".
-            return {**calculate(household), "conditional": conditional_on_declined(household)}, waited
+        nonlocal hit
+        result, hit, waited = think_ahead.calculate_results(household, _lock)
+        return result, waited
     result, ms, wait_ms = _run("calculate", household, work)
-    return {**result, "ms": ms, "wait_ms": wait_ms}
+    return {**result, "ms": ms, "wait_ms": wait_ms, "cached": hit}
 
 
 @app.post("/next")
