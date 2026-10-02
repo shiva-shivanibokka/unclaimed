@@ -21,7 +21,7 @@
 \maketitle
 
 \begin{abstract}
-Language-model agents are increasingly asked to interview people and then make determinations that matter to them. In public benefits, the most harmful error is a \fq: telling a household it qualifies for help it will be denied. We study where the decisions of such an agent should live. Our system, built for Alexa+, lets the language model only phrase questions and explain results. Which question to ask next, when to stop, and what the household qualifies for are decided by code: a value-of-information policy that runs batched what-if simulations through an exact rules engine (PolicyEngine-US), over explicit known, unknown and declined state, so that no missing answer silently becomes a default. We evaluate against full-information reference answers on handwritten and generated households covering every eligibility cutoff, and in simulated conversations where a second model plays the person. \todo{one sentence of headline results from E1--E3, from the generated tables}. Code, households and the E3 conversation transcripts are open source.
+Language-model agents are increasingly asked to interview people and then make determinations that matter to them. In public benefits, the most harmful error is a \fq: telling a household it qualifies for help it will be denied. We study where the decisions of such an agent should live. Our system, built for Alexa+, lets the language model only phrase questions and explain results. Which question to ask next, when to stop, and what the household qualifies for are decided by code: a value-of-information policy that runs batched what-if simulations through an exact rules engine (PolicyEngine-US), over explicit known, unknown and declined state, so that no missing answer silently becomes a default. We evaluate against full-information reference answers on handwritten and generated households covering every eligibility cutoff, and in simulated conversations where a second model plays the person. Choosing questions by value of information reaches the full-information answer with fewer questions than asking everything; tracking unknowns removes nearly all \fq\ errors from partial interviews; and in simulated conversations on two model families, a model with the exact calculator as a tool still told a large share of people they qualify for a program they do not, almost always because it asked too little, while our design did so at most once in 38 conversations per model. Code, households and the E3 conversation transcripts are open source.
 \end{abstract}
 
 \section{Introduction}
@@ -69,21 +69,52 @@ with $w$ large enough that any eligibility flip outranks any ordinary dollar cha
 \section{Experiments}
 \subsection{E1: Which question next?}
 Same households, oracle and question groups; only the choice of the next question differs: value of information (ours), every applicable question in a fixed order, a fixed order with our stop rule, and a random order with our stop rule.
-\todo{\input{tables/e1} and discussion.}
+\begin{table}[t]\centering\small
+\resizebox{\linewidth}{!}{\input{tables/e1}}
+\caption{E1: question-selection policies over the Tier A and Tier B households, oracle answers. Every policy reaches the reference (each asks until nothing it could ask would change the result); they differ in how many questions that takes.}
+\label{tab:e1}
+\end{table}
+All four policies reach the reference answer for every household (Table~\ref{tab:e1}), so the comparison is one of burden. Value of information asks markedly fewer questions and takes fewer turns than asking everything. A fixed order with our stop rule asks as much as asking everything for most households: the stop rule fires only when no remaining question can change anything, and a fixed order rarely reaches that point early, because it does not put the questions that settle the result first. A random order is no better. The saving therefore comes from choosing the next question, not from the stop rule alone.
 
 \subsection{E2: What if results are shown early?}
 After each question of our interview we compute the results that would be shown, either taking the engine's answer as is (unknowns read as defaults) or as our system reports them.
-\todo{\input{tables/e2}, plot false ``you qualify'' against questions asked.}
+\begin{table}[t]\centering\small
+\resizebox{\linewidth}{!}{\input{tables/e2}}
+\caption{E2: households whose results, if shown after this many turns, would include a \fq. \emph{Naive}: the engine's answer with unknowns read as its defaults. \emph{Tracked}: what our system reports. \emph{Hedged}: true claims shown as ``if \ldots''.}
+\label{tab:e2}
+\end{table}
+Read naively, a partial interview is dangerous: before any question, most households would be told they qualify for something they do not, and the share stays near half for the first several turns (Table~\ref{tab:e2}), because the engine reads every unanswered fact as zero or ``no'', and zero income looks eligible for nearly everything. Tracking unknowns removes almost all of these errors; the price is hedging, as most true claims early in the interview are shown as ``if \ldots'', falling as questions are answered. A handful of households are wrong even when tracked: in each, eligibility depends on two answers jointly (for example, an immigration status together with a later answer about income), and our what-ifs vary one unanswered question at a time, so no single what-if reveals the flip. We report these rather than tune them away; varying pairs of questions would close the gap at a combinatorial cost.
 
 \subsection{E3: Where should decisions live?}
 The same simulated people talk with three designs on the same model: \emph{split} (ours), \emph{tool} (the model has the same calculator but chooses the questions, when to stop, and what to report), and \emph{alone} (no tools). All designs end by putting the programs they report on a results screen, which is what we score. We run two model families.
-\todo{\input{tables/e3}; E4 failure categories from transcripts.}
+Alexa is Amazon Nova 2 Lite or Claude Haiku 4.5 on Amazon Bedrock, and the person is played by the other one. All 228 conversations, with transcripts and every tool call, are released.
+\begin{table}[t]\centering\small
+\resizebox{\linewidth}{!}{\input{tables/e3}}
+\caption{E3: the same 38 simulated people talking with each design. Scored on the results screen over every conversation; one that never reached results counts as missing every program the household qualifies for.}
+\label{tab:e3}
+\end{table}
+Where decisions live dominates which model is used (Table~\ref{tab:e3}). With the model alone, most conversations end with a \fq, on both models. Giving the model the exact calculator as a tool helps, but a large share of conversations still end with a \fq. With decisions in code, there is at most one \fq\ per model across the 38 conversations. The split costs more turns and more tokens (the interview asks until nothing could change the answer), and it hedges: some true eligibility is shown as ``if \ldots'' because an answer was declined or a condition cannot be checked. It also misses fewer programs than the alternatives on Haiku and far fewer than the tool design on Nova.
+
+\subsection{E4: Why the designs go wrong}
+\begin{table}[t]\centering\small
+\resizebox{\linewidth}{!}{\input{tables/e4}}
+\caption{E4: each wrong program of the tool design, traced by re-running the calculator on the last household the model passed to it.}
+\label{tab:e4}
+\end{table}
+\begin{table}[t]\centering\small
+\resizebox{\linewidth}{!}{\input{tables/e4_2}}
+\caption{E4: conversations that never reached results, tool calls the server refused, and the programs most often wrongly shown as ``you qualify''.}
+\label{tab:e4b}
+\end{table}
+Why does a model with an exact calculator still mislead? We re-ran the calculator on the last household each model passed to it (Table~\ref{tab:e4}). For every \fq\ of the tool design, on both models, the calculator agreed with the model: the model did not override the calculator, it gave it too little. A typical case asks for income and health insurance, never asks about housing or utility costs, and passes a household in which those are absent; the calculator reads them as zero, and the household appears eligible for a utility discount it would not get. This is exactly the silent-default failure our design is built around, and it moves the error from computation into the choice of what to ask, which a calculator tool does not address. Missed programs are split between that cause and the model dropping a program the calculator reported.
+
+The model-alone failures concentrate in a few programs: children's health coverage, federal and state tax credits, and state child care and cash aid (Table~\ref{tab:e4b}). Our design's own failures are of a different kind: protocol failures. Its tools refuse malformed calls (a missing unit, an unknown person), and the model usually recovers on the next call. In the conversations that never reached results, Haiku misused the decline field (it marked income the person said they did not have as declined, and never marked the housing question the person refused), then kept asking for the declined answer instead of finishing; in another, the simulated person began narrating results as if it were Alexa. Earlier runs surfaced two failures we fixed in the server rather than the prompt: a tool that required a unit even for an amount of zero (Nova often omits it), and a ZIP code spanning two counties that broke the interview. The conversations from before the first fix are released alongside the final ones.
 
 \section{Discussion}
-\todo{after results: what the split buys and what it costs (hedging, latency, engineering of the dictionary); when it does not apply (no executable answer function).}
+\paragraph{What the split buys.} The determination becomes as reliable as the engine and the dictionary of askable facts, and stops depending on the model: the same design gives near-identical safety on a small and a larger model, while the alternatives vary widely between them. Errors that remain are visible and fixable in code (a protocol rule, a missing what-if) rather than in prompts. \paragraph{What it costs.} Longer interviews, hedged results when information is missing or declined, and, above all, engineering: an executable answer function, and a dictionary saying, for every input the programs read, how to ask it, when it applies, and what is safe to assume if it is not asked. \paragraph{When it does not apply.} Without an executable answer function (open-ended advice, rules that are not encoded), there is nothing to move the decisions into. The broader lesson for agent reliability is that giving a model a correct tool does not make its use of the tool correct; the decisions around the tool (what to gather, when to stop, how to report uncertainty) need the same scrutiny as the computation.
 
 \section{Limitations}
-The reference is a rules engine, not agency decisions. Two states and the programs the engine models, at one point in time. Simulated people are models, not people, and may be more cooperative and consistent than real ones \citep{naous2025userlm}. The design needs an executable answer function and a dictionary of askable facts, which took most of the engineering effort.
+The reference is a rules engine, not agency decisions. Two states and the programs the engine models, at one point in time. Simulated people are models, not people, and may be more cooperative and consistent than real ones \citep{naous2025userlm}. In our runs, a simulated person once broke role and narrated results, and before we fixed its prompt, another gave in and answered a question it had been told to decline; both are visible in the released transcripts. E3 uses 38 households and two small models, one conversation each, so differences of a few conversations are within noise; the large gaps between designs are not. Our what-ifs vary one unanswered question at a time, so eligibility that depends on two unknowns jointly can be missed (E2). The design needs an executable answer function and a dictionary of askable facts, which took most of the engineering effort.
 
 \section*{Ethics and use of AI}
 The system stores nothing about the person, states its assumptions, and tells people that the agency decides. \todo{Disclosure of AI assistance in building the system and drafting the paper, per arXiv policy; the author is responsible for all content.}
