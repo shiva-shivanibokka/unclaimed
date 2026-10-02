@@ -20,10 +20,10 @@ watch_out:
   - Use your WIC benefits within 30 days; the app shows when they expire.
   - Only your local WIC office can confirm you qualify, so make the appointment even if you're unsure.
   - Keep going to your WIC appointments to keep your benefits.
-handoff: https://www.myfamily.wic.ca.gov/Home/HowCanIGetWIC
+handoff: https://myfamily.wic.ca.gov/Home/HowCanIGetWIC
 sources:
-  - https://www.myfamily.wic.ca.gov/Home/HowCanIGetWIC
-  - https://www.myfamily.wic.ca.gov/Home/WicCardAndApp
-  - https://www.myfamily.wic.ca.gov/
-  - https://www.myfamily.wic.ca.gov/Home/ContactUs
+  - https://myfamily.wic.ca.gov/Home/HowCanIGetWIC
+  - https://myfamily.wic.ca.gov/Home/WicCardAndApp
+  - https://myfamily.wic.ca.gov/
+  - https://myfamily.wic.ca.gov/Home/ContactUs
 last_verified: 2026-10-01

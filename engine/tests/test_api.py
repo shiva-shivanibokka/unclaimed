@@ -115,6 +115,8 @@ def test_results_are_computed_ahead_once_the_interview_stops(client, monkeypatch
     import threading
     from unclaimed_engine import think_ahead
     from unclaimed_engine.household import Household
+    from collections import OrderedDict
+    monkeypatch.setattr(think_ahead, "_cache", OrderedDict())  # leave nothing behind for other tests
     monkeypatch.setattr(think_ahead, "next_question", lambda h: {"stop": True})
     monkeypatch.setattr(think_ahead, "results", lambda h: {"programs": []})
     h, lock = Household(state="CA", people=[{"id": "a", "relationship": "head", "age": 51}]), threading.Lock()

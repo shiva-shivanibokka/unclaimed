@@ -25,7 +25,10 @@ MCP_URL = os.environ.get("MCP_URL", "http://localhost:8080/mcp")
 # the household draft; a turn is normally a tool call or two and a reply.
 MAX_TOKENS = 4096
 MAX_MODEL_CALLS_PER_TURN = 6
-SYSTEM_PROMPT = (Path(__file__).parent / "prompt.md").read_text(encoding="utf-8")
+# voice.md: who Alexa is and how to speak (shared with the research baselines, eval/e3.py);
+# prompt.md: how to run the screening with our tools.
+VOICE = (Path(__file__).parent / "voice.md").read_text(encoding="utf-8")
+SYSTEM_PROMPT = VOICE + "\n" + (Path(__file__).parent / "prompt.md").read_text(encoding="utf-8")
 
 _lock = threading.Lock()
 _mcp: MCPClient | None = None

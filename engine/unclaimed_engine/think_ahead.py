@@ -6,8 +6,11 @@ the cache and are computed on demand. When the interview stops, the results are 
 asked for next, so they are computed ahead the same way.
 
 Guesses never come first: a guess starts only when no real request is waiting, and only
-for the latest request (older guesses are dropped). A real request can still wait for a
-guess already running (one decision at most); /next reports that wait.
+for the latest request (older guesses are dropped). A real request can still wait for the
+one guess already running (/next and /calculate report that wait), and then finds its
+answer in the cache if that guess was it. Results aren't guessed for a household with
+declined answers: checking what each declined answer could change takes longer than a
+guess should hold the engine.
 """
 
 import itertools
@@ -23,7 +26,7 @@ from .dictionary import load
 from .household import Household
 from .interview import conditional_on_declined, next_question
 
-CACHE_SIZE = 512  # households; a decision is a few KB
+CACHE_SIZE = 512  # decisions and results; each a few KB to some tens of KB
 _cache: OrderedDict[str, dict] = OrderedDict()
 _cache_lock = threading.Lock()
 _pool = ThreadPoolExecutor(max_workers=1, thread_name_prefix="think-ahead")
@@ -86,6 +89,9 @@ def _compute(key: str, work, h: Household, compute_lock: threading.Lock) -> tupl
         t = time.perf_counter()
         with compute_lock:
             waited = time.perf_counter() - t
+            # The guess that was running may have been this one.
+            if (value := _get(key)) is not None:
+                return value, True, waited
             value = work(h)
     finally:
         with _state:
@@ -103,7 +109,7 @@ def decide(h: Household, compute_lock: threading.Lock) -> tuple[dict, bool, floa
         _newest = request = next(_latest)
     guesses = [(_key(n), next_question, n) for n in likely_next(h, decision)]
     if decision["stop"]:
-        guesses = [(_key(h, "results"), results, h)]
+        guesses = [] if h.declined else [(_key(h, "results"), results, h)]
     for guess in guesses:
         _pool.submit(_prefetch, *guess, compute_lock, request)
     return decision, hit, waited

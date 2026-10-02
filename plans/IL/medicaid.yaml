@@ -19,9 +19,9 @@ watch_out:
   - Keep your mailing address current so you get renewal letters.
   - Return the renewal form by its due date, even if nothing changed.
   - Report changes in income, address or household in Manage My Case.
-handoff: https://abe.illinois.gov/abe/access/
+handoff: https://abe.illinois.gov/access/
 sources:
-  - https://abe.illinois.gov/abe/access/
+  - https://abe.illinois.gov/access/
   - https://www.dhs.state.il.us/page.aspx?item=33698
   - https://www.dhs.state.il.us/page.aspx?module=12
   - https://hfs.illinois.gov/medicalclients/medicalprograms.html
@@ -29,5 +29,5 @@ sources:
   - https://hfs.illinois.gov/medicalclients/medicaidguide/stayinginthesystem.html
   - https://hfs.illinois.gov/medicalclients/medicaidguide/changes.html
   - https://hfs.illinois.gov/content/dam/soi/en/web/hfs/sitecollectiondocuments/hfs2378h.pdf
-  - https://enrollhfs.illinois.gov/
+  - https://enrollhfs.illinois.gov/en
 last_verified: 2026-10-01

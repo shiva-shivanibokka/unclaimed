@@ -5,9 +5,11 @@ fresh read, not just a new URL.
 Run: uv run python scripts/check_plan_links.py   (exit 1 if any page is gone)
 """
 
+import socket
 import sys
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
+from urllib.parse import urlsplit
 
 import httpx
 
@@ -19,6 +21,7 @@ HEADERS = {"User-Agent": "Mozilla/5.0 (compatible; unclaimed-link-check)"}
 # Some agency sites (SSA, the FCC's Lifeline site, the IRS site locator) refuse scripts but
 # open in a browser: these answers mean "open it by hand", not "gone".
 REFUSED = {"401", "403", "429", "ConnectError", "ConnectTimeout", "ReadTimeout"}
+MOVED = "moved"  # redirected to another page: may be the agency's home page or a "not found" page
 
 
 def links() -> dict[str, set[str]]:
@@ -35,26 +38,41 @@ def links() -> dict[str, set[str]]:
 
 
 def status(url: str) -> str | None:
-    """None if the page loads, else what went wrong."""
+    """None if the page loads where the card says, else what went wrong."""
     try:
-        r = httpx.get(url, headers=HEADERS, follow_redirects=True, timeout=30)
-    except httpx.HTTPError as e:
-        return type(e).__name__
-    return None if r.status_code < 400 else str(r.status_code)
+        socket.getaddrinfo(urlsplit(url).hostname, 443)
+    except socket.gaierror:
+        return "no such host"  # the domain is gone: broken for people too
+    for attempt in range(2):  # a server error gets one retry
+        try:
+            r = httpx.get(url, headers=HEADERS, follow_redirects=True, timeout=30)
+        except httpx.HTTPError as e:
+            return type(e).__name__
+        if r.status_code < 500:
+            break
+    if r.status_code >= 400:
+        return str(r.status_code)
+    final, cited = urlsplit(str(r.url)), urlsplit(url)
+    same = (final.hostname.removeprefix("www.") == cited.hostname.removeprefix("www.")
+            and final.path.rstrip("/").lower() == cited.path.rstrip("/").lower())
+    return None if same else MOVED
 
 
 def main() -> int:
     used = links()
     with ThreadPoolExecutor(8) as pool:
         results = dict(zip(used, pool.map(status, used)))
-    gone = {u: s for u, s in results.items() if s and s not in REFUSED}
+    gone = {u: s for u, s in results.items() if s and s not in REFUSED and s != MOVED}
     refused = {u: s for u, s in results.items() if s in REFUSED}
-    for title, found in (("Gone (fix the card)", gone), ("Refused the checker (open by hand)", refused)):
+    moved = {u: s for u, s in results.items() if s == MOVED}
+    for title, found in (("Gone (fix the card)", gone), ("Refused the checker (open by hand)", refused),
+                         ("Redirected elsewhere (check the page still says what the card cites)", moved)):
         if found:
             print(title)
         for url, problem in sorted(found.items()):
             print(f"  {problem:>14}  {url}  ({', '.join(sorted(used[url]))})")
-    print(f"{len(used) - len(gone) - len(refused)} of {len(used)} links load; {len(gone)} gone; {len(refused)} to open by hand")
+    print(f"{len(used) - len(gone) - len(refused) - len(moved)} of {len(used)} links load where cited; {len(gone)} gone; "
+          f"{len(refused)} to open by hand; {len(moved)} redirected")
     return 1 if gone else 0
 
 
