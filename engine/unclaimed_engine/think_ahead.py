@@ -61,9 +61,10 @@ def _put(key: str, decision: dict) -> None:
 def likely_next(h: Household, decision: dict) -> list[Household]:
     """Households after the most likely answers: all asked questions at their low what-if
     value ("no"/"none"), and the main question at its high value."""
-    if decision["stop"]:
-        return []
     d = load()
+    # The county or ZIP (where the household lives) has no dictionary entry or likely answer.
+    if decision["stop"] or decision["ask"]["question"] in d.structure:
+        return []
     asked = [decision["ask"], *decision["together"]]
     low = {(x["person"], x["question"]): d.question(x["question"]).what_if[0] for x in asked}
     main = (decision["ask"]["person"], decision["ask"]["question"])

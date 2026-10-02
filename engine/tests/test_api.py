@@ -125,6 +125,14 @@ def test_results_are_computed_ahead_once_the_interview_stops(client, monkeypatch
     assert think_ahead.calculate_results(h, lock)[1]  # served from the cache
 
 
+def test_a_split_zip_asks_the_county_through_the_api(client):
+    # Through /next (think-ahead included), not only the interview: think-ahead once failed
+    # on the county question, which has no dictionary entry.
+    body = {"state": "IL", "zip": "60011", "people": [{"id": "a", "relationship": "head", "age": 33}]}
+    r = client.post("/next", json=body)
+    assert r.status_code == 200 and r.json()["ask"]["question"] == "county"
+
+
 def test_programs_list(client):
     ids = {p["id"] for p in client.get("/programs").json()}
     assert {"snap", "eitc", "medicaid", "ca_eitc", "il_eitc"} <= ids
