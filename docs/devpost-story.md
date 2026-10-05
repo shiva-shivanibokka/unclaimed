@@ -7,7 +7,7 @@ Alexa+ is already in the kitchen, where those conversations happen. I wanted a v
 ## What it does
 Unclaimed is a self-hosted MCP server for **Alexa+** that screens a household for benefits in **California and Illinois**:
 
-1. **Asks only the questions that matter.** After a few essentials (ZIP code, who lives with you, pay, other income, housing), a *Question Engine* decides the next question by testing which unknown fact would change the result the most. When nothing left would change the answer, it stops.
+1. **Asks only the questions that matter.** After a few essentials (ZIP code, who lives with you, pay, other income, housing), a *Question Engine* picks the next question by testing which unknown fact would change the result the most. After a few it shows results; programs that an unasked answer could still change say "maybe", and asking about one brings only the questions that settle it.
 2. **Calculates exactly.** Eligibility and amounts come from [PolicyEngine-US](https://github.com/PolicyEngine/policyengine-us), an open-source rules engine that encodes federal and state tax and benefit law. The AI never does arithmetic and never decides eligibility.
 3. **Hands off a plan.** The Echo Show shows the results as tiles, then a plan for each program you pick: where and how to apply, what to bring, what happens next and common mistakes, from the agencies' own pages (cited and dated), plus a QR code that opens the application on your phone.
 
@@ -15,7 +15,7 @@ Nothing about the household is stored.
 
 ## How I built it
 - **Alexa+ → MCP server (TypeScript, Streamable HTTP, MCP 2025-11-25):** four tools with strict answer schemas (amount + frequency + before/after taxes). The server validates, converts units and reads answers back for confirmation. The Echo Show screen is an MCP App.
-- **Our own Alexa+ simulator:** Alexa+ developer tools are partner-only, so I built a stand-in: an Echo Show-style web page with browser speech, whose brain is a **Strands agent on Amazon Bedrock** calling the MCP server the way Alexa+ does, and which hosts the MCP App screen. Both run on **AWS (ECS Express Mode)**, public and free to try, rate-limited.
+- **Our own Alexa+ simulator:** Alexa+ developer tools are partner-only, so I built a stand-in: an Echo Show-style web page, hands-free after one tap and speaking with **Amazon Polly**, whose brain is a **Strands agent on Amazon Bedrock** calling the MCP server the way Alexa+ does, and which hosts the MCP App screen. Both run on **AWS (ECS Express Mode)**, public and free to try, rate-limited.
 - **Engine service (Python, FastAPI, on AWS):** the Question Engine and PolicyEngine, kept warm. Each turn, the Question Engine runs a batch of "what-if" simulations and scores each candidate question $q$:
 
 $$\text{score}(q) = \frac{w \cdot \text{flips}(q) + \Delta\$(q)}{\text{cost}(q)}$$

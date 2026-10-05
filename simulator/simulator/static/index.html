@@ -5,49 +5,88 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Unclaimed on Alexa+ (simulator)</title>
   <meta name="description" content="A web stand-in for Alexa+ running the Unclaimed benefits screener">
+  <meta name="color-scheme" content="dark">
   <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
-  <main>
-    <header>
-      <h1>Unclaimed</h1>
-      <p class="sub">A benefits screener for Alexa+, in a simulated Echo Show.</p>
+  <div class="page">
+    <header class="top">
+      <div class="brand">
+        <span class="logo" aria-hidden="true"></span>
+        <span class="name">Unclaimed</span>
+        <span class="chip">Alexa+ simulator</span>
+      </div>
+      <nav>
+        <a href="https://github.com/shiva-shivanibokka/unclaimed" target="_blank" rel="noopener">How it works</a>
+        <button type="button" id="reset" class="ghost">New conversation</button>
+      </nav>
     </header>
 
-    <section class="device" aria-label="Simulated Echo Show">
-      <div class="screen" id="screen">
-        <div class="pane talk">
-          <div id="say" class="say" aria-live="polite">Tap the mic and say <em>“Alexa, open Unclaimed”</em>, or type below.</div>
-          <div id="heard" class="heard"></div>
+    <div class="stage">
+      <section class="device" aria-label="Simulated Echo Show">
+        <div class="screen" id="screen" data-state="idle">
+          <div class="status-row">
+            <span id="clock" class="clock"></span>
+            <span class="app-name">Unclaimed</span>
+          </div>
+
+          <div class="home" id="home">
+            <p class="greet">Hi there</p>
+            <h1>Let's find benefits your household may be missing.</h1>
+            <button type="button" id="start" class="start">Tap to start</button>
+            <p class="hint">Then just talk, or say “Alexa” anytime. No more taps.</p>
+          </div>
+
+          <div class="talk" id="talk">
+            <p id="heard" class="heard"></p>
+            <p id="say" class="say" aria-live="polite"></p>
+          </div>
+
+          <div class="app" id="app"></div>
+          <button type="button" id="back" class="back" hidden>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15.4 5.4 14 4l-8 8 8 8 1.4-1.4L8.8 12z"/></svg>Back
+          </button>
+          <p id="caption" class="caption" aria-hidden="true"></p>
+          <div class="glow" aria-hidden="true"></div>
         </div>
-        <div class="app" id="app"></div>
-      </div>
-      <div id="bar" class="bar" aria-hidden="true"></div>
-    </section>
+      </section>
 
-    <form id="form" class="controls" autocomplete="off">
-      <button type="button" id="mic" class="mic" aria-label="Talk">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15a3 3 0 0 0 3-3V6a3 3 0 1 0-6 0v6a3 3 0 0 0 3 3Zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-2.08A7 7 0 0 0 19 12h-2Z"/></svg>
-      </button>
-      <input id="text" type="text" maxlength="600" placeholder="Or type what you'd say…" aria-label="What you'd say">
-      <button type="submit" class="send">Send</button>
-    </form>
+      <aside class="side">
+        <div class="dock">
+          <button type="button" id="mic" class="mic" aria-label="Talk">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15a3 3 0 0 0 3-3V6a3 3 0 1 0-6 0v6a3 3 0 0 0 3 3Zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-2.08A7 7 0 0 0 19 12h-2Z"/></svg>
+          </button>
+          <div>
+            <p id="mode" class="mode">Tap to talk</p>
+            <p class="sub">After the first tap, just say “Alexa”. Tap while listening to mute.</p>
+          </div>
+        </div>
 
-    <div class="meta">
-      <span id="status"></span>
-      <button type="button" id="reset" class="link">New conversation</button>
+        <ol id="log" class="log" aria-label="Conversation" aria-live="polite"></ol>
+
+        <div class="tries" aria-label="Try saying">
+          <span>Try:</span>
+          <button type="button" class="try">I'd rather not say</button>
+          <button type="button" class="try">Can you check the maybes?</button>
+          <button type="button" class="try">Help me apply</button>
+          <button type="button" class="try">Go back</button>
+        </div>
+
+        <form id="form" class="type" autocomplete="off">
+          <input id="text" type="text" maxlength="600" placeholder="Or type what you'd say…" aria-label="What you'd say">
+          <button type="submit" aria-label="Send">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 20.5 21 12 3 3.5v6.6L15 12 3 13.9z"/></svg>
+          </button>
+        </form>
+        <p id="status" class="stats"></p>
+      </aside>
     </div>
 
-    <details class="log">
-      <summary>Conversation</summary>
-      <ol id="log"></ol>
-    </details>
-
     <footer>
-      Simulated Alexa+: a Strands agent on Amazon Bedrock calls the Unclaimed MCP server, as Alexa+ would.
-      Nothing you say is stored. Results are estimates; agencies decide.
+      Simulated Alexa+: a Strands agent on Amazon Bedrock calls the Unclaimed MCP server, as Alexa+ would, and speaks
+      with Amazon Polly. Nothing you say is stored. Results are estimates; agencies decide.
     </footer>
-  </main>
+  </div>
   <script src="/static/app.js"></script>
 </body>
 </html>

@@ -11,7 +11,7 @@ person ──voice──> Alexa+ (here: the simulator, a Strands agent on Amazon
 ```
 
 ## Layers
-1. **Frontend.** Alexa+ voice, and the Echo Show screen: an MCP App (`ui://unclaimed/screen`) showing the result tiles and each plan with a QR code. Alexa+ add-on tooling is partner-only, so the demo runs in our simulator: an Echo Show-style page with browser speech, whose brain is a Strands agent on Bedrock calling our MCP server the way Alexa+ calls an add-on, and which hosts the MCP App per the spec (sandboxed frame, the spec's messages).
+1. **Frontend.** Alexa+ voice, and the Echo Show screen: an MCP App (`ui://unclaimed/screen`) showing the result tiles and each plan with a QR code. Alexa+ add-on tooling is partner-only, so the demo runs in our simulator: an Echo Show-style page, hands-free after one tap (browser speech recognition) and speaking with Amazon Polly, whose brain is a Strands agent on Bedrock calling our MCP server the way Alexa+ calls an add-on, and which hosts the MCP App per the spec (sandboxed frame, the spec's messages).
 2. **MCP server** (`mcp-server/`). Four tools: `start_screening`, `answer`, `get_results`, `get_plan`. Validates answers, converts the person's units (per paycheck, per hour, take-home) to the engine's, reads answers back for confirmation. Holds no state and no program knowledge: questions, phrasing, units, options, programs and the household schema are read from the engine at startup.
 3. **Engine** (`engine/`), always warm (cold start is seconds):
    - **PolicyEngine-US**, pinned: the calculator. Every eligibility decision and amount.
@@ -31,8 +31,9 @@ The language model phrases questions and explains results; it never chooses what
 1. Candidates: dictionary questions not answered or declined, whose `applies_when` holds and whose `requires` are met. The essentials (location, who lives there, pay, housing) come first.
 2. What-ifs: each candidate at a low and a high realistic answer, all batched into one PolicyEngine simulation. Questions asked together (a group like "other income") are tried together.
 3. Score: eligibility flips (weighted far above dollars) plus the dollar swing, divided by the question's cost (how hard or sensitive it is to ask).
-4. Stop when no candidate flips anything and none moves a benefit by the stop threshold a month; otherwise ask the top one. After a set number of questions, offer "estimate now or keep going". Tuning lives in `interview.py`.
-5. **Think-ahead:** while the person answers, the likely next households (the asked question answered "no", or its main question "yes") are decided in the background, and once the interview stops the results are computed too. A guess never starts while a real request is waiting; a real request waits at most for the one guess already running.
+4. Short by design (a voice conversation): after the essentials, ask at most a few more questions (`QUICK_QUESTIONS`, the top-scoring one each time), then give results. Programs an unasked question could still flip are shown as "maybe" ("if ..."), never "you qualify".
+5. **Checking a maybe:** when the person asks about a "maybe" program, the household's `focus` names it, and the same loop runs on that program alone (what could flip it or move it by the stop threshold), until nothing would; the results then update (a program ruled out leaves the screen). Tuning lives in `interview.py`. With every program in focus this is the full interview the research measures. The scorecard measures the first results and the results after every "maybe" is checked.
+6. **Think-ahead:** while the person answers, the likely next households (the asked question answered "no", or its main question "yes") are decided in the background, and once the interview stops the results are computed too. A guess never starts while a real request is waiting; a real request waits at most for the one guess already running.
 
 ## Known, unknown, declined
 PolicyEngine silently reads anything missing as a default (0/no, the first county in the state, citizen). We never let a default stand in for an answer:

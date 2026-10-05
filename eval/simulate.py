@@ -61,13 +61,17 @@ def _check(case: dict, full: Household) -> None:
 
 def run(case: dict, decide=next_question, on_turn=None, max_turns: int = MAX_TURNS) -> dict:
     """Interview `case` with `decide` (the Question Engine, or a policy to compare it with:
-    eval/experiments.py), calling on_turn(h, decision) before each answer."""
+    eval/experiments.py), calling on_turn(h, decision) before each answer. First the short
+    interview (core questions, then results with "maybe"s: `quick`); then, as if the person
+    asked to check every "maybe", until none is left (the top-level results)."""
     truth = _truth(case)
     full = apply(_start(case).model_copy(update={"county": case.get("county")}), truth)
     _check(case, full)
     declines = set(case.get("declines", []))
+    ids = [p["id"] for p in case["people"]]
+    want = _programs(calculate(full), ids)
     h = _start(case)
-    turns, latencies, questions = [], [], 0
+    turns, latencies, questions, quick, maybe = [], [], 0, None, set()
     while len(turns) < max_turns:
         t = time.perf_counter()
         d = decide(h)
@@ -75,7 +79,13 @@ def run(case: dict, decide=next_question, on_turn=None, max_turns: int = MAX_TUR
         if on_turn:
             on_turn(h, d)
         if d["stop"]:
-            break
+            maybe = set(d.get("unanswered", {}))
+            if quick is None:
+                quick = {"turns": len(turns), "questions": questions, **_outcome(h, want, ids, maybe)}
+            if maybe <= set(h.focus):
+                break
+            h = h.model_copy(update={"focus": sorted(set(h.focus) | maybe)})  # "check the maybes"
+            continue
         turns.append(d["ask"]["question"])
         questions += 1 + len(d["together"])  # a group asked in one breath counts each question
         if d["ask"]["question"] == "county":
@@ -85,19 +95,26 @@ def run(case: dict, decide=next_question, on_turn=None, max_turns: int = MAX_TUR
         answers = {k: truth[k] for k in keys if _label(k) not in declines}
         refused = [_label(k) for k in keys if _label(k) in declines]
         h = apply(h, answers).model_copy(update={"declined": [*h.declined, *refused]})
-    ids = [p.id for p in h.people]
-    got, want = _programs(calculate(h), ids), _programs(calculate(full), ids)
-    # Programs that depend on a declined answer are reported as "if ...", not "you qualify".
-    conditional = set(conditional_on_declined(h))
     return {
         "id": case["id"], "turns": len(turns), "questions": questions, "asked": turns, "hit_turn_cap": len(turns) >= max_turns,
-        "decision_ms": latencies,
-        "false_qualify": sorted(p for p in want if got[p][0] and not want[p][0]
-                                and p.split(PERSON_SEP)[0] not in conditional),
-        "conditional": sorted(conditional),
-        "missed": sorted(p for p in want if want[p][0] and not got[p][0]),
-        "amount_error": round(sum(abs(got[p][1] - want[p][1]) for p in want if got[p][0] and want[p][0]), 2),
+        "decision_ms": latencies, **_outcome(h, want, ids, maybe), "quick": quick,
         "programs_total": len(want), "eligible_truth": sorted(p for p in want if want[p][0]),
+    }
+
+
+def _outcome(h: Household, want: dict, ids: list[str], maybe: set[str]) -> dict:
+    """The results at this point against the full-information ones. Programs shown as "if ..."
+    (an unasked question could flip them: `maybe`; or they depend on a declined answer) are
+    never a false "you qualify"; a program shown as "maybe" isn't missed."""
+    got = _programs(calculate(h), ids)
+    conditional = set(conditional_on_declined(h))
+    base = lambda p: p.split(PERSON_SEP)[0]  # noqa: E731
+    return {
+        "false_qualify": sorted(p for p in want if got[p][0] and not want[p][0] and base(p) not in conditional | maybe),
+        "conditional": sorted(conditional),
+        "maybe": sorted(maybe),
+        "missed": sorted(p for p in want if want[p][0] and not got[p][0] and base(p) not in maybe),
+        "amount_error": round(sum(abs(got[p][1] - want[p][1]) for p in want if got[p][0] and want[p][0]), 2),
     }
 
 

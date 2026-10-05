@@ -16,7 +16,7 @@ from policyengine_us.system import system
 from pydantic import BaseModel, Field, create_model, model_validator
 
 from .dictionary import Question, load
-from .programs import SUPPORTED_STATES
+from .programs import PROGRAMS, SUPPORTED_STATES
 
 Relationship = Literal["head", "spouse", "child"]
 COUNTIES = frozenset(c.name for c in system.variables["county"].possible_values)
@@ -61,6 +61,10 @@ class _HouseholdBase(BaseModel):
         default_factory=list, max_length=MAX_DECLINED,
         description="Questions the person chose not to answer: 'question_id' for household questions, "
                     "'person_id.question_id' for person questions. Calculated as unknown, reported as declined.")
+    focus: list[Literal[tuple(p.id for p in PROGRAMS)]] = Field(
+        default_factory=list, max_length=len(PROGRAMS),
+        description="Programs the person asked to check: the interview asks only what could change whether "
+                    "they qualify for these. Empty: the core questions, then results.")
 
     @model_validator(mode="after")
     def _check(self):

@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { AnswerError, applyAnswers, cardsByProgram, noneForTheRest, type Context } from "../src/tools.js";
+import { AnswerError, applyAnswers, cardsByProgram, noneForTheRest, status, type Context } from "../src/tools.js";
 
 // A small dictionary shaped like the engine's. Ids are made up on purpose: the code must
 // take them (and which question gives the hours for hourly pay) from the dictionary.
@@ -70,4 +70,12 @@ test("a program's plan is the card that lists it: programs applied for together 
   assert.equal(cards.get("eitc"), cards.get("ctc"));
   assert.equal(cards.get("snap")?.programs[0], "snap");
   assert.equal(cardsByProgram(c, "IL").size, 0);
+});
+
+test("'likely' only when eligible with nothing open; an open answer makes it 'maybe' either way", () => {
+  assert.equal(status({ eligible: true }), "likely");
+  assert.equal(status({ eligible: true }, ["childcare_expenses"]), "maybe");
+  assert.equal(status({ eligible: true }, undefined, ["if the utility is PG&E"]), "maybe");
+  assert.equal(status({ eligible: false }, ["kid1.is_disabled"]), "maybe");
+  assert.equal(status({ eligible: false }), "no");
 });

@@ -86,6 +86,9 @@ $AWS iam put-role-policy --role-name unclaimed-simulator-task --policy-name bedr
   \"Statement\": [{\"Effect\": \"Allow\", \"Action\": [\"bedrock:InvokeModel\", \"bedrock:InvokeModelWithResponseStream\"],
     \"Resource\": [\"arn:aws:bedrock:$REGION:$ACCOUNT:inference-profile/$MODEL_ID\", \"arn:aws:bedrock:*::foundation-model/$MODEL_NAME\"]}]
 }"
+# Alexa's voice (Amazon Polly; speech synthesis has no resource to scope to).
+$AWS iam put-role-policy --role-name unclaimed-simulator-task --policy-name polly-speak --policy-document \
+  '{"Version": "2012-10-17", "Statement": [{"Effect": "Allow", "Action": "polly:SynthesizeSpeech", "Resource": "*"}]}'
 # Service-linked roles ECS, the load balancer and autoscaling need (once per account).
 # Created up front: if Express Mode creates them itself, its first load balancer can race
 # the new role and fail (seen on this account's first deploy).

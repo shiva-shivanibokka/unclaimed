@@ -10,7 +10,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 OUT = Path(__file__).parent / "tables"
-CONSTANTS = {"FLIP_WEIGHT": "flipweight", "STOP_BELOW": "stopbelow"}  # name in interview.py -> LaTeX macro
+CONSTANTS = {"FLIP_WEIGHT": "flipweight", "STOP_BELOW": "stopbelow", "QUICK_QUESTIONS": "quickquestions"}  # name in interview.py -> LaTeX macro
 SOURCES = {"research-results.md": ("E1", "E2", "E3", "E4"), "scorecard.md": ("Tier A", "Tier B", "Tier C")}
 
 

@@ -3,7 +3,8 @@ amounts (from the planning research: engine/research/followup_sensitivity.py).""
 
 from unclaimed_engine.dictionary import load
 from unclaimed_engine.household import Household
-from unclaimed_engine.interview import next_question, open_questions
+from unclaimed_engine.interview import QUICK_QUESTIONS, STOP_BELOW, next_question, open_questions
+from unclaimed_engine.programs import PROGRAMS
 
 # Every other-income question answered "none", read from the dictionary's group.
 NO_OTHER_INCOME = {q.id: 0 for q in load().questions
@@ -71,14 +72,18 @@ def test_child_care_matters_at_48k_and_job_insurance_only_above_medicaid():
     assert full[(None, "childcare_expenses")].score > full[(None, "savings")].score
 
 
-def test_stops_when_everything_is_known():
-    h = la_family(48_000)
+def test_checking_every_program_stops_when_everything_is_known():
+    h = la_family(48_000).model_copy(update={"focus": [p.id for p in PROGRAMS]})
     while not (d := next_question(h))["stop"]:
-        keys = [(d["ask"]["person"], d["ask"]["question"])] + [(x["person"], x["question"]) for x in d["together"]]
-        hh = {q: _zero(q) for p, q in keys if p is None}
-        people = [p.model_copy(update={q: _zero(q) for pid, q in keys if pid == p.id}) for p in h.people]
-        h = h.model_copy(update={**hh, "people": people})
-    assert d["stop"] and not d["ask"]
+        h = _answer_zero(h, d)
+    assert d["stop"] and not d["ask"] and not d["unanswered"]
+
+
+def _answer_zero(h, d):
+    """Answer what `d` asks (and everything asked with it) with zero / no."""
+    keys = [(d["ask"]["person"], d["ask"]["question"])] + [(x["person"], x["question"]) for x in d["together"]]
+    people = [p.model_copy(update={q: _zero(q) for pid, q in keys if pid == p.id}) for p in h.people]
+    return h.model_copy(update={**{q: _zero(q) for p, q in keys if p is None}, "people": people})
 
 
 def _zero(qid):
@@ -146,9 +151,44 @@ def test_multiple_choice_questions_carry_their_options():
     assert d["ask"]["question"] == "housing_tenure" and "RENTER" in d["ask"]["options"]
 
 
-def test_estimate_before_the_end_names_what_could_still_change():
-    # Stopping early: child care hasn't been asked and flips SNAP at $48K, so an estimate
-    # now must say SNAP depends on it (the engine would read the missing answer as $0).
-    d = next_question(la_family(48_000, has_job_health_insurance=False))
-    assert not d["stop"] and not d["core"]
-    assert "childcare_expenses" in d["unanswered"]["snap"]
+def test_results_come_after_a_few_questions_and_name_what_could_still_change():
+    # After the core questions, at most QUICK_QUESTIONS more (the engine's top question each
+    # time); then results, with the programs an unasked question could still flip ("maybe":
+    # the engine would read the missing answer as $0 / no).
+    h, asked = la_family(48_000), 0
+    while not (d := next_question(h))["stop"]:
+        assert not d["core"] and (d["ask"]["person"], d["ask"]["question"]) == ranked_first(d)
+        h, asked = _answer_zero(h, d), asked + 1
+    assert asked <= QUICK_QUESTIONS
+    open_ = {(pid, q.id) for pid, q in open_questions(h)}
+    assert d["unanswered"] and all(tuple(k.split(".")) in open_ or (None, k) in open_
+                                   for keys in d["unanswered"].values() for k in keys)
+
+
+def ranked_first(d):
+    top = d["top_candidates"][0]
+    return top["person"], top["question"]
+
+
+def test_checking_a_maybe_asks_only_what_could_change_it():
+    h = la_family(48_000, has_job_health_insurance=False)
+    while not (d := next_question(h))["stop"]:
+        h = _answer_zero(h, d)
+    maybe = next(iter(d["unanswered"]))
+    h = h.model_copy(update={"focus": [maybe]})
+    while not (d := next_question(h))["stop"]:
+        # Each question could flip that program or move it by STOP_BELOW a month.
+        s = _ranking(h)[(d["ask"]["person"], d["ask"]["question"])]
+        assert maybe in d["could_change"] or s.swing >= STOP_BELOW
+        h = _answer_zero(h, d)
+
+
+def test_quick_questions_count_questions_not_people_and_not_hours_with_pay():
+    from unclaimed_engine.interview import _quick_asked
+    two = [{"id": "a", "relationship": "head", "age": 40, "employment_income": 20_000, "weekly_hours_worked": 40},
+           {"id": "b", "relationship": "spouse", "age": 41}]
+    h = Household(state="CA", county="LOS_ANGELES_COUNTY_CA", people=two)
+    assert _quick_asked(h) == 0  # pay and its hours are core
+    both = [{**p, "is_pregnant": False} for p in two]
+    assert _quick_asked(h.model_copy(update={"people": Household(state="CA", people=both).people})) == 1
+    assert _quick_asked(h.model_copy(update={"declined": ["savings"]})) == 1

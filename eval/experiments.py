@@ -40,6 +40,7 @@ from unclaimed_engine.calculate import calculate  # noqa: E402
 from unclaimed_engine.interview import (  # noqa: E402
     _candidate, _county_question, _question_view, _view_key, conditional_on_declined, next_question,
     open_questions)
+from unclaimed_engine.programs import PROGRAMS  # noqa: E402
 
 RESULTS = ROOT / "eval" / "results"
 OUT = ROOT / "docs" / "research-results.md"
@@ -58,6 +59,12 @@ def _ask(h, pid, q, decision: dict) -> dict:
     return {**decision, "ask": _question_view(pid, q), "together": [_question_view(*_view_key(t)) for t in c.together]}
 
 
+def full_interview(h) -> dict:
+    """The interview run to its stop rule: every program in focus (the shipped assistant
+    stops earlier and asks the rest only for the programs the person asks about)."""
+    return next_question(h.model_copy(update={"focus": [p.id for p in PROGRAMS]}))
+
+
 def every_question(h) -> dict:
     if location := _county_question(h):
         return {"stop": False, "core": True, "ask": location, "together": []}
@@ -68,14 +75,14 @@ def every_question(h) -> dict:
 def reordered(pick):
     """Our stop rule and core questions, but `pick` chooses among the open questions."""
     def decide(h) -> dict:
-        d = next_question(h)
+        d = full_interview(h)
         return d if d["stop"] or d["core"] else _ask(h, *pick(open_questions(h)), d)
     return decide
 
 
 def policy(name: str, case_id: str):
     if name == "engine":
-        return next_question
+        return full_interview
     if name == "every":
         return every_question
     if name == "fixed":
@@ -116,7 +123,7 @@ def _e2_case(case: dict) -> dict:
                      "true_hedged": len((claimed - false) - flat) if ready else 0})
 
     try:
-        simulate.run(case, on_turn=observe)
+        simulate.run(case, decide=full_interview, on_turn=observe)
     except Exception as e:
         return {"id": case["id"], "error": f"{type(e).__name__}: {e}"}
     return {"id": case["id"], "turns": rows}

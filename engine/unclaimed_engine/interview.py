@@ -1,9 +1,12 @@
 """The benefits interview: turns the dictionary into Question Engine candidates and asks
 the engine (batched) which unknown fact would change the result the most.
 
-Order: the core questions first (always relevant), then whatever the Question Engine
-scores highest, until no remaining question would flip an eligibility or move a benefit
-by at least STOP_BELOW a month.
+Short by design (a voice conversation): the core questions, then up to QUICK_QUESTIONS
+more (the Question Engine's top question each time), then results. Programs an unasked
+question could still flip show as "maybe". When the person asks to check some programs
+(the household's `focus`), the Question Engine runs on those programs alone: it asks what
+could flip them or move them by STOP_BELOW a month, until nothing would. With every
+program in focus that is the full interview (the paper's experiments).
 """
 
 from typing import Any
@@ -21,8 +24,9 @@ from .programs import PROGRAMS
 FLIP_WEIGHT = 1_000
 # Stop when no candidate flips anything and none moves a benefit by this much a month.
 STOP_BELOW = 25
-# After this many questions (a group asked together counts once), offer "estimate now".
-ESTIMATE_OFFER_AFTER = 10
+# Questions asked after the core ones before the first results (one asked in the same
+# breath for everyone, or a group, counts once).
+QUICK_QUESTIONS = 3
 
 DICTIONARY = load()
 COVERAGE = {p.id for p in PROGRAMS if p.coverage}
@@ -82,11 +86,25 @@ def open_questions(h: Household) -> list[tuple[str | None, Question]]:
 
 class _Calculator:
     """Question Engine calculator over the batched benefits engine. Coverage programs
-    (Medicaid, CHIP) count only as flips: their engine value is the cost of coverage."""
+    (Medicaid, CHIP) count only as flips: their engine value is the cost of coverage.
+    Keeps the last results, so a second decision over some programs needs no new run."""
+
+    last: list[dict[str, tuple[bool, float]]] = []
 
     def evaluate(self, h: Household, changes) -> list[dict[str, tuple[bool, float]]]:
         results = batch.evaluate(h, [dict(c) for c in changes])
-        return [{pid: (ok, 0.0 if pid in COVERAGE else value) for pid, (ok, value) in r.items()} for r in results]
+        self.last = [{pid: (ok, 0.0 if pid in COVERAGE else value) for pid, (ok, value) in r.items()} for r in results]
+        return self.last
+
+
+class _Only:
+    """The same results, for some programs only (outcomes "program" or "program:person")."""
+
+    def __init__(self, results, programs):
+        self.results, self.programs = results, set(programs)
+
+    def evaluate(self, h, changes):
+        return [{k: v for k, v in r.items() if k.split(batch.PERSON_SEP)[0] in self.programs} for r in self.results]
 
 
 def _candidate(h: Household, pid: str | None, q: Question, open_keys: set) -> qe.Candidate:
@@ -116,6 +134,20 @@ def _asked_count(h: Household) -> int:
         for pid in owners:
             if _value(h, pid, q.id) is not None or _key(pid, q.id) in h.declined:
                 seen.add((pid, q.group or q.id))
+    return len(seen)
+
+
+def _quick_asked(h: Household) -> int:
+    """Questions after the core ones already answered or declined: one per question (or
+    group), however many people it was asked for. Hours given with hourly pay are part of
+    the pay answer, not a question of their own."""
+    core = {x for q in DICTIONARY.questions if q.core for x in (q.group or q.id, q.answer.get("hours_from"))}
+    seen = set()
+    for q in DICTIONARY.questions:
+        owners = [p.id for p in h.people] if q.entity == "person" else [None]
+        if (q.group or q.id) not in core and any(
+                _value(h, pid, q.id) is not None or _key(pid, q.id) in h.declined for pid in owners):
+            seen.add(q.group or q.id)
     return len(seen)
 
 
@@ -168,10 +200,10 @@ def _county_question(h: Household) -> dict | None:
 
 
 def next_question(h: Household) -> dict:
-    """What to ask next (with the questions to ask in the same breath), or stop."""
+    """What to ask next (with the questions to ask in the same breath), or stop. On stop,
+    `unanswered` lists the programs an unasked question could still flip ("maybe")."""
     if location := _county_question(h):
-        return {"stop": False, "core": True, "ask": location, "together": [], "asked": _asked_count(h),
-                "offer_estimate": False}
+        return {"stop": False, "core": True, "ask": location, "together": [], "asked": _asked_count(h)}
     open_ = open_questions(h)
     open_keys = {(pid, q.id) for pid, q in open_}
     asked = _asked_count(h)
@@ -180,26 +212,34 @@ def next_question(h: Household) -> dict:
         pid, q = core[0]
         c = _candidate(h, pid, q, open_keys)
         return {"stop": False, "core": True, "ask": _question_view(pid, q),
-                "together": [_question_view(*_view_key(t)) for t in c.together],
-                "asked": asked, "offer_estimate": False}
+                "together": [_question_view(*_view_key(t)) for t in c.together], "asked": asked}
     candidates = [_candidate(h, pid, q, open_keys) for pid, q in open_]
-    decision = qe.decide(h, candidates, _Calculator(), flip_weight=FLIP_WEIGHT, stop_below=STOP_BELOW)
+    calc = _Calculator()
+    decision = qe.decide(h, candidates, calc, flip_weight=FLIP_WEIGHT, stop_below=STOP_BELOW)
     why = [{"question": s.candidate.key[1], "person": s.candidate.key[0], "flips": list(s.flips),
             "swing_per_month": round(s.swing, 2), "score": round(s.score, 2)} for s in decision.ranked[:5]]
-    if decision.stop:
-        return {"stop": True, "core": False, "ask": None, "together": [], "asked": asked,
-                "offer_estimate": False, "top_candidates": why, "conditional": conditional_on_declined(h)}
-    pid, qid = decision.ask.key
+    unanswered = _depends_on_unanswered(decision.ranked)
+    if _quick_asked(h) < QUICK_QUESTIONS:
+        ask = decision.ask
+    elif h.focus:  # the programs the person asked to check: same results, those programs only
+        ask = qe.decide(h, candidates, _Only(calc.last, h.focus), flip_weight=FLIP_WEIGHT, stop_below=STOP_BELOW).ask
+    else:
+        ask = None
+    if ask is None:
+        return {"stop": True, "core": False, "ask": None, "together": [], "asked": asked, "top_candidates": why,
+                "conditional": conditional_on_declined(h), "unanswered": unanswered}
+    pid, qid = ask.key
+    flips = next(s.flips for s in decision.ranked if s.candidate == ask)
     return {"stop": False, "core": False, "ask": _question_view(pid, DICTIONARY.question(qid)),
-            "together": [_question_view(*_view_key(t)) for t in decision.ask.together],
-            "asked": asked, "offer_estimate": asked >= ESTIMATE_OFFER_AFTER, "top_candidates": why,
-            "unanswered": _depends_on_unanswered(decision.ranked)}
+            "together": [_question_view(*_view_key(t)) for t in ask.together], "asked": asked,
+            "could_change": sorted({f.split(batch.PERSON_SEP)[0] for f in flips}),
+            "top_candidates": why, "unanswered": unanswered}
 
 
 def _depends_on_unanswered(ranked) -> dict[str, list[str]]:
     """Programs whose eligibility, for the household or any one person, could still change
-    with a question not asked yet: program -> question keys. An estimate given now must
-    say "if ...", never a flat "you qualify" (the engine reads a missing answer as 0/no)."""
+    with a question not asked yet: program -> question keys. The results must say "if ...",
+    never a flat "you qualify" (the engine reads a missing answer as 0/no)."""
     out: dict[str, list[str]] = {}
     for s in ranked:
         for outcome in s.flips:

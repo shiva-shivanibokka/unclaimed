@@ -85,8 +85,7 @@ function shapeNext(ctx: Context, next: Json): Json {
     return { stop: true, then: "Call get_results with the household.", conditional: next.conditional ?? {} };
   }
   const ask = next.ask;
-  const mine = (next.top_candidates ?? []).find((c: Json) => c.question === ask.question && c.person === ask.person);
-  const programs = [...new Set<string>((mine?.flips ?? []).map((f: string) => f.split(":")[0]))];
+  const programs: string[] = next.could_change ?? [];
   const group = ask.group && next.together.length ? ctx.dictionary.groups[ask.group] : undefined;
   return {
     stop: false,
@@ -94,7 +93,6 @@ function shapeNext(ctx: Context, next: Json): Json {
     ask: { ...ask, could_change: programs.map((p) => ctx.programNames.get(p) ?? p) },
     ask_in_the_same_breath: next.together, // same shape as `ask`: phrasing, answer type, units, options
     questions_so_far: next.asked,
-    offer_estimate: next.offer_estimate,
   };
 }
 
@@ -106,6 +104,13 @@ function isLocation(ctx: Context, question: string) {
 /** The plan card for each program in a state: program id -> card. */
 export function cardsByProgram(ctx: Context, state: string): Map<string, Json> {
   return new Map(Object.values(ctx.plans[state] ?? {}).flatMap((c) => (c.programs as string[]).map((p) => [p, c] as const)));
+}
+
+/** What the person is told: "likely" (eligible, nothing open), "maybe" (eligible only "if ...",
+ * or not yet but an answer we don't have could change that), or "no". */
+export function status(p: Json, conditionalOn?: string[], ifAlso?: string[]): "likely" | "maybe" | "no" {
+  if (p.eligible) return conditionalOn || ifAlso ? "maybe" : "likely";
+  return conditionalOn ? "maybe" : "no";
 }
 
 function key(person: string | undefined, question: string) {
@@ -308,15 +313,56 @@ export function buildTools(ctx: Context): Tool[] {
       },
     },
     {
+      name: "check_programs",
+      title: "Check programs that came out as maybe",
+      description:
+        "When the person wants to know about programs get_results showed as maybe (`conditional_on`, or not eligible " +
+        "yet), or asks to check them all: returns the household with those programs in focus and the first question " +
+        "that could settle them. Ask it and record the answers with `answer` as usual; when `next.stop` is true, call " +
+        "get_results again, so the screen updates (a program that turns out not to fit leaves the list).",
+      inputSchema: {
+        type: "object",
+        required: ["household", "programs"],
+        properties: {
+          household: { ...ctx.householdSchema, description: "The household draft, unchanged" },
+          programs: {
+            type: "array",
+            minItems: 1,
+            items: { type: "string", enum: [...ctx.programNames.keys()] },
+            description: "Program ids from get_results",
+          },
+        },
+        $defs: ctx.defs,
+      },
+      run: async ({ household, programs }) => {
+        const h = { ...structuredClone(household), focus: [...new Set(programs as string[])] };
+        const next = await engine.next(h);
+        // Nothing left to ask: what still decides these is an answer the person declined.
+        const declined = [...new Set((programs as string[]).flatMap((p) => next.conditional?.[p] ?? []))];
+        return {
+          household: h,
+          next: shapeNext(ctx, next),
+          ...(next.stop && declined.length && {
+            declined_answers: declined,
+            then: "These depend on answers the person chose not to give. Ask whether they'd like to answer them now " +
+              "(that's optional; an answer replaces the decline), then call get_results.",
+          }),
+        };
+      },
+    },
+    {
       name: "get_results",
       title: "Get benefit results",
       _meta: { ui: { resourceUri: SCREEN_URI } },
       description:
         "Calculate which programs the household qualifies for and how much, once the questions stop (or when the person " +
-        "wants an estimate now). Programs with `conditional_on` depend on an answer the person declined or wasn't asked yet: " +
+        "wants an estimate now). Each program's `status` is what to tell the person: say 'you likely qualify' only for " +
+        "\"likely\"; a \"maybe\" is always said with 'if' or 'might'; \"no\" programs aren't mentioned unless asked. " +
+        "Programs with `conditional_on` depend on an answer the person declined or wasn't asked yet " +
+        "(check_programs asks what settles them): " +
         "say 'if ...', never a flat 'you qualify'; so do programs with `if_also` (a condition the calculator can't " +
         "check, like which utility serves the home): say it as 'if ...'. `why` lists the tests the household meets, in " +
-        "the calculator's words: say them plainly. Say the `we_assumed` statements briefly. If `ready` is false, ask `next.ask` first: " +
+        "the calculator's words: say them plainly. The screen lists the `we_assumed` statements (say them if asked). If `ready` is false, ask `next.ask` first: " +
         "no estimate is possible without it. Then offer the plan (get_plan) for the programs they want to apply for.",
       inputSchema: {
         type: "object",
@@ -335,20 +381,30 @@ export function buildTools(ctx: Context): Tool[] {
         for (const [program, keys] of Object.entries<string[]>(next.unanswered ?? {})) {
           conditional[program] = [...new Set([...(conditional[program] ?? []), ...keys])];
         }
-        return {
-          ready: true,
-          as_of: r.as_of,
-          county: r.county,
-          programs: r.programs.map((p: Json) => ({
+        const programs = r.programs.map((p: Json) => ({
             id: p.id,
             name: p.name,
+            status: status(p, conditional[p.id], cards.get(p.id)?.not_calculated),
             eligible: p.eligible,
             ...(p.eligible_people && { eligible_people: p.eligible_people }),
             ...(p.amount !== undefined && { amount: p.amount, per: p.per }),
             ...(conditional[p.id] && { conditional_on: conditional[p.id] }),
             ...(p.eligible && { why: p.why }),
             ...(p.eligible && cards.get(p.id)?.not_calculated && { if_also: cards.get(p.id)!.not_calculated }),
-          })),
+          }));
+        // Health coverage has no amount (its engine value is the cost of coverage): listed after cash.
+        const value = new Map<string, number>(r.programs.map((p: Json) => [p.id, p.amount === undefined ? 0 : p.monthly_value]));
+        return {
+          ready: true,
+          as_of: r.as_of,
+          county: r.county,
+          // What to say first: likely programs biggest first (by value a month), maybes by name only.
+          summary: {
+            likely: programs.filter((p: Json) => p.status === "likely")
+              .sort((a: Json, b: Json) => value.get(b.id)! - value.get(a.id)!).map((p: Json) => p.name),
+            maybe: programs.filter((p: Json) => p.status === "maybe").map((p: Json) => p.name),
+          },
+          programs,
           declined: r.assumptions.filter((a: Json) => a.status === "declined").map((a: Json) => key(a.person, a.question)),
           we_assumed: r.statements,
           // Programs with a plan card that the calculator doesn't model: worth a look, no verdict.
