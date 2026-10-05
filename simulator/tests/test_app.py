@@ -61,6 +61,11 @@ def test_polly_stops_at_the_daily_character_budget(client, monkeypatch):
     assert turn(client, ip="2.2.2.2").json()["audio"] is None
 
 
+def test_page_and_files_are_revalidated_on_every_load(client):
+    assert client.get("/").headers["cache-control"] == "no-cache"
+    assert client.get("/static/app.js").headers["cache-control"] == "no-cache"
+
+
 def test_a_long_reply_is_not_sent_to_polly():
     assert sim.speech.audio("x" * (sim.speech.MAX_SPOKEN + 1)) is None  # returns before any AWS call
 

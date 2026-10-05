@@ -35,6 +35,17 @@ ALLOWED_BLOCKS = {"text", "toolUse", "toolResult"}
 app = FastAPI(title="Unclaimed Alexa+ simulator", version="0.1.0")
 app.mount("/static", StaticFiles(directory=STATIC), name="static")
 
+@app.middleware("http")
+async def revalidate(request: Request, call_next):
+    """The page and its files are checked for a newer version on every load (unchanged ones
+    come back as a quick "not modified"), so a deploy never leaves a browser running an old
+    script against a new page."""
+    response = await call_next(request)
+    if request.url.path == "/" or request.url.path.startswith("/static/"):
+        response.headers["Cache-Control"] = "no-cache"
+    return response
+
+
 _hits: dict[str, deque] = defaultdict(deque)
 _day: list = [time.strftime("%Y-%m-%d"), 0, 0]  # date, full-rate tokens used, characters spoken
 _limits = threading.Lock()
