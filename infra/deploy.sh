@@ -79,9 +79,10 @@ INFRA_ROLE=$(role ecsInfrastructureRoleForExpressServices ecs.amazonaws.com arn:
 SIM_ROLE=$(role unclaimed-simulator-task ecs-tasks.amazonaws.com)
 # The simulator may call only the one model it uses: Nova 2 Sonic, live (the text pipeline,
 # SIMULATOR_MODEL_ID, runs only in the evaluations, with the developer's credentials).
+# Bedrock authorizes its bidirectional stream with the bedrock:InvokeModel action.
 $AWS iam put-role-policy --role-name unclaimed-simulator-task --policy-name bedrock-invoke --policy-document "{
   \"Version\": \"2012-10-17\",
-  \"Statement\": [{\"Effect\": \"Allow\", \"Action\": \"bedrock:InvokeModelWithBidirectionalStream\",
+  \"Statement\": [{\"Effect\": \"Allow\", \"Action\": \"bedrock:InvokeModel\",
     \"Resource\": \"arn:aws:bedrock:$REGION::foundation-model/$SONIC_MODEL_ID\"}]
 }"
 # Earlier releases spoke with Amazon Polly; that permission is no longer needed.
