@@ -46,8 +46,8 @@ from .settings import setting
 
 log = logging.getLogger("unclaimed.simulator")
 
-MODEL_ID = setting("SONIC_MODEL_ID")
-VOICE = setting("SONIC_VOICE")
+SONIC_MODEL_ID = setting("SONIC_MODEL_ID")
+SONIC_VOICE = setting("SONIC_VOICE")
 AT_ONCE = int(setting("LIVE_AT_ONCE"))
 PER_IP_AT_ONCE = int(setting("LIVE_PER_IP_AT_ONCE"))
 PER_IP_PER_HOUR = int(setting("LIVE_PER_IP_PER_HOUR"))
@@ -144,9 +144,12 @@ class Conversation:
     def tools(self) -> list:
         """The MCP server's tools as the model sees them (without `household`), plus the
         device's back."""
-        client = agent._client()
-        listed = agent._connect()
-        return [self._wrap(client, t) for t in listed] + [self._back()]
+        try:
+            listed = agent._connect()
+        except Exception:
+            agent._reset()  # reconnect on the next conversation
+            raise
+        return [self._wrap(agent._client(), t) for t in listed] + [self._back()]
 
     def _wrap(self, client, mcp_tool) -> PythonAgentTool:
         spec = json.loads(json.dumps(mcp_tool.tool_spec))
@@ -157,7 +160,7 @@ class Conversation:
             schema["required"] = [r for r in schema.get("required", []) if r != "household"]
             if "$ref" not in json.dumps(schema):
                 schema.pop("$defs", None)  # only the household's schema used them
-        uri = ((mcp_tool.mcp_tool.meta or {}).get("ui") or {}).get("resourceUri")
+        uri = agent.ui_uri(mcp_tool)
         name = mcp_tool.tool_name
 
         async def run(tool_use, **_):
@@ -221,7 +224,7 @@ def _history(said) -> list[dict]:
 
 
 def make_agent(conversation: Conversation, said) -> BidiAgent:
-    model = BedrockNovaSonicModel(model_id=MODEL_ID, region=agent.REGION or "us-east-1", voice=VOICE,
+    model = BedrockNovaSonicModel(model_id=SONIC_MODEL_ID, region=agent.REGION or "us-east-1", voice=SONIC_VOICE,
                                   audio={"input": {"sample_rate": IN_RATE}, "output": {"sample_rate": OUT_RATE}})
     return BidiAgent(model=model, tools=conversation.tools(), system_prompt=DEVICE + "\n" + agent.SYSTEM_PROMPT,
                      messages=_history(said))

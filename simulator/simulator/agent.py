@@ -49,9 +49,15 @@ def _client() -> MCPClient:
 
 
 def _connect() -> list:
-    """The MCP server's tools, listed fresh for every turn: a deploy of the MCP server can
-    change them while this service keeps running."""
+    """The MCP server's tools, listed fresh each time they're needed (each text turn, live
+    conversation and page load): a deploy of the MCP server can change them while this
+    service keeps running."""
     return _client().list_tools_sync()
+
+
+def ui_uri(tool) -> str | None:
+    """The screen a tool shows, as MCP Apps declares it (tool `_meta.ui.resourceUri`)."""
+    return ((tool.mcp_tool.meta or {}).get("ui") or {}).get("resourceUri")
 
 
 def screens() -> dict:
@@ -60,7 +66,7 @@ def screens() -> dict:
     the same reason as the tools. The browser hosts them."""
     try:
         client = _client()
-        uris = {t.tool_name: ((t.mcp_tool.meta or {}).get("ui") or {}).get("resourceUri") for t in _connect()}
+        uris = {t.tool_name: ui_uri(t) for t in _connect()}
         uris = {name: uri for name, uri in uris.items() if uri}
         html = {}
         for uri in set(uris.values()):

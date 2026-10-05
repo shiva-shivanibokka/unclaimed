@@ -85,8 +85,6 @@ $AWS iam put-role-policy --role-name unclaimed-simulator-task --policy-name bedr
   \"Statement\": [{\"Effect\": \"Allow\", \"Action\": \"bedrock:InvokeModel\",
     \"Resource\": \"arn:aws:bedrock:$REGION::foundation-model/$SONIC_MODEL_ID\"}]
 }"
-# Earlier releases spoke with Amazon Polly; that permission is no longer needed.
-$AWS iam delete-role-policy --role-name unclaimed-simulator-task --policy-name polly-speak 2>/dev/null || true
 # Service-linked roles ECS, the load balancer and autoscaling need (once per account).
 # Created up front: if Express Mode creates them itself, its first load balancer can race
 # the new role and fail (seen on this account's first deploy).

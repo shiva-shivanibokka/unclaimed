@@ -42,10 +42,11 @@ function addLog(who, words) {
   log.scrollTop = log.scrollHeight;
 }
 
-setInterval(function tick() {
+function tick() {
   $("clock").textContent = new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
-  return tick;
-}(), 15000);
+}
+tick();
+setInterval(tick, 15000);
 
 // ---- Audio: the microphone in (resampled to 16 kHz in a worklet), Alexa's voice out ----
 // The worklet averages each run of input samples into one output sample (a simple
@@ -145,9 +146,11 @@ function hush() { // stop Alexa mid-sentence (the person cut in, or the conversa
   playAt = 0;
 }
 
+let loudness = null; // reused every frame
 function followLoudness() {
   if (!analyser || screenEl.dataset.state !== "speaking") return screenEl.style.setProperty("--level", 0);
-  const data = new Uint8Array(analyser.frequencyBinCount);
+  if (loudness?.length !== analyser.frequencyBinCount) loudness = new Uint8Array(analyser.frequencyBinCount);
+  const data = loudness;
   analyser.getByteTimeDomainData(data);
   let peak = 0;
   for (const v of data) peak = Math.max(peak, Math.abs(v - 128));
