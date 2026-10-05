@@ -13,7 +13,7 @@ Same households, same oracle, same question groups; only the choice of the next 
 | fixed | 475 | 0 (0.0%) | 0 (0.0%) | 71 / 92 / 105 | 17 | 0 | 0 |
 | random | 475 | 0 (0.0%) | 0 (0.0%) | 68 / 91 / 105 | 16 | 0 | 0 |
 
-Run on 2026-10-01 from `1de4b81-dirty`.
+Run on 2026-10-01 from `5b42e2c-dirty`.
 
 ## E2: results shown mid-interview
 
@@ -38,7 +38,7 @@ If results were shown after this many turns of the Question Engine's interview (
 | 14 | 475 | 6 (1.3%) | 0 (0.0%) | 0 (0.0%) | 23 (0.7%) |
 | 15 | 475 | 6 (1.3%) | 0 (0.0%) | 0 (0.0%) | 22 (0.6%) |
 
-Run on 2026-10-01 from `1de4b81-dirty`.
+Run on 2026-10-01 from `5b42e2c-dirty`.
 
 ## E3: where decisions live
 
@@ -57,7 +57,7 @@ Run on 2026-10-02.
 
 ## E4: why the designs go wrong
 
-From the E3 rows (`eval/e4.py`, calculator re-run on `d954a42-dirty`). For the `tool` design, each wrong program is traced by re-running the calculator on the last household the engine accepted from the model before it showed results: **overrode** = the calculator said the opposite of what the model showed; **wrong facts** = the calculator agreed with the model on what it was given (facts missing or passed wrong: not told apart); **no calculation** = no accepted calculation; **no results** = the conversation never showed results, so it missed everything. Refused tool calls: errors from our MCP server, or an engine error handed back by the calculator.
+From the E3 rows (`eval/e4.py`, calculator re-run on `34eef71-dirty`). For the `tool` design, each wrong program is traced by re-running the calculator on the last household the engine accepted from the model before it showed results: **overrode** = the calculator said the opposite of what the model showed; **wrong facts** = the calculator agreed with the model on what it was given (facts missing or passed wrong: not told apart); **no calculation** = no accepted calculation; **no results** = the conversation never showed results, so it missed everything. Refused tool calls: errors from our MCP server, or an engine error handed back by the calculator.
 
 | Model | Wrong programs (tool design) | overrode | wrong facts | no calculation | no results |
 |---|---|---|---|---|---|
