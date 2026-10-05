@@ -1,10 +1,11 @@
-// The simulated Echo Show. Hands-free after the first tap (browsers allow the mic and sound
-// only after one): the mic opens by itself each time Alexa finishes speaking (Alexa's
-// follow-up mode), and between conversations it waits for the wake word ("Alexa" or "Hey
-// Alexa", alone or before a request), until you tap it to mute. Alexa
-// speaks with Amazon Polly (the server sends the audio with each reply), falling back to the
-// browser's voice. The add-on's screen is hosted below (MCP Apps). The conversation lives
-// only in this page and goes to the server with each turn; reloading forgets it.
+// The simulated Echo Show, talking with Alexa live: the microphone streams to Amazon Nova 2
+// Sonic (through the server, /api/live) and Alexa's voice streams back, so she answers as
+// soon as you finish and you can cut in while she talks. Hands-free after the first tap
+// (browsers allow the mic and sound only after one). After some quiet the conversation rests
+// (the server closes it: a live conversation costs by the minute) and the device waits for
+// the wake word ("Alexa" or "Hey Alexa", alone or before a request), then carries on where
+// it left off. The add-on's screen is hosted below (MCP Apps). The conversation lives only
+// in this page; reloading forgets it.
 
 const $ = (id) => document.getElementById(id);
 const screenEl = $("screen"), say = $("say"), heard = $("heard"), app = $("app"), caption = $("caption");
@@ -12,35 +13,28 @@ const mic = $("mic"), mode = $("mode"), text = $("text"), form = $("form"), stat
 
 const OPEN = "Alexa, open Unclaimed";
 const WAKE = /\b(?:hey\s+)?alexa\b[,.!?]?\s*/i;
-// Said to the device, not to the add-on: handled here, like on an Echo Show.
-const DEVICE = [
-  { words: /^(go )?back( to (the )?(results|previous screen|last screen))?[.!]?$|^previous screen[.!]?$/i, run: () => back() },
-  { words: /^(stop|cancel|be quiet)[.!]?$/i, run: () => { quiet(); wake(); } },
-];
-const MAX_SILENT_LISTENS = 4; // ~8 s each: about half a minute of silence, then it waits for "Alexa"
+const IN_RATE = 16000, OUT_RATE = 24000; // the server's audio formats (16-bit PCM, mono)
+const FRAME = 512; // microphone samples per message: 32 ms
+const MAX_SAID = 40; // lines of conversation carried into the next one after a rest
 
-let messages = [];
-let busy = false;
-let conversation = 0; // bumped by "New conversation", so a reply still on its way is dropped
+let ws = null; // the live conversation, when one is open
 let handsFree = false;
-let silent = 0;
+let household = null; // the latest household draft (from the server), to carry on after a rest
+const said = []; // the conversation so far, [{role, text}], ditto
+let asked = 0; // when the person finished speaking, to time Alexa's answer
 
 // ---- States: idle | listening | thinking | speaking (the glow and the mic follow) ----
 const LABELS = { idle: "Tap to talk", listening: "Listening…", thinking: "Thinking…", speaking: "Speaking…" };
 function setState(s) {
   screenEl.dataset.state = s;
-  mode.textContent = s === "idle" && handsFree ? "Say “Alexa” anytime" : LABELS[s];
-  mic.classList.toggle("on", s === "listening");
-}
-function setHandsFree(on) {
-  handsFree = on;
-  silent = 0;
-  if (!on) stopListening();
-  setState(screenEl.dataset.state === "listening" && !on ? "idle" : screenEl.dataset.state);
+  mode.textContent = s === "idle" && handsFree && rec ? "Say “Alexa” anytime" : LABELS[s];
+  mic.classList.toggle("on", Boolean(ws));
 }
 function view(v) { screenEl.dataset.view = v; }
 
 function addLog(who, words) {
+  said.push({ role: who === "you" ? "user" : "assistant", text: words });
+  if (said.length > MAX_SAID) said.shift();
   const li = document.createElement("li");
   if (who === "you") li.className = "you";
   li.textContent = words;
@@ -53,18 +47,102 @@ setInterval(function tick() {
   return tick;
 }(), 15000);
 
-// ---- Voice out: Polly audio, else the browser's voice; the glow follows the loudness ----
-let audioCtx = null, analyser = null, player = null;
-const synth = window.speechSynthesis;
+// ---- Audio: the microphone in (resampled to 16 kHz in a worklet), Alexa's voice out ----
+// The worklet averages each run of input samples into one output sample (a simple
+// low-pass), and with no microphone it sends silence, so typed words still work.
+const WORKLET = `
+registerProcessor("mic", class extends AudioWorkletProcessor {
+  constructor({ processorOptions: o }) {
+    super();
+    this.step = sampleRate / o.rate;
+    this.size = o.frame;
+    this.frame = new Int16Array(this.size);
+    this.n = this.sum = this.count = this.pos = 0;
+  }
+  process(inputs) {
+    const ch = inputs[0] && inputs[0][0];
+    const len = ch ? ch.length : 128;
+    for (let i = 0; i < len; i++) {
+      this.sum += ch ? ch[i] : 0;
+      this.count++;
+      if (++this.pos >= this.step) {
+        this.pos -= this.step;
+        this.frame[this.n++] = Math.max(-1, Math.min(1, this.sum / this.count)) * 0x7fff;
+        this.sum = this.count = 0;
+        if (this.n === this.size) {
+          this.port.postMessage(this.frame.buffer, [this.frame.buffer]);
+          this.frame = new Int16Array(this.size);
+          this.n = 0;
+        }
+      }
+    }
+    return true;
+  }
+});`;
 
-function unlockAudio() { // browsers allow sound only after a tap: called from the first one
-  if (audioCtx) return;
+let ctx = null, analyser = null, hasMic = false;
+const playing = new Set(); // Alexa's voice: chunks scheduled one after another
+let playAt = 0;
+
+// Called from the first tap: sound, the microphone (if allowed) and the worklet.
+async function setupAudio() {
+  if (ctx) return ctx.resume();
   const Ctx = window.AudioContext || window.webkitAudioContext;
-  if (!Ctx) return;
-  audioCtx = new Ctx();
-  analyser = audioCtx.createAnalyser();
+  ctx = new Ctx();
+  analyser = ctx.createAnalyser();
   analyser.fftSize = 256;
-  analyser.connect(audioCtx.destination);
+  analyser.connect(ctx.destination);
+  let stream = null;
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({
+      audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+    });
+  } catch { /* no microphone, or not allowed: typing still works */ }
+  const send = (frame) => { if (ws?.readyState === WebSocket.OPEN) ws.send(frame); };
+  try {
+    await ctx.audioWorklet.addModule(URL.createObjectURL(new Blob([WORKLET], { type: "text/javascript" })));
+    const node = new AudioWorkletNode(ctx, "mic", { processorOptions: { rate: IN_RATE, frame: FRAME } });
+    if (stream) ctx.createMediaStreamSource(stream).connect(node);
+    const mute = ctx.createGain(); // keeps the worklet running; nothing is heard
+    mute.gain.value = 0;
+    node.connect(mute).connect(ctx.destination);
+    node.port.onmessage = (e) => send(e.data);
+    hasMic = Boolean(stream);
+  } catch { // no AudioWorklet: no voice in, but typed words still need an audio stream
+    setInterval(() => send(new Int16Array(FRAME).buffer), (FRAME / IN_RATE) * 1000);
+  }
+  if (!hasMic) mode.textContent = "Microphone off: type below";
+}
+
+function play(bytes) {
+  const pcm = new Int16Array(bytes);
+  if (!pcm.length || !ctx) return;
+  const buffer = ctx.createBuffer(1, pcm.length, OUT_RATE);
+  const out = buffer.getChannelData(0);
+  for (let i = 0; i < pcm.length; i++) out[i] = pcm[i] / 0x8000;
+  const source = ctx.createBufferSource();
+  source.buffer = buffer;
+  source.connect(analyser);
+  playAt = Math.max(playAt, ctx.currentTime + 0.05);
+  source.start(playAt);
+  playAt += buffer.duration;
+  playing.add(source);
+  source.onended = () => {
+    playing.delete(source);
+    if (!playing.size) setState(ws ? "listening" : "idle");
+  };
+  if (screenEl.dataset.state !== "speaking") {
+    if (asked) status.textContent = `Live · Alexa answered in ${((performance.now() - asked) / 1000).toFixed(1)} s`;
+    asked = 0;
+    setState("speaking");
+    followLoudness();
+  }
+}
+
+function hush() { // stop Alexa mid-sentence (the person cut in, or the conversation ended)
+  for (const s of playing) { s.onended = null; s.stop(); }
+  playing.clear();
+  playAt = 0;
 }
 
 function followLoudness() {
@@ -77,120 +155,162 @@ function followLoudness() {
   requestAnimationFrame(followLoudness);
 }
 
-function quiet() {
-  if (player) { player.onended = player.onerror = null; player.pause(); player = null; }
-  synth?.cancel();
-  if (screenEl.dataset.state === "speaking") setState("idle");
+function chime() { // the device heard its wake word
+  if (!ctx) return;
+  [660, 880].forEach((f, i) => {
+    const o = ctx.createOscillator(), g = ctx.createGain(), t = ctx.currentTime + i * 0.09;
+    o.frequency.value = f;
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(0.15, t + 0.02);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.12);
+    o.connect(g).connect(ctx.destination);
+    o.start(t);
+    o.stop(t + 0.13);
+  });
 }
 
-function spoken() { // Alexa finished: listen again if hands-free
-  player = null;
-  setState("idle");
-  if (handsFree) listen();
+// ---- The live conversation ----
+let line = { you: "", alexa: "" }; // the words arriving now
+const pending = []; // typed words waiting for the connection to open
+
+function connect(words) {
+  if (words) pending.push(words);
+  if (ws) return flush();
+  stopWaking();
+  const sock = new WebSocket(`${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/api/live`);
+  ws = sock;
+  sock.binaryType = "arraybuffer";
+  setState("thinking");
+  sock.onopen = () => {
+    if (ws !== sock) return;
+    sock.send(JSON.stringify({ start: { household, said, screens: history.length } }));
+    setState("listening");
+    status.textContent = "Live";
+    flush();
+  };
+  sock.onmessage = (e) => { // only the current conversation's (a muted one's last words are dropped)
+    if (ws !== sock) return;
+    if (typeof e.data === "string") onEvent(JSON.parse(e.data));
+    else play(e.data);
+  };
+  sock.onclose = () => {
+    if (ws !== sock) return;
+    ws = null;
+    if (!playing.size) setState("idle");
+    if (handsFree) wake();
+  };
 }
 
-// `clips`: the reply's sentences as MP3 (base64), played one after another.
-function speak(words, clips) {
-  quiet();
-  setState("speaking");
-  if (!clips?.length) return speakInBrowser(words);
-  const [clip, ...rest] = clips;
-  player = new Audio(`data:audio/mpeg;base64,${clip}`);
-  if (audioCtx) {
-    audioCtx.resume();
-    audioCtx.createMediaElementSource(player).connect(analyser);
+function hangUp() {
+  const old = ws;
+  ws = null;
+  old?.close();
+}
+
+function flush() {
+  if (ws?.readyState !== WebSocket.OPEN) return;
+  for (const words of pending.splice(0)) {
+    addLog("you", words);
+    heard.textContent = words;
+    if (screenEl.dataset.view !== "app") view("talk");
+    asked = performance.now();
+    ws.send(JSON.stringify({ text: words }));
   }
-  player.onplay = followLoudness;
-  player.onended = rest.length ? () => speak(words, rest) : spoken;
-  player.onerror = spoken;
-  player.play().catch(() => speakInBrowser(words));
 }
 
-function speakInBrowser(words) {
-  if (!synth) return spoken();
-  const u = new SpeechSynthesisUtterance(words);
-  u.lang = "en-US";
-  const voice = synth.getVoices().find((v) => v.lang === "en-US" && /natural|aria|jenny|samantha|female/i.test(v.name));
-  if (voice) u.voice = voice;
-  u.onend = spoken;
-  synth.speak(u);
+function onEvent(e) {
+  if (e.type === "heard") { // the person's words, as Alexa heard them
+    line.you = e.final ? e.text : line.you + e.text;
+    heard.textContent = line.you;
+    if (screenEl.dataset.view === "app") caption.textContent = line.you;
+    if (screenEl.dataset.view !== "app") view("talk");
+    if (e.final) {
+      if (e.text.trim()) addLog("you", e.text.trim());
+      line.you = "";
+      asked = performance.now();
+      if (!playing.size) setState("thinking");
+    }
+  } else if (e.type === "said") { // Alexa's words, shown as she says them (any markdown dropped)
+    const words = e.text.replace(/[*_#`]+/g, "");
+    line.alexa = e.final ? words : line.alexa + words;
+    say.textContent = caption.textContent = line.alexa;
+    if (e.final) {
+      if (words.trim()) addLog("alexa", words.trim());
+      line.alexa = "";
+    }
+  } else if (e.type === "interrupted") {
+    hush();
+    setState("listening");
+  } else if (e.type === "household") {
+    household = e.household;
+  } else if (e.type === "screen") {
+    showScreen(e.call);
+  } else if (e.type === "back") {
+    back();
+  } else if (e.type === "end") {
+    if (e.reason === "quiet") status.textContent = rec ? "Resting · say “Alexa” to carry on" : "Resting · tap the mic to carry on";
+    if (e.reason === "long") status.textContent = "That conversation ran long · say “Alexa” to carry on";
+    if (e.message) {
+      handsFree = false;
+      say.textContent = caption.textContent = e.message;
+      status.textContent = "";
+    }
+  }
 }
 
-// ---- Voice in: browser speech recognition, reopened after every reply when hands-free ----
+// ---- The wake word: browser speech recognition, only while the conversation rests ----
 const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-let rec = null, listening = false, waking = false, final = "";
+let rec = null, waking = false, final = "", failed = false;
 
 if (Recognition) {
   rec = new Recognition();
   rec.lang = "en-US";
-  rec.interimResults = true;
   rec.onresult = (e) => {
-    let interim = "";
     final = "";
-    for (const r of e.results) (r.isFinal ? (final += r[0].transcript) : (interim += r[0].transcript));
-    if (waking) return; // waiting for the wake word: nothing else shows
-    heard.textContent = interim || final;
-    if (screenEl.dataset.view === "app") caption.textContent = interim || final;
+    for (const r of e.results) if (r.isFinal) final += r[0].transcript;
   };
   rec.onend = () => {
-    listening = false;
     const words = final.trim();
     final = "";
-    if (waking) {
-      waking = false;
-      const m = words.match(WAKE);
-      if (m) { silent = 0; return send(words.slice(m.index)); } // "Alexa" alone listens; with a request, it's sent
-      return wake(); // anything else is ignored: keep waiting
-    }
-    if (words) { silent = 0; return send(words); }
-    // Silence: keep listening for a while, then wait for the wake word.
-    if (handsFree && !busy && screenEl.dataset.state === "listening" && ++silent < MAX_SILENT_LISTENS) return listen();
-    if (screenEl.dataset.state === "listening") { setState("idle"); wake(); }
+    if (!waking) return;
+    waking = false;
+    if (failed) { failed = false; return setTimeout(wake, 3000); }
+    const m = words.match(WAKE);
+    if (!m) return wake(); // anything else is ignored: keep waiting
+    chime();
+    connect(words.slice(m.index + m[0].length).trim() || null); // "Alexa" alone: listen
   };
   rec.onerror = (e) => {
-    if (e.error === "not-allowed" || e.error === "service-not-allowed") {
-      setHandsFree(false);
-      mode.textContent = "Microphone blocked: type instead";
-    }
+    if (e.error === "not-allowed" || e.error === "service-not-allowed") rec = null;
+    else if (e.error !== "no-speech" && e.error !== "aborted") failed = true;
   };
-} else {
-  mic.disabled = true;
-  mic.title = "Voice input needs Chrome or Edge; type instead.";
-  mode.textContent = "Type below (voice needs Chrome or Edge)";
 }
 
-function listen() {
-  if (!rec || busy || listening) return;
-  quiet();
-  setState("listening");
-  try { rec.start(); listening = true; } catch { /* already starting */ }
-}
-// Wait for "Alexa" (hands-free only). Recognition ends after each phrase or a few seconds
-// of silence and is restarted, until a turn starts or the mic is muted.
+// Recognition ends after each phrase or a few seconds of silence and is restarted, until
+// the conversation starts again or the mic is muted.
 function wake() {
-  if (!rec || !handsFree || busy || listening) return;
-  setState("idle");
+  if (!rec || !handsFree || ws || waking) return setState(screenEl.dataset.state);
   waking = true;
-  try { rec.start(); listening = true; } catch { waking = false; }
+  setState("idle");
+  try { rec.start(); } catch { waking = false; }
 }
-function stopListening() {
-  final = ""; // words caught just before muting aren't sent
+function stopWaking() {
+  if (!waking) return;
   waking = false;
-  if (rec && listening) rec.abort();
-  listening = false;
+  rec?.abort();
 }
 
 // ---- MCP Apps host (spec 2026-01-26) --------------------------------------------------
 // The MCP server declares which tools show a screen (tool _meta.ui.resourceUri) and serves
 // the screen's HTML; this page shows it in a sandboxed frame (an opaque origin: it can't
 // reach this page or its storage, and its content-security policy allows only the domains
-// the server declared) and hands it the tool's input and result. One simplification: the
-// spec's separate-origin proxy frame is replaced by that sandbox.
+// the server declared) and hands it the tool's input and result, which the server forwards
+// as each tool call finishes. One simplification: the spec's separate-origin proxy frame is
+// replaced by that sandbox.
 const PROTOCOL = "2026-01-26";
 let screens = null; // {tools: {name: uri}, screens: {uri: {html, meta}}}
 let shown = null; // the tool call on screen
 let frame = null;
-let lastId = null; // the newest screen call shown, so going back doesn't bring it again
 const history = []; // screens shown, for "go back" (like the device's back)
 
 async function loadScreens() {
@@ -199,24 +319,6 @@ async function loadScreens() {
     if (res.ok) screens = await res.json();
   }
   return screens;
-}
-
-// The latest call to a tool that has a screen: its input and its MCP result.
-function latestScreenCall() {
-  const uses = new Map();
-  for (const m of messages) for (const b of m.content) if (b.toolUse) uses.set(b.toolUse.toolUseId, b.toolUse);
-  for (let i = messages.length - 1; i >= 0; i--) {
-    for (const b of messages[i].content) {
-      const r = b.toolResult;
-      const use = r && uses.get(r.toolUseId);
-      if (!use || r.status === "error" || !screens?.tools[use.name]) continue;
-      const content = r.content.filter((c) => c.text !== undefined).map((c) => ({ type: "text", text: c.text }));
-      let structuredContent = r.content.find((c) => c.json)?.json;
-      if (!structuredContent) try { structuredContent = JSON.parse(content[0]?.text); } catch { /* text only */ }
-      return { id: use.toolUseId, uri: screens.tools[use.name], name: use.name, input: use.input, result: { content, structuredContent } };
-    }
-  }
-  return null;
 }
 
 // What the view may load: only what the server declared (here, nothing outside the page).
@@ -248,7 +350,7 @@ window.addEventListener("message", (e) => {
     const box = app.getBoundingClientRect();
     post({ id: m.id, result: {
       protocolVersion: PROTOCOL,
-      hostInfo: { name: "unclaimed-alexa-simulator", version: "1" },
+      hostInfo: { name: "unclaimed-alexa-simulator", version: "2" },
       hostCapabilities: { openLinks: {} },
       hostContext: {
         theme: "dark", displayMode: "inline", platform: "web", locale: "en-US",
@@ -285,12 +387,12 @@ async function teardown() {
 async function render(call) {
   await teardown();
   shown = call;
-  if (!call) {
+  const screen = call && screens?.screens[call.uri];
+  if (!screen) {
     frame = null;
     app.replaceChildren();
     view("talk");
   } else {
-    const screen = screens.screens[call.uri];
     frame = document.createElement("iframe");
     frame.title = "Unclaimed";
     frame.setAttribute("sandbox", "allow-scripts");
@@ -298,14 +400,11 @@ async function render(call) {
     frame.srcdoc = screen.html.replace("<head>", `<head><meta http-equiv="Content-Security-Policy" content="${cspFor(screen.meta)}">`);
     app.replaceChildren(frame);
   }
-  $("back").hidden = !call;
+  $("back").hidden = !screen;
 }
 
-async function showScreen() {
+async function showScreen(call) {
   await loadScreens().catch(() => null);
-  const call = screens && latestScreenCall();
-  if (!call || call.id === lastId) return;
-  lastId = call.id;
   history.push(call);
   await render(call);
 }
@@ -314,96 +413,59 @@ async function back() {
   if (!history.length) return;
   history.pop();
   await render(history.at(-1) ?? null);
-  if (handsFree) listen();
 }
 
-// ---- A turn ----
-async function send(words) {
-  // "Alexa, ..." / "Hey Alexa, ...": the wake word isn't part of the request ("Alexa" alone: listen).
-  const request = words.trim().replace(new RegExp(`^${WAKE.source}`, "i"), "").trim();
-  if (busy) return;
-  if (!request) return words.trim() ? listen() : undefined;
-  words = request;
-  const command = DEVICE.find((c) => c.words.test(words));
-  if (command) { heard.textContent = ""; caption.textContent = ""; return command.run(); }
-  stopListening();
-  quiet();
-  busy = true;
-  if (screenEl.dataset.view !== "app") view("talk");
-  heard.textContent = words;
-  say.textContent = "";
-  addLog("you", words);
-  setState("thinking");
-  const started = performance.now();
-  const mine = conversation;
-  try {
-    const res = await fetch("/api/turn", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ text: words, messages }),
-    });
-    const data = await res.json();
-    if (mine !== conversation) return; // the conversation was reset meanwhile
-    if (!res.ok) throw new Error(data.detail || "Something went wrong.");
-    messages = data.messages;
-    say.textContent = caption.textContent = data.reply;
-    addLog("alexa", data.reply);
-    await showScreen();
-    const t = data.timing;
-    status.textContent = `Turn ${((performance.now() - started) / 1000).toFixed(1)} s · model ${(t.model_ms / 1000).toFixed(1)} s · tools ${(t.tools_ms / 1000).toFixed(1)} s`;
-    busy = false;
-    speak(data.reply, data.audio);
-  } catch (e) {
-    if (mine !== conversation) return;
-    busy = false;
-    say.textContent = caption.textContent = e.message;
-    setState("idle");
-  }
-}
-
+// ---- Controls ----
 // The first tap turns on sound and the mic (browsers require one); after that, hands-free.
-function begin() {
-  unlockAudio();
-  setHandsFree(Boolean(rec));
+async function begin(words) {
+  await setupAudio();
+  handsFree = true;
+  connect(words);
 }
 
-$("start").addEventListener("click", () => { begin(); send(OPEN); });
+$("start").addEventListener("click", () => begin(OPEN));
 
-// The mic: a tap while listening mutes; any other tap listens right away (cutting Alexa
-// off) and turns hands-free on.
+// The mic: a tap during a conversation ends it (mutes); otherwise it starts one.
 mic.addEventListener("click", () => {
-  unlockAudio();
-  if (screenEl.dataset.state === "listening") return setHandsFree(false);
-  stopListening(); // e.g. waiting for the wake word
-  setHandsFree(true);
-  listen();
+  if (ws) {
+    handsFree = false;
+    stopWaking();
+    hush();
+    hangUp();
+    status.textContent = "";
+    return setState("idle");
+  }
+  begin(null);
 });
 
 form.addEventListener("submit", (e) => {
   e.preventDefault();
-  unlockAudio();
-  const words = text.value;
+  const words = text.value.trim();
   text.value = "";
-  send(words);
+  if (words) begin(words);
 });
 
-for (const b of document.querySelectorAll(".try")) b.addEventListener("click", () => { unlockAudio(); send(b.textContent); });
-$("back").addEventListener("click", back);
+for (const b of document.querySelectorAll(".try")) b.addEventListener("click", () => begin(b.textContent));
+$("back").addEventListener("click", async () => {
+  await back();
+  if (ws?.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ screens: history.length }));
+});
 
 $("reset").addEventListener("click", async () => {
-  conversation++;
-  busy = false;
-  messages = [];
+  hush();
+  hangUp();
+  stopWaking();
+  handsFree = false;
+  household = null;
+  said.length = pending.length = 0;
   history.length = 0;
-  lastId = null;
-  quiet();
-  setHandsFree(false);
+  line = { you: "", alexa: "" };
   await render(null);
   delete screenEl.dataset.view;
-  $("back").hidden = true;
   log.replaceChildren();
   heard.textContent = say.textContent = caption.textContent = status.textContent = "";
   setState("idle");
 });
 
+loadScreens().catch(() => null);
 setState("idle");

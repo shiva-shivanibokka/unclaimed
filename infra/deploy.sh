@@ -40,7 +40,6 @@ while IFS='=' read -r k v; do
   printf -v "$k" '%s' "$v"
   SIM_ENV="$SIM_ENV, {\"name\": \"$k\", \"value\": \"$v\"}"
 done < "$SIM_SETTINGS"
-MODEL_ID=$SIMULATOR_MODEL_ID
 
 say() { printf '\n== %s\n' "$*"; }
 
@@ -78,17 +77,15 @@ role() {  # role NAME SERVICE_PRINCIPAL [MANAGED_POLICY_ARN]
 EXEC_ROLE=$(role ecsTaskExecutionRole ecs-tasks.amazonaws.com arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy)
 INFRA_ROLE=$(role ecsInfrastructureRoleForExpressServices ecs.amazonaws.com arn:aws:iam::aws:policy/service-role/AmazonECSInfrastructureRoleforExpressGatewayServices)
 SIM_ROLE=$(role unclaimed-simulator-task ecs-tasks.amazonaws.com)
-# The simulator may call only the one model it uses (a US cross-region inference profile
-# routes to the model in several US regions).
-MODEL_NAME=${MODEL_ID#us.}
+# The simulator may call only the one model it uses: Nova 2 Sonic, live (the text pipeline,
+# SIMULATOR_MODEL_ID, runs only in the evaluations, with the developer's credentials).
 $AWS iam put-role-policy --role-name unclaimed-simulator-task --policy-name bedrock-invoke --policy-document "{
   \"Version\": \"2012-10-17\",
-  \"Statement\": [{\"Effect\": \"Allow\", \"Action\": [\"bedrock:InvokeModel\", \"bedrock:InvokeModelWithResponseStream\"],
-    \"Resource\": [\"arn:aws:bedrock:$REGION:$ACCOUNT:inference-profile/$MODEL_ID\", \"arn:aws:bedrock:*::foundation-model/$MODEL_NAME\"]}]
+  \"Statement\": [{\"Effect\": \"Allow\", \"Action\": \"bedrock:InvokeModelWithBidirectionalStream\",
+    \"Resource\": \"arn:aws:bedrock:$REGION::foundation-model/$SONIC_MODEL_ID\"}]
 }"
-# Alexa's voice (Amazon Polly; speech synthesis has no resource to scope to).
-$AWS iam put-role-policy --role-name unclaimed-simulator-task --policy-name polly-speak --policy-document \
-  '{"Version": "2012-10-17", "Statement": [{"Effect": "Allow", "Action": "polly:SynthesizeSpeech", "Resource": "*"}]}'
+# Earlier releases spoke with Amazon Polly; that permission is no longer needed.
+$AWS iam delete-role-policy --role-name unclaimed-simulator-task --policy-name polly-speak 2>/dev/null || true
 # Service-linked roles ECS, the load balancer and autoscaling need (once per account).
 # Created up front: if Express Mode creates them itself, its first load balancer can race
 # the new role and fail (seen on this account's first deploy).

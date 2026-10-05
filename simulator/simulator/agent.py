@@ -1,8 +1,10 @@
-"""The simulated Alexa+ brain: a Strands agent on Amazon Bedrock that calls the Unclaimed MCP
-server over Streamable HTTP, the way Alexa+ calls an add-on's MCP server.
+"""The simulated Alexa+ brain's shared parts: the client to the Unclaimed MCP server (over
+Streamable HTTP, the way Alexa+ calls an add-on's MCP server), its screens, and Alexa's
+instructions. The page talks to Alexa live (live.py, Amazon Nova 2 Sonic).
 
-Stateless like Alexa+'s side of an add-on: the conversation lives in the browser and comes
-back with every turn; nothing is kept here.
+`turn` is the text pipeline: one turn at a time, a Strands agent on a Bedrock text model,
+the conversation (household draft included) carried in the messages. The research
+evaluations use it (eval/e3.py, eval/tier_c.py). Stateless: nothing is kept here.
 """
 
 import os
@@ -26,9 +28,11 @@ MCP_URL = os.environ.get("MCP_URL", "http://localhost:8080/mcp")
 MAX_TOKENS = 4096
 MAX_MODEL_CALLS_PER_TURN = 6
 # voice.md: who Alexa is and how to speak (shared with the research baselines, eval/e3.py);
-# prompt.md: how to run the screening with our tools.
+# prompt.md: how to run the screening with our tools. Both pipelines use them.
 VOICE = (Path(__file__).parent / "voice.md").read_text(encoding="utf-8")
 SYSTEM_PROMPT = VOICE + "\n" + (Path(__file__).parent / "prompt.md").read_text(encoding="utf-8")
+# The text pipeline carries the household draft through the model (live.py keeps it instead).
+TEXT_PROMPT = SYSTEM_PROMPT + "- Always pass the household exactly as the last tool result returned it.\n"
 
 _lock = threading.Lock()
 _mcp: MCPClient | None = None
@@ -80,7 +84,7 @@ def _reset() -> None:
 
 
 def turn(history: list[dict], text: str, *, model_id: str = MODEL_ID, tools: list | None = None,
-         system_prompt: str = SYSTEM_PROMPT) -> dict:
+         system_prompt: str = TEXT_PROMPT) -> dict:
     """One spoken turn: the person's words in, Alexa's reply out, with timings. By default
     Alexa uses our MCP server; the research baselines (eval/e3.py) pass their own tools."""
     tools = _connect() if tools is None else tools

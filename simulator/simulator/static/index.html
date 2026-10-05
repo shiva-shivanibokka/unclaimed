@@ -6,7 +6,7 @@
   <title>Unclaimed on Alexa+ (simulator)</title>
   <meta name="description" content="A web stand-in for Alexa+ running the Unclaimed benefits screener">
   <meta name="color-scheme" content="dark">
-  <link rel="stylesheet" href="/static/style.css?v=2">
+  <link rel="stylesheet" href="/static/style.css?v=3">
 </head>
 <body>
   <div class="page">
@@ -34,7 +34,7 @@
             <p class="greet">Hi there</p>
             <h1>Let's find benefits your household may be missing.</h1>
             <button type="button" id="start" class="start">Tap to start</button>
-            <p class="hint">Then just talk, or say “Alexa” anytime. No more taps.</p>
+            <p class="hint">Then just talk, and cut in anytime. No more taps.</p>
           </div>
 
           <div class="talk" id="talk">
@@ -58,7 +58,7 @@
           </button>
           <div>
             <p id="mode" class="mode">Tap to talk</p>
-            <p class="sub">After the first tap, just say “Alexa”. Tap while listening to mute.</p>
+            <p class="sub">After the first tap, just talk. If it rests, say “Alexa”. Tap to mute.</p>
           </div>
         </div>
 
@@ -83,10 +83,10 @@
     </div>
 
     <footer>
-      Simulated Alexa+: a Strands agent on Amazon Bedrock calls the Unclaimed MCP server, as Alexa+ would, and speaks
-      with Amazon Polly. Nothing you say is stored. Results are estimates; agencies decide.
+      Simulated Alexa+: Amazon Nova 2 Sonic on Bedrock (run by a Strands agent) hears you and answers out loud,
+      calling the Unclaimed MCP server as Alexa+ would. Nothing you say is stored. Results are estimates; agencies decide.
     </footer>
   </div>
-  <script src="/static/app.js?v=2"></script>
+  <script src="/static/app.js?v=3"></script>
 </body>
 </html>

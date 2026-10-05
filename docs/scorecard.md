@@ -53,3 +53,26 @@ After checking every "maybe" (as if the person asked about each):
 **False "you qualify" in the first results:**
 
 - `pair-028`: ctc
+
+## Tier C, live voice: 10 simulated conversations
+
+A second model plays the person (answering from a Tier A household's truth, in everyday words); the live Alexa (Amazon Nova 2 Sonic, run by a Strands BidiAgent, over the page's WebSocket; the person's words typed in) runs the screening through the MCP server. Turn time: the person's words to Alexa's first sound.
+
+| Metric | Value |
+|---|---|
+| Reached results | 10 / 10 |
+| False "you qualify" (target 0) | **1** of 10 conversations |
+| Missed a program they qualify for (a conversation that never reached results missed them all) | 1 of 10 conversations |
+| Turns (person + Alexa pairs): median / max | 14 / 22 |
+| Alexa turn time: median / p95 | 2202 / 3790 ms |
+| Alexa tokens: input / cached / output | 124,858 / 0 / 61,523 |
+| Alexa said the same thing twice in a row | 0 of 10 conversations |
+| Errors | 0 |
+
+**False "you qualify":**
+
+- `ca-sf-single-adult-gig-18k`: aca_ptc
+
+**Missed:**
+
+- `ca-sf-single-adult-gig-18k`: ca_eitc, eitc, medicaid

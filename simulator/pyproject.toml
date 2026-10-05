@@ -1,13 +1,14 @@
 [project]
 name = "unclaimed-simulator"
 version = "0.1.0"
-description = "A web stand-in for Alexa+: browser voice, an Echo Show-style frame, and a Strands agent on Amazon Bedrock calling the Unclaimed MCP server"
+description = "A web stand-in for Alexa+: an Echo Show-style frame and a live voice (Amazon Nova 2 Sonic, run by a Strands agent) calling the Unclaimed MCP server"
 license = "AGPL-3.0-only"
-requires-python = ">=3.11"
+requires-python = ">=3.12"  # Strands runs Nova Sonic on 3.12+
 dependencies = [
-    "strands-agents>=1.0",
+    "strands-agents[bidi]>=1.57",
     "fastapi>=0.115",
     "uvicorn>=0.30",
+    "websockets>=13",
 ]
 
 [dependency-groups]

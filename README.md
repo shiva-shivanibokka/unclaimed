@@ -39,7 +39,7 @@ Without Bedrock access, `cd mcp-server && npm run smoke` runs a whole screening 
 | `dictionary/` | Every question we can ask and how each engine input is handled (the single source) |
 | `plans/` | Plan cards per program and state, with sources and verification dates; ways to apply in `channels.yaml` |
 | `mcp-server/` | TypeScript MCP server (Streamable HTTP, spec 2025-11-25) and the Echo Show screen (MCP Apps) |
-| `simulator/` | The Alexa+ stand-in: web page + a Strands agent on Amazon Bedrock |
+| `simulator/` | The Alexa+ stand-in: web page + Amazon Nova 2 Sonic live on Bedrock (a Strands BidiAgent) |
 | `eval/` | Tiers A (handwritten), B (generated), C (simulated conversations), and the research experiments |
 | `infra/` | AWS deployment (ECS Express Mode) |
 | `docs/` | Architecture, stages, scorecard, friction log, research |

@@ -1,7 +1,7 @@
 # Architecture
 
 ```
-person ──voice──> Alexa+ (here: the simulator, a Strands agent on Amazon Bedrock)
+person ──voice──> Alexa+ (here: the simulator, Amazon Nova 2 Sonic live, run by a Strands BidiAgent)
                      │  MCP over Streamable HTTP (stateless; the household draft rides in every call)
                      ▼
                   MCP server (TypeScript) ── screen (MCP Apps) ──> Echo Show
@@ -11,8 +11,8 @@ person ──voice──> Alexa+ (here: the simulator, a Strands agent on Amazon
 ```
 
 ## Layers
-1. **Frontend.** Alexa+ voice, and the Echo Show screen: an MCP App (`ui://unclaimed/screen`) showing the result tiles and each plan with a QR code. Alexa+ add-on tooling is partner-only, so the demo runs in our simulator: an Echo Show-style page, hands-free after one tap (browser speech recognition) and speaking with Amazon Polly, whose brain is a Strands agent on Bedrock calling our MCP server the way Alexa+ calls an add-on, and which hosts the MCP App per the spec (sandboxed frame, the spec's messages).
-2. **MCP server** (`mcp-server/`). Four tools: `start_screening`, `answer`, `get_results`, `get_plan`. Validates answers, converts the person's units (per paycheck, per hour, take-home) to the engine's, reads answers back for confirmation. Holds no state and no program knowledge: questions, phrasing, units, options, programs and the household schema are read from the engine at startup.
+1. **Frontend.** Alexa+ voice, and the Echo Show screen: an MCP App (`ui://unclaimed/screen`) showing the result tiles and each plan with a QR code. Alexa+ add-on tooling is partner-only, so the demo runs in our simulator: an Echo Show-style page where Amazon Nova 2 Sonic (speech to speech, on Bedrock, run by a Strands BidiAgent) hears the person and answers out loud in one stream, so the person can cut in, calling our MCP server the way Alexa+ calls an add-on. It is hands-free after one tap; after some quiet it rests until the wake word. The device keeps the household draft for the open conversation and fills it into each call, as Alexa+ keeps a conversation's context, so the server stays stateless and the speech model never copies it. The page hosts the MCP App per the spec (sandboxed frame, the spec's messages).
+2. **MCP server** (`mcp-server/`). Five tools: `start_screening`, `answer`, `check_programs`, `get_results`, `get_plan`. Validates answers, converts the person's units (per paycheck, per hour, take-home) to the engine's, reads answers back for confirmation. Holds no state and no program knowledge: questions, phrasing, units, options, programs and the household schema are read from the engine at startup.
 3. **Engine** (`engine/`), always warm (cold start is seconds):
    - **PolicyEngine-US**, pinned: the calculator. Every eligibility decision and amount.
    - **Question Engine** (`engine/question_engine/`): a generic library with no benefits knowledge (it takes candidates and a calculator interface).
@@ -65,12 +65,12 @@ Pinned by `engine/tests/test_engine_behavior.py`, so an upgrade that changes the
 - MCP Apps for the screen; US only. No sign-in: account linking is optional, and we store nothing.
 
 ## Hosting
-AWS us-east-1, ECS Express Mode (`infra/`): the MCP server with the engine as a localhost-only sidecar in one task, and the simulator in another, each behind a managed load balancer. The simulator is the only part allowed to call Bedrock (one model), and is rate limited per client and by a daily token budget so public access can't run up the bill.
+AWS us-east-1, ECS Express Mode (`infra/`): the MCP server with the engine as a localhost-only sidecar in one task, and the simulator in another, each behind a managed load balancer. The simulator is the only part allowed to call Bedrock (one model, Nova 2 Sonic), and its live conversations are limited (at once, per client per hour, minutes per day, length, silence) so public access can't run up the bill.
 
 ## Evaluation
 - **Tier A:** handwritten CA and IL households, including the cases past reviews broke.
 - **Tier B:** generated households: pairwise combinations of the inputs, and every program's income cutoff ±$1.
-- **Tier C:** simulated conversations: a model plays the person in everyday words, through the real MCP server.
+- **Tier C:** simulated conversations: a model plays the person in everyday words, through the real MCP server, with the text pipeline's Alexa or the live one (Nova 2 Sonic).
 - Each is compared with the full-information answer. The headline metric is false "you qualify" (target 0); also programs missed, questions asked, amount error, latency. Results: `docs/scorecard.md`. Research experiments on the design itself: `docs/research-plan.md`.
 
 ## Reuse
