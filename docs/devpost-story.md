@@ -14,7 +14,7 @@ Unclaimed is a self-hosted MCP server for **Alexa+** that screens a household fo
 Nothing about the household is stored.
 
 ## How I built it
-- **Alexa+ → MCP server (TypeScript, Streamable HTTP, MCP 2025-11-25):** four tools with strict answer schemas (amount + frequency + before/after taxes). The server validates, converts units and reads answers back for confirmation. The Echo Show screen is an MCP App.
+- **Alexa+ → MCP server (TypeScript, Streamable HTTP, MCP 2025-11-25):** five tools (start, answer, results, check the maybes, plan) with strict answer schemas (amount + frequency + before/after taxes). The server validates, converts units and reads answers back for confirmation. The Echo Show screen is an MCP App.
 - **Our own Alexa+ simulator:** Alexa+ developer tools are partner-only, so I built a stand-in: an Echo Show-style web page where you talk with Alexa live: **Amazon Nova 2 Sonic** on **Amazon Bedrock** (speech to speech, run by a **Strands** BidiAgent) hears you and answers out loud, calling the MCP server the way Alexa+ does, and the page hosts the MCP App screen. Hands-free after one tap, and you can cut in while she talks. Both run on **AWS (ECS Express Mode)**, public and free to try, rate-limited.
 - **Engine service (Python, FastAPI, on AWS):** the Question Engine and PolicyEngine, kept warm. Each turn, the Question Engine runs a batch of "what-if" simulations and scores each candidate question $q$:
 

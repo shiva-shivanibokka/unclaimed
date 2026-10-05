@@ -66,7 +66,7 @@ We argue that for an interviewing agent, \emph{where the decisions live} matters
 \caption{Where decisions live. The model only talks; the household draft (known, unknown, declined) travels in every tool call, and code chooses each question, decides when to stop, and computes the results.}
 \label{fig:arch}
 \end{figure}
-\paragraph{Roles.} The agent is built to Alexa+'s published requirements for add-ons (an MCP server) and evaluated in our own Alexa+ simulator, since add-on tooling is not public: the MCP server exposes four tools (start a screening, answer, get results, get a plan to apply). The model calls them and speaks; it receives the next question, the reasons it matters, and the results, never a rule to apply.
+\paragraph{Roles.} The agent is built to Alexa+'s published requirements for add-ons (an MCP server) and evaluated in our own Alexa+ simulator, since add-on tooling is not public: the MCP server exposes five tools (start a screening, answer, get results, check the programs still in doubt, get a plan to apply). The model calls them and speaks; it receives the next question, the reasons it matters, and the results, never a rule to apply.
 
 \paragraph{State.} The household draft travels inside every tool call (nothing is stored). Each fact is \emph{known}, \emph{unknown} or \emph{declined}. Unknown and declined facts are never sent to the engine, which would read them as 0, ``no'', the first county in the state, or ``citizen''. Inputs the programs read that we never ask about are covered by statements true of the engine's default (``no farm income''), checked by a coverage test that traces every input the programs read.
 
