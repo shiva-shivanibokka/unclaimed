@@ -49,5 +49,7 @@ Without Bedrock access, `cd mcp-server && npm run smoke` runs a whole screening 
 - Nothing about the person is stored.
 - Every result is an estimate, with its assumptions stated; the agency decides. Not legal or financial advice.
 
+Built with the help of an AI coding agent.
+
 ## License
 AGPL-3.0 (PolicyEngine-US is AGPL-3.0).

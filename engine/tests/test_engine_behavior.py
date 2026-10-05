@@ -1,5 +1,5 @@
-"""Guards for PolicyEngine behavior our design depends on (CLAUDE.md, "Research scripts ->
-tests"). These are behavior checks, not correctness checks: if a PolicyEngine upgrade
+"""Guards for PolicyEngine behavior our design depends on (see
+engine/research/). These are behavior checks, not correctness checks: if a PolicyEngine upgrade
 changes one, this fails loudly so we revisit the design. Built on our engine's real
 inputs, never the research scripts' helpers."""
 

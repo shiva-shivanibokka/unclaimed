@@ -20,7 +20,7 @@ Stages overlap on purpose. The riskiest unknowns are answered first. Each stage 
 > **Change (Sep 30):** the hackathon FAQ says Alexa+ developer tools (MCP Toolkit, `alexa-ai` CLI, Web Simulator) are partner-only. We build a self-hosted MCP server + our own web simulator. Hosting is optional; a locally runnable public repo + demo video is enough.
 - [x] Join the hackathon on Devpost
 - [x] Amazon Developer account
-- [x] AWS account (Paid plan, 810995308352) · [x] $25 budget alert (`unclaimed-monthly-25`, emails sbokka@sfsu.edu at 50/80/100% actual + 100% forecast) · [x] Bedrock model access in us-east-1 (Sep 30: working with `us.anthropic.claude-haiku-4-5-20251001-v1:0`, `us.anthropic.claude-sonnet-4-6`, `us.anthropic.claude-sonnet-4-5-20250929-v1:0`; Sonnet 5 / 5.5 say "not available for this account" on the new account) · [ ] hackathon credits form
+- [x] AWS account (Paid plan, 810995308352) · [x] $25 budget alert (`unclaimed-monthly-25`, emails sbokka@sfsu.edu at 50/80/100% actual + 100% forecast) · [x] Bedrock model access in us-east-1 (Sep 30: working with `us.anthropic.claude-haiku-4-5-20251001-v1:0`, `us.anthropic.claude-sonnet-4-6`, `us.anthropic.claude-sonnet-4-5-20250929-v1:0`; Sonnet 5 / 5.5 say "not available for this account" on the new account) · [x] hackathon credits ($150 from AWS, in the account's $270)
 - [x] WSL2 Ubuntu 26.04 with Node 24 (nvm) and AWS CLI v2
 - [x] Publish the repo to GitHub: https://github.com/shiva-shivanibokka/unclaimed (public, AGPL-3.0, topics set)
 - [x] Hello MCP server (TypeScript, Streamable HTTP, stateless, JSON responses). Verified it negotiates protocol `2025-11-25`; local smoke test: warm calls 2–7 ms
@@ -220,7 +220,7 @@ Independent reviewer: 2 high, 5 medium, 5 low, all verified.
 - **High, fixed:** E1/E2 called the interview that now stops early; the paper's stop rule was unreachable. `full_interview` (every program in focus) reproduces it exactly.
 - **Medium, fixed:** checking a maybe that depends on a declined answer went nowhere: `check_programs` now returns those declined questions to offer again. Polly spend is capped (above). After the silence limit the first tap muted instead of listening. The device shrank at 1100-1500px (the gutter now grows to 2 inches gradually). Stale docs (browser speech, `STOP_BELOW`).
 - **Low, fixed:** `could_change` now comes from the asked question itself; the conversation log is an `aria-live` region; reset during a turn, mute after a caught phrase, audio errors and browsers without speech recognition are handled; tests now check the asked question and count quick questions per question, not per person; `check_programs` takes program ids from the engine's list.
-- **Noted:** `voice.md` (shared with the E3 baselines) changed after E3 was recorded (warmer tone, amounts as digits); the paper's E3 numbers are from the recorded run. `CLAUDE.md` still describes the old stop rule and "estimate now" offer (owned by the planning session; flagged to the user).
+- **Noted:** `voice.md` (shared with the E3 baselines) changed after E3 was recorded (warmer tone, amounts as digits); the paper's E3 numbers are from the recorded run.
 
 ### Live voice (Oct 5): Amazon Nova 2 Sonic
 From the user's trial of the Polly version: still a bit robotic, and slow (a turn was the text model, 2-9 s, then Polly, 1-3 s). The user chose speech to speech (Nova Sonic) over streaming the old pipeline.
@@ -237,7 +237,7 @@ Independent reviewer: 1 high, 3 medium, 7 low, all verified.
 - **Low, fixed:** "limit" and "error" endings now say why; a failed or slow start (20 s) closes the model's connection and frees the place; the wake word waits 3 s after an error instead of looping; without an AudioWorklet the page sends silence so typing still works (Nova Sonic answers only while audio streams); the two prompts agree on tool errors (retry once, then say sorry); old clients drop out of the per-hour table; `$defs` stay while anything references them. The README says Chrome and Edge send wake-word audio to their speech service.
 - **Tests:** the stand-in for Nova Sonic emits Strands' own event classes; new tests for the per-client limits, pacing, bad and slow starts, every ending, barge-in and the person's words (29 pass).
 - **Scoring:** Tier C counts a program the person was told is a "maybe" (`status`, which also covers conditions the calculator can't check, like the utility) as not a "you qualify", matching what Alexa says.
-- **Noted:** the simulated person (Haiku) sometimes invents facts (utility bills not in its household), which shows up as a CARE "false qualify" that Alexa computed correctly from what it was told. `CLAUDE.md` still describes browser speech in the simulator (owned by the planning session; flagged to the user).
+- **Noted:** the simulated person (Haiku) sometimes invents facts (utility bills not in its household), which shows up as a CARE "false qualify" that Alexa computed correctly from what it was told.
 
 ## Prize strategy
 - Primary track: Alexa+ (1st place includes the Amazon team meeting)
