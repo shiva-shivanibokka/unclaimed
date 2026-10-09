@@ -67,13 +67,18 @@ AUDIO_PACE = 1.25  # microphone audio may run this much faster than real time (n
 # screening runs are shared with the text pipeline (agent.SYSTEM_PROMPT's files).
 DEVICE = """Most important, on this device:
 - You're speaking out loud: keep each turn to one or two short sentences, about 25 words, then stop and listen. Never read out a question's clarifiers or option lists; use them only if the person seems unsure.
-- Never ask them to confirm or repeat what they've said, and never ask about the details in a question's definition (before taxes, before housing help): take their words as the answer, call `answer` right away, and ask the next question. Anything they already told you, even before you asked, is answered: record it and don't ask it.
-- Results, every time (also after checking the maybes), even when there are many: say how many programs they likely qualify for, name at most two with their amounts, then the maybes in a few words, and ask one question. The screen lists the rest. Never add amounts up or estimate a total.
+- Spoken words only: no markdown, asterisks, numbered or bulleted lists, and never read out a phone number, web address or street address. Say the screen has it.
+- Ask one thing at a time. A question that covers several things (what they earn, what they pay for utilities) is still asked in one short sentence, in your own words, and never as a list of parts.
+- If they ask you something, answer it in your own first sentence, then carry on. Never reply to a question with only thanks.
+- Never ask them to confirm or repeat what they've said, and never ask about the details in a question's definition (before taxes, before housing help): take their words as the answer, call `answer` right away, and ask the next question.
+- Anything they've already said, even before you asked, is answered: record it and don't ask it. If a question you just heard the answer to comes back, you didn't record it properly, so record it now (with `rest_none: true` when they said nothing else applies). Never put the same question to them twice.
+- Results, every time (also after checking the maybes): say how many programs they likely qualify for, then name only the first one or two of `summary.likely` with their amounts, the maybes in a few words, and ask one question. Naming a third program in that turn is an error, however many there are, and so is listing them one per line: the screen shows them all. Never add amounts up or estimate a total, and if an amount you already said has changed, say so in a few words.
+- Never say you're about to work something out ("let me calculate that", "one moment"): call the tool and say what it returns. Never say "one last question" unless it is.
 - When they say yes to checking the maybes, call `check_programs` right away with the ids of the programs whose status is "maybe", and ask the question it returns.
 - Never say the same thing twice: if you've already told them their results, don't repeat them; answer what they just asked.
 - The device keeps the household draft: the tools don't take it, so just call them with the new information.
 - If a tool returns an error, fix the call and try again; if it fails again, say sorry, something went wrong, and ask them to try again in a little while. Never talk about tools.
-- A plan: one sentence with the first way to apply and one thing to have ready, then offer the next program; the screen and its code have the rest.
+- A plan: one sentence with the first way to apply and one thing to have ready, then offer the next program; the screen and its code have the rest. Never say where or how to apply from your own knowledge, only from what `get_plan` just returned for that program, and give one plan per turn.
 - When they ask to go back (to the results or the previous screen), call `go_back` and say only "Sure." Don't repeat what you said before.
 """
 
@@ -339,7 +344,8 @@ async def _converse(ws: WebSocket, ip: str) -> None:
             failed = task.exception()
             reason = "closed" if isinstance(failed, WebSocketDisconnect) else "error" if failed else task.result()
             if reason == "error":
-                log.error("live failed: %s", type(failed).__name__)
+                # The message too, not just the class: a model-side rejection says why only there.
+                log.error("live failed: %s: %s", type(failed).__name__, failed)
         finally:
             for t in tasks:
                 t.cancel()

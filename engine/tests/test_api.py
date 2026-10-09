@@ -107,7 +107,9 @@ def test_next_is_cached_and_thinks_ahead(client):
     assert first["ask"]["question"] == "employment_income" and not first["cached"]
     assert client.post("/next", json=body).json()["cached"]
     think_ahead._pool.submit(lambda: None).result()  # single FIFO worker: prefetch is done
-    answered = {**body, "people": [{**body["people"][0], "employment_income": 0}]}
+    # The group is answered together (job pay, self-employment and hours), as was guessed.
+    answered = {**body, "people": [{**body["people"][0], "employment_income": 0,
+                                    "self_employment_income": 0, "weekly_hours_worked": 0}]}
     assert client.post("/next", json=answered).json()["cached"]
 
 

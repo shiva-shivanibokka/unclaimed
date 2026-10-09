@@ -60,19 +60,15 @@ A second model plays the person (answering from a Tier A household's truth, in e
 
 | Metric | Value |
 |---|---|
-| Reached results | 10 / 10 |
-| False "you qualify" (target 0) | **1** of 10 conversations |
-| Missed a program they qualify for (a conversation that never reached results missed them all) | 1 of 10 conversations |
-| Turns (person + Alexa pairs): median / max | 14 / 22 |
-| Alexa turn time: median / p95 | 2202 / 3790 ms |
-| Alexa tokens: input / cached / output | 124,858 / 0 / 61,523 |
-| Alexa said the same thing twice in a row | 0 of 10 conversations |
-| Errors | 0 |
+| Reached results | 9 / 9 |
+| False "you qualify" (target 0) | **1** of 9 conversations |
+| Missed a program they qualify for (a conversation that never reached results missed them all) | 0 of 9 conversations |
+| Turns (person + Alexa pairs): median / max | 15 / 25 |
+| Alexa turn time: median / p95 | 2328 / 4886 ms |
+| Alexa tokens: input / cached / output | 124,508 / 0 / 59,122 |
+| Alexa said the same thing twice in a row | 0 of 9 conversations |
+| Errors | 1 |
 
 **False "you qualify":**
 
-- `ca-sf-single-adult-gig-18k`: aca_ptc
-
-**Missed:**
-
-- `ca-sf-single-adult-gig-18k`: ca_eitc, eitc, medicaid
+- `ca-single-adult-no-work`: snap, ssi

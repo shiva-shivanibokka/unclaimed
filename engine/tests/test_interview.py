@@ -44,9 +44,11 @@ def test_core_questions_come_first_in_order():
 
 
 def test_other_income_is_asked_once_for_everyone():
-    h = Household(state="CA", county="LOS_ANGELES_COUNTY_CA", people=[
-        {"id": "a", "relationship": "head", "age": 40, "employment_income": 20_000},
-        {"id": "b", "relationship": "spouse", "age": 70, "employment_income": 0}])
+    # The core questions (earnings, which is job pay and self-employment in one group, and
+    # housing) are answered, so "other income" is what comes next.
+    h = Household(state="CA", county="LOS_ANGELES_COUNTY_CA", housing_tenure="RENTER", rent=18_000, people=[
+        {"id": "a", "relationship": "head", "age": 40, "employment_income": 20_000, "self_employment_income": 0},
+        {"id": "b", "relationship": "spouse", "age": 70, "employment_income": 0, "self_employment_income": 0}])
     d = next_question(h)
     asked = {(x["person"], x["question"]) for x in [d["ask"], *d["together"]]}
     assert ("b", "social_security_retirement") in asked and ("a", "unemployment_compensation") in asked

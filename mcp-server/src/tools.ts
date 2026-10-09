@@ -419,8 +419,9 @@ export function buildTools(ctx: Context): Tool[] {
       _meta: { ui: { resourceUri: SCREEN_URI } },
       description:
         "What to do next for the programs the person wants to apply for: how and where to apply, what to bring, what " +
-        "happens after, and what to watch out for, from the agencies' own pages. Say the first way to apply and offer " +
-        "what to bring; the screen shows the full list with a code that opens the application on their phone.",
+        "happens after, and what to watch out for, from the agencies' own pages. Say only the first way to apply and " +
+        "one thing to have ready, then stop: the screen shows every way, the whole checklist, and a code that opens the " +
+        "application on their phone. Never read out a phone number or a web address; say the screen has it.",
       inputSchema: {
         type: "object",
         required: ["household", "programs"],

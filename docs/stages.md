@@ -239,6 +239,58 @@ Independent reviewer: 1 high, 3 medium, 7 low, all verified.
 - **Scoring:** Tier C counts a program the person was told is a "maybe" (`status`, which also covers conditions the calculator can't check, like the utility) as not a "you qualify", matching what Alexa says.
 - **Noted:** the simulated person (Haiku) sometimes invents facts (utility bills not in its household), which shows up as a CARE "false qualify" that Alexa computed correctly from what it was told.
 
+### Reading the transcripts (Oct 8): the live voice bugs the score couldn't show
+
+The Tier C score said one conversation in ten went wrong. Reading all ten transcripts said
+why, and found more. Everything below was fixed and re-verified live.
+
+- **The income double count (the cause of every error in `ca-sf-single-adult-gig-18k`).** Asked
+  about pay from a job, the person described gig work; Alexa pressed for a "gross before
+  expenses" figure (the opposite of the question's definition), then recorded the one amount
+  under *both* `employment_income` and `self_employment_income`. $18,000 became $36,000, which
+  moved the household out of Medi-Cal and the two earned-income credits and into an ACA credit
+  it couldn't have. Fixed in the dictionary, not the prompt: job pay, self-employment and hours
+  are now one `earnings` group asked in one breath, so one answer has one slot, with clarifiers
+  saying gig pay belongs to the self-employment question, that what they keep after expenses is
+  the answer, and that one amount is never recorded under both. Re-verified live: correct
+  programs, and the interview fell from 22 turns to 9 (tokens roughly halved).
+- **An invented eligibility condition.** Alexa said the ACA credit applies "if you don't have
+  job-based insurance and are not a U.S. citizen, national, or legal permanent resident",
+  turning an open question into a requirement, and into its negation. `prompt.md` now says
+  `conditional_on` names questions still open, never a condition, and that no answer's meaning
+  is hers to state.
+- **A "maybe" presented as money.** She quoted "$424 a month" for a maybe and offered to help
+  apply, without calling `check_programs`. Now: no amount and no plan for a maybe until it's
+  settled.
+- **Plans answered from memory.** A Californian was sent to HealthCare.gov, and CalFresh to the
+  CDSS site instead of BenefitsCal; elsewhere the same programs were right, so those lines did
+  not come from `get_plan`. Both the device rules and `get_plan`'s own description now say to
+  say only the first way to apply and one thing to have ready, from what the tool just
+  returned, and never to read out a phone number or web address (they were spoken as one long
+  number, e.g. "18008525770").
+- **Mixed-status households.** With an undocumented parent and citizen children, one person's
+  immigration status was applied to everyone, dropping the federal child tax credit. `prompt.md`
+  now says a per-person question is answered per person. Re-verified live: nothing missed, and
+  the credit is disclosed as conditional rather than silently lost.
+- **Also fixed:** re-asking and asking to confirm what was just said; markdown and numbered
+  lists spoken aloud; results read out five to eight programs deep (now never a third name);
+  programs that were a maybe vanishing without a word; a benefit the person already receives
+  folded into another kind of income; narrating "let me calculate that" and then saying nothing;
+  answering a direct question with only thanks; and amounts that changed after checking without
+  a word.
+- **Tests:** two engine fixtures had to change because earnings are now one group (`test_api`'s
+  think-ahead guess, and `test_interview`'s "other income asked once" household, which now
+  answers the core questions first). Each test's intent is unchanged. Engine 120, MCP server 11,
+  simulator 29 pass. `live.py` now logs a failure's message, not just its class: the one
+  model-side rejection below was unreadable without it.
+- **Final run (10 households), honestly:** false "you qualify" 0 in the run right after the
+  income fix. In the last run, 9 of 10 conversations finished, with one false "you qualify"
+  (`ca-single-adult-no-work`: SNAP and SSI) — the simulated person invented a disability that
+  isn't in its household, the same harness artifact noted above, and Alexa computed correctly
+  from what she was told. One conversation ended on a Bedrock `ValidationException` just after
+  `start_screening`. Ten conversations is a small, stochastic sample: the per-case fixes were
+  each verified directly rather than by waiting for a run whose summary looked good.
+
 ## Prize strategy
 - Primary track: Alexa+ (1st place includes the Amazon team meeting)
 - Mini-challenge 1: AWS Builder. It requires Bedrock / AgentCore / Strands / Kiro / SageMaker with documented integration (plain hosting does not count). Plan: the same Strands agent on Bedrock powers both the public simulator and the Tier C test harness (plus an LLM playing the person); consider hosting the MCP server on AgentCore Runtime if latency allows.

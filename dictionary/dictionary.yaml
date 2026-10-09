@@ -44,8 +44,10 @@ structure:
 # Questions asked in one breath share a `group`; this is how to ask the whole group as one
 # question (the person answers what applies; "none of the rest" fills the others).
 groups:
+  earnings:
+    ask: Ask in one question what each working adult earns, whether any of it is self-employed or gig work, and roughly how many hours a week they work.
   other_income:
-    ask: Ask in one question whether anyone gets any other income, for example self-employment or gig work, Social Security, unemployment, child support, a pension or disability payments. Then ask the amount only for the kinds they have.
+    ask: Ask in one question whether anyone gets any other income, for example Social Security, unemployment, child support, a pension or disability payments. Then ask the amount only for the kinds they have.
   disability:
     ask: Ask in one question whether anyone has a disability or long-term health condition, or is blind.
   utilities:
@@ -59,10 +61,11 @@ questions:
 
   # ---- Core 1 and 2: ZIP and who lives with you are `structure` above -----------------
 
-  # ---- Core 3: pay before taxes -------------------------------------------------------
+  # ---- Core 3: what they earn (job pay and self-employment, asked in one breath) -------
   - id: employment_income
     entity: person
     core: true
+    group: earnings
     engine: [employment_income_before_lsr]
     definition: Wages, salary and tips from jobs, before taxes and deductions.
     ask: Ask what each working adult earns from jobs before taxes, in whatever way they know it (per paycheck and how often, or per hour and hours).
@@ -74,9 +77,12 @@ questions:
     clarifiers:
       - Include tips, overtime and bonuses.
       - If they only know take-home pay, give it as take-home; it is converted to pay before taxes with the tax rules.
+      - Jobs only. If their pay is self-employment or gig work (rideshare, delivery, their own business), this question's answer is nothing for them and what they said belongs to the self-employment question; never record it here and never ask them again for it.
+      - One person's pay is usually a job or self-employment, not both, so one amount they state answers one of the two questions and is never recorded under both.
 
   - id: weekly_hours_worked
     entity: person
+    group: earnings
     engine: [weekly_hours_worked_before_lsr]
     definition: Average hours worked per week across all jobs.
     ask: Ask roughly how many hours a week they work.
@@ -88,11 +94,11 @@ questions:
       - Some benefits have a work-hours rule, so ask even when pay is low or irregular.
       - Includes self-employed and gig work, so it isn't tied to the wages question.
 
-  # ---- Core 4: other income (asked together; map what they say to these) -------------
+  # ---- Core 4: self-employment (asked in the same breath as job pay, above) -----------
   - id: self_employment_income
     entity: person
     core: true
-    group: other_income
+    group: earnings
     engine: [self_employment_income_before_lsr]
     definition: Net profit from self-employment, gig or business work (income minus business expenses).
     ask: Ask whether they do any self-employed or gig work, and roughly what they clear after expenses.
@@ -102,6 +108,7 @@ questions:
     cost: 2
     clarifiers:
       - Rideshare, delivery, cleaning, childcare in their home, selling goods.
+      - What they keep after business expenses is the answer. Never ask for the amount before expenses, and never tell them it should be the gross amount.
 
   - id: unemployment_compensation
     entity: person
