@@ -1,4 +1,3 @@
-
 ## Inspiration
 Every year, billions of dollars in benefits go unclaimed. The IRS estimates that roughly 1 in 5 people eligible for the Earned Income Tax Credit never claim it, and food assistance, WIC and health-coverage programs have similar gaps. The people who qualify are often the busiest: a parent making dinner with two kids, a worker juggling shifts. The forms are long, the rules are confusing, and most people assume they don't qualify.
 
@@ -15,26 +14,29 @@ Nothing about the household is stored.
 
 ## How I built it
 - **Alexa+ → MCP server (TypeScript, Streamable HTTP, MCP 2025-11-25):** five tools (start, answer, results, check the maybes, plan) with strict answer schemas (amount + frequency + before/after taxes). The server validates, converts units and reads answers back for confirmation. The Echo Show screen is an MCP App.
-- **Our own Alexa+ simulator:** Alexa+ developer tools are partner-only, so I built a stand-in: an Echo Show-style web page where you talk with Alexa live: **Amazon Nova 2 Sonic** on **Amazon Bedrock** (speech to speech, run by a **Strands** BidiAgent) hears you and answers out loud, calling the MCP server the way Alexa+ does, and the page hosts the MCP App screen. Hands-free after one tap, and you can cut in while she talks. Both run on **AWS (ECS Express Mode)**, public and free to try, rate-limited.
-- **Engine service (Python, FastAPI, on AWS):** the Question Engine and PolicyEngine, kept warm. Each turn, the Question Engine runs a batch of "what-if" simulations and scores each candidate question $q$:
-
-$$\text{score}(q) = \frac{w \cdot \text{flips}(q) + \Delta\$(q)}{\text{cost}(q)}$$
-
-where *flips* counts programs whose yes/no answer changes, $\Delta\$$ is the dollar swing and *cost* reflects how burdensome or sensitive the question is.
+- **My own Alexa+ simulator:** Alexa+ developer tools are partner-only, so I built a stand-in: an Echo Show-style web page where you talk with Alexa live. **Amazon Nova 2 Sonic** on **Amazon Bedrock** (speech to speech, run by a **Strands** BidiAgent) hears you and answers out loud, calling the MCP server the way Alexa+ does, and the page hosts the MCP App screen. Hands-free after one tap, you can cut in while she talks, and saying "that's all" ends it while "Alexa" picks it back up. Both run on **AWS (ECS Express Mode)**, public and free to try, rate-limited.
+- **Engine service (Python, FastAPI, on AWS):** the Question Engine and PolicyEngine, kept warm. Each turn, the Question Engine runs a batch of "what-if" simulations and scores each candidate question: `(w × flips + dollar swing) ÷ cost`, where *flips* counts programs whose yes/no answer changes, the *dollar swing* is how much money moves, and *cost* reflects how burdensome or sensitive the question is.
 - **Dictionary:** every askable fact with its exact definition, friendly wording, units and rules for when it applies. A coverage test proves that every engine input is either asked, derived, assumed out loud, or out of scope.
 - **Evaluation:** handwritten households, generated households (pairwise coverage + every program's cutoff ±$1), and simulated conversations where a second model on Amazon Bedrock plays the person, all compared with the answer you'd get if every question were answered. The headline metric is a false "you qualify": telling someone they qualify when they don't.
 
-## Challenges
+## Challenges I ran into
 - **Silent defaults.** The rules engine assumes 0 for anything you don't provide, citizenship if you skip immigration status, and the *first county in the state* if you skip county (and county changes health-insurance subsidies). So the system tracks *known / unknown / declined* for every fact, maps ZIP → county itself, and says "if ..." instead of "you qualify" when an unknown could change the answer.
 - **Units.** Pay, rent and benefits come in weekly, bi-weekly, monthly and yearly units, and take-home pay differs from gross. Every conversion happens in code, never in the language model.
 - **Latency.** Alexa+ requires responses in under 500 ms, but a full calculation can take longer. The Question Engine precomputes likely answers while the person is still speaking, and the results as soon as the interview ends.
+- **Keeping honest books in a voice conversation.** The hardest bugs weren't in the maths. One person described gig work when asked about job pay, and the model recorded the same money twice, as wages *and* as self-employment. That doubled their income, which quietly moved them out of Medicaid and into a tax credit they couldn't get. The fix wasn't a sterner prompt: job pay and self-employment are now one question asked in a single breath, so one answer has exactly one place to go.
 - **Testing my own work honestly.** After every stage, an independent reviewer tried to break it (wrong results, hidden defaults, security, over-engineering); every finding was verified, fixed or explicitly accepted, and recorded.
 
+## Accomplishments that I'm proud of
+- **Zero false "you qualify" across 475 households.** On 38 handwritten and 437 generated households, once the person settles the programs shown as "maybe", the result matches the full-information answer for every program in every household (38/38 and 437/437). The median interview is **7 questions**, and a decision takes about **650 ms**.
+- **Evidence that the design, not the model, is what makes it safe.** Running the same 38 simulated people against three designs on Claude Haiku 4.5: decisions in code gave **0** conversations with a false "you qualify", the same model holding the calculator as a tool gave **15**, and the model alone gave **25**. The pattern repeats on Amazon Nova 2 Lite (1, 18, 37). Those gaps hold up under an exact paired test.
+- **It feels like a conversation.** With Amazon Nova 2 Sonic speaking directly, Alexa starts answering about **2.3 seconds** after you stop talking, and you can interrupt her. Every live conversation that ran reached results.
+- **Every number is generated, not typed.** The scorecard is written by the evaluation itself, and the tests' expected answers are official published figures with citations, so a test can't quietly agree with a broken engine.
+
 ## What I learned
-*(to be completed)*
+- **Giving a model a correct calculator does not make its use of the calculator correct.** I traced every wrong answer the calculator-as-tool design produced, and in not one case did the model override what the calculator told it. Every error came from facts it never gathered: it asked about income, skipped housing costs, and passed a household where those were silently zero. The error moves out of the arithmetic and into *what the model chose to ask* — which is exactly the part a calculator tool doesn't help with.
+- **Read the transcripts, not just the score.** The aggregate said one conversation in ten went wrong. The transcripts said *why*, and turned up four more problems the score couldn't see: a condition she'd invented, an amount quoted for a program still in doubt, application steps answered from memory instead of the agency's page, and a phone number read aloud as one long number. None of those would have been found by looking at the number.
+- **Speech-to-speech changed the experience more than any prompt did.** The first version used browser speech recognition plus a text-to-speech voice. It worked, but it felt robotic and you had to tap for each turn. Replacing all of it with one model that hears and speaks directly removed the whole pipeline — and the warmth and the ability to interrupt came free with it.
+- **A screener's hardest job is admitting what it doesn't know.** Saying "maybe, if ..." is less satisfying than a yes, but it's the only honest answer when a question hasn't been asked — and it's what makes a zero false "you qualify" rate mean something.
 
-## Accomplishments
-*(fill from `docs/scorecard.md` on submission day: households tested, false "you qualify", programs missed, median questions asked)*
-
-## What's next
+## What's next for Unclaimed
 More states and programs; real people instead of simulated ones; a research write-up comparing this design with letting the model decide; and publishing the Question Engine as its own open-source library for other interviews where the right questions matter, such as mortgage applications.
