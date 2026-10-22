@@ -8,7 +8,7 @@
 // in this page; reloading forgets it.
 
 const $ = (id) => document.getElementById(id);
-const screenEl = $("screen"), say = $("say"), heard = $("heard"), app = $("app"), caption = $("caption");
+const screenEl = $("screen"), say = $("say"), heard = $("heard"), app = $("app");
 const mic = $("mic"), mode = $("mode"), text = $("text"), form = $("form"), status = $("status"), log = $("log");
 
 const OPEN = "Alexa, open Unclaimed";
@@ -82,6 +82,7 @@ registerProcessor("mic", class extends AudioWorkletProcessor {
 });`;
 
 let ctx = null, analyser = null, hasMic = false;
+let micStream = null, micSource = null, micNode = null; // released while resting: see holdMic
 const playing = new Set(); // Alexa's voice: chunks scheduled one after another
 let playAt = 0;
 
@@ -93,26 +94,43 @@ async function setupAudio() {
   analyser = ctx.createAnalyser();
   analyser.fftSize = 256;
   analyser.connect(ctx.destination);
-  let stream = null;
-  try {
-    stream = await navigator.mediaDevices.getUserMedia({
-      audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true, autoGainControl: true },
-    });
-  } catch { /* no microphone, or not allowed: typing still works */ }
   const send = (frame) => { if (ws?.readyState === WebSocket.OPEN) ws.send(frame); };
   try {
     await ctx.audioWorklet.addModule(URL.createObjectURL(new Blob([WORKLET], { type: "text/javascript" })));
-    const node = new AudioWorkletNode(ctx, "mic", { processorOptions: { rate: IN_RATE, frame: FRAME } });
-    if (stream) ctx.createMediaStreamSource(stream).connect(node);
+    micNode = new AudioWorkletNode(ctx, "mic", { processorOptions: { rate: IN_RATE, frame: FRAME } });
     const mute = ctx.createGain(); // keeps the worklet running; nothing is heard
     mute.gain.value = 0;
-    node.connect(mute).connect(ctx.destination);
-    node.port.onmessage = (e) => send(e.data);
-    hasMic = Boolean(stream);
+    micNode.connect(mute).connect(ctx.destination);
+    micNode.port.onmessage = (e) => send(e.data);
   } catch { // no AudioWorklet: no voice in, but typed words still need an audio stream
     setInterval(() => send(new Int16Array(FRAME).buffer), (FRAME / IN_RATE) * 1000);
   }
+  await holdMic(true);
   if (!hasMic) mode.textContent = "Microphone off: type below";
+}
+
+// The microphone is held only while a conversation is open. While the device rests, the
+// browser's own speech recognition listens for "Alexa", and in Chrome it hears nothing
+// while this page still holds the microphone.
+let asking = null; // the request in flight, so two calls never open two microphones
+async function holdMic(on) {
+  if (asking) await asking;
+  if (on === Boolean(micStream)) return;
+  if (!on) {
+    micSource?.disconnect();
+    micSource = null;
+    micStream?.getTracks().forEach((t) => t.stop());
+    micStream = null;
+    return;
+  }
+  try {
+    asking = navigator.mediaDevices.getUserMedia({
+      audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+    });
+    micStream = await asking;
+    hasMic = true;
+    if (micNode) (micSource = ctx.createMediaStreamSource(micStream)).connect(micNode);
+  } catch { /* no microphone, or not allowed: typing still works */ } finally { asking = null; }
 }
 
 function play(bytes) {
@@ -131,6 +149,7 @@ function play(bytes) {
   source.onended = () => {
     playing.delete(source);
     if (!playing.size) setState(ws ? "listening" : "idle");
+    if (!playing.size && finishing) goodbye();
   };
   if (screenEl.dataset.state !== "speaking") {
     if (asked) status.textContent = `Live · Alexa answered in ${((performance.now() - asked) / 1000).toFixed(1)} s`;
@@ -138,6 +157,15 @@ function play(bytes) {
     setState("speaking");
     followLoudness();
   }
+}
+
+// They said they were finished: let her finish the goodbye, then stop listening. Saying
+// "Alexa" picks it up again, with the household and the screens still here.
+let finishing = false;
+function goodbye() {
+  finishing = false;
+  status.textContent = rec ? "Resting · say “Alexa” to carry on" : "Resting · tap the mic to carry on";
+  hangUp();
 }
 
 function hush() { // stop Alexa mid-sentence (the person cut in, or the conversation ended)
@@ -179,7 +207,9 @@ const pending = []; // typed words waiting for the connection to open
 function connect(words) {
   if (words) pending.push(words);
   if (ws) return flush();
+  finishing = false;
   stopWaking();
+  holdMic(true);
   const sock = new WebSocket(`${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/api/live`);
   ws = sock;
   sock.binaryType = "arraybuffer";
@@ -197,17 +227,26 @@ function connect(words) {
     else play(e.data);
   };
   sock.onclose = () => {
-    if (ws !== sock) return;
+    if (ws !== sock) return; // hung up here: `hangUp` has already done this
     ws = null;
-    if (!playing.size) setState("idle");
-    if (handsFree) wake();
+    rested();
   };
 }
 
 function hangUp() {
   const old = ws;
+  if (!old) return;
   ws = null;
-  old?.close();
+  old.close();
+  rested(); // `onclose` ignores a conversation that is no longer the current one
+}
+
+// A conversation is over, however it ended: let go of the microphone so the wake word can
+// be heard, and listen for it again if we're still hands-free.
+function rested() {
+  holdMic(false);
+  if (!playing.size) setState("idle");
+  if (handsFree) wake();
 }
 
 function flush() {
@@ -225,7 +264,6 @@ function onEvent(e) {
   if (e.type === "heard") { // the person's words, as Alexa heard them
     line.you = e.final ? e.text : line.you + e.text;
     heard.textContent = line.you;
-    if (screenEl.dataset.view === "app") caption.textContent = line.you;
     if (screenEl.dataset.view !== "app") view("talk");
     if (e.final) {
       if (e.text.trim()) addLog("you", e.text.trim());
@@ -236,7 +274,7 @@ function onEvent(e) {
   } else if (e.type === "said") { // Alexa's words, shown as she says them (any markdown dropped)
     const words = e.text.replace(/[*_#`]+/g, "");
     line.alexa = e.final ? words : line.alexa + words;
-    say.textContent = caption.textContent = line.alexa;
+    say.textContent = line.alexa;
     if (e.final) {
       if (words.trim()) addLog("alexa", words.trim());
       line.alexa = "";
@@ -250,12 +288,17 @@ function onEvent(e) {
     showScreen(e.call);
   } else if (e.type === "back") {
     back();
+  } else if (e.type === "done") {
+    finishing = true;
+    // Her goodbye may still be on its way, so wait: if any of it is playing when this
+    // fires, the end of the last piece closes the conversation instead.
+    setTimeout(() => { if (finishing && !playing.size) goodbye(); }, 1500);
   } else if (e.type === "end") {
     if (e.reason === "quiet") status.textContent = rec ? "Resting · say “Alexa” to carry on" : "Resting · tap the mic to carry on";
     if (e.reason === "long") status.textContent = "That conversation ran long · say “Alexa” to carry on";
     if (e.message) {
       handsFree = false;
-      say.textContent = caption.textContent = e.message;
+      say.textContent = e.message;
       status.textContent = "";
     }
   }
@@ -264,6 +307,11 @@ function onEvent(e) {
 // ---- The wake word: browser speech recognition, only while the conversation rests ----
 const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 let rec = null, waking = false, final = "", failed = false;
+// Each turn of listening has a number. Aborting one delivers its `onend` later, sometimes
+// after the next turn has started, so an `onend` that isn't the current turn's is ignored:
+// acting on it used to leave recognition running with nothing waiting for it, and the wake
+// word stopped working for the rest of the visit.
+let turn = 0;
 
 if (Recognition) {
   rec = new Recognition();
@@ -275,11 +323,12 @@ if (Recognition) {
   rec.onend = () => {
     const words = final.trim();
     final = "";
+    const mine = turn;
     if (!waking) return;
     waking = false;
-    if (failed) { failed = false; return setTimeout(wake, 3000); }
+    if (failed) { failed = false; return later(wake, 3000, mine); }
     const m = words.match(WAKE);
-    if (!m) return wake(); // anything else is ignored: keep waiting
+    if (!m) return later(wake, 150, mine); // anything else is ignored: keep waiting
     chime();
     connect(words.slice(m.index + m[0].length).trim() || null); // "Alexa" alone: listen
   };
@@ -289,15 +338,27 @@ if (Recognition) {
   };
 }
 
+function later(fn, ms, mine) { // only if nothing else has moved on since
+  setTimeout(() => { if (turn === mine) fn(); }, ms);
+}
+
 // Recognition ends after each phrase or a few seconds of silence and is restarted, until
 // the conversation starts again or the mic is muted.
 function wake() {
   if (!rec || !handsFree || ws || waking) return setState(screenEl.dataset.state);
   waking = true;
   setState("idle");
-  try { rec.start(); } catch { waking = false; }
+  try {
+    rec.start();
+  } catch { // already running (its `onend` hasn't arrived yet): stop it and come back
+    waking = false;
+    const mine = ++turn;
+    rec.abort();
+    later(wake, 300, mine);
+  }
 }
 function stopWaking() {
+  turn++;
   if (!waking) return;
   waking = false;
   rec?.abort();
@@ -456,9 +517,9 @@ $("back").addEventListener("click", async () => {
 
 $("reset").addEventListener("click", async () => {
   hush();
-  hangUp();
+  handsFree = false; // before hanging up, so it doesn't start listening for "Alexa" again
   stopWaking();
-  handsFree = false;
+  hangUp();
   household = null;
   said.length = pending.length = 0;
   history.length = 0;
@@ -466,7 +527,7 @@ $("reset").addEventListener("click", async () => {
   await render(null);
   delete screenEl.dataset.view;
   log.replaceChildren();
-  heard.textContent = say.textContent = caption.textContent = status.textContent = "";
+  heard.textContent = say.textContent = status.textContent = "";
   setState("idle");
 });
 

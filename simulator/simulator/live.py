@@ -80,6 +80,7 @@ DEVICE = """Most important, on this device:
 - If a tool returns an error, fix the call and try again; if it fails again, say sorry, something went wrong, and ask them to try again in a little while. Never talk about tools.
 - A plan: one sentence with the first way to apply and one thing to have ready, then offer the next program; the screen and its code have the rest. Never say where or how to apply from your own knowledge, only from what `get_plan` just returned for that program, and give one plan per turn.
 - When they ask to go back (to the results or the previous screen), call `go_back` and say only "Sure." Don't repeat what you said before.
+- When they say they're finished ("thanks, that's all", "no more help", "bye"), say a short goodbye and call `done`. They can pick it up again by saying "Alexa".
 """
 
 _lock = threading.Lock()
@@ -154,7 +155,7 @@ class Conversation:
         except Exception:
             agent._reset()  # reconnect on the next conversation
             raise
-        return [self._wrap(agent._client(), t) for t in listed] + [self._back()]
+        return [self._wrap(agent._client(), t) for t in listed] + [self._back(), self._done()]
 
     def _wrap(self, client, mcp_tool) -> PythonAgentTool:
         spec = json.loads(json.dumps(mcp_tool.tool_spec))
@@ -206,6 +207,21 @@ class Conversation:
         spec = {"name": "go_back", "description": "Show the previous screen (e.g. from a plan back to the results).",
                 "inputSchema": {"json": {"type": "object", "properties": {}}}}
         return PythonAgentTool("go_back", spec, run)
+
+    def _done(self) -> PythonAgentTool:
+        """They've said they're finished. The device stops listening once she's said
+        goodbye, and starts again at "Alexa" with everything still here."""
+        async def run(tool_use, **_):
+            await self.events.put({"type": "done"})
+            return {"toolUseId": tool_use["toolUseId"], "status": "success",
+                    "content": [{"text": "The device will stop listening after you say goodbye."}]}
+
+        spec = {"name": "done", "description":
+                "Call this when the person says they're finished (\"thanks, that's all\", \"no more help\", "
+                "\"goodbye\"), after your short goodbye. The device stops listening; they can carry on later "
+                "by saying \"Alexa\", with nothing lost. Never call it while they're still asking for things.",
+                "inputSchema": {"json": {"type": "object", "properties": {}}}}
+        return PythonAgentTool("done", spec, run)
 
 
 def _error(tool_use, text: str) -> dict:

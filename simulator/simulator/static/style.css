@@ -108,7 +108,8 @@ nav a:hover { color: var(--ink); }
 .screen[data-view="talk"] .home { display: none; }
 .screen[data-view="talk"] .talk { display: flex; }
 
-/* App: the add-on's screen (MCP Apps) fills the display; Alexa's words become a caption. */
+/* App: the add-on's screen (MCP Apps) fills the display. Alexa's words aren't repeated
+   over it: the screen is already showing them, and a caption covered its bottom edge. */
 .app { position: absolute; inset: 0; display: none; }
 .app iframe { width: 100%; height: 100%; border: 0; display: block; }
 .screen[data-view="app"] .home { display: none; }
@@ -123,18 +124,6 @@ nav a:hover { color: var(--ink); }
 }
 .back[hidden] { display: none; }
 .back svg { width: 1.3em; height: 1.3em; fill: currentColor; }
-.caption {
-  position: absolute; z-index: 3; left: 50%; bottom: 2.2cqw; transform: translateX(-50%);
-  width: min(80%, 60em); margin: 0;
-  padding: 0.7em 1.1em; border-radius: 14px;
-  background: rgb(6 10 20 / 0.82); backdrop-filter: blur(10px);
-  font-size: max(12px, 1.5cqw); text-align: center;
-  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden;
-  opacity: 0; transition: opacity 0.3s; pointer-events: none;
-}
-/* Over the add-on's screen, Alexa's words show only while she listens or speaks. */
-.screen[data-view="app"]:is([data-state="speaking"], [data-state="listening"]) .caption:not(:empty) { opacity: 1; }
-
 /* Alexa's light along the bottom edge. */
 .glow {
   position: absolute; z-index: 5; left: 0; right: 0; bottom: 0; height: 2.6cqw;

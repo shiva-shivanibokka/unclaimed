@@ -156,6 +156,13 @@ def test_going_back_is_the_device_s_and_only_when_there_is_a_screen(monkeypatch)
     assert conversation.events.get_nowait() == {"type": "back"}
 
 
+def test_saying_they_are_finished_tells_the_page_to_stop_listening(monkeypatch):
+    conversation = live.Conversation(HOUSEHOLD)
+    tools = tools_for(monkeypatch, conversation, FakeMCP({}), mcp_tool("answer", True))
+    assert run(tools["done"])["status"] == "success"
+    assert conversation.events.get_nowait() == {"type": "done"}
+
+
 @pytest.mark.parametrize("n, count", [(3, 3), (-1, 0), (10**9, 100), ("3", 0), (True, 0), (None, 0)])
 def test_the_page_s_screen_count_is_taken_only_as_a_small_number(n, count):
     assert live._count(n) == count
