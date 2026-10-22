@@ -6,6 +6,8 @@ Entry for the **Build, Ship, Shape: Amazon Developer Hackathon**, Alexa+ track (
 
 **Try it:** [the live simulator](https://un-659b9ee0f93441afb26f3382e657e487.ecs.us-east-1.on.aws) (an Echo Show-style web page standing in for Alexa+; voice in Chrome or Edge, or type). No sign-in; nothing you say is stored. MCP endpoint: `https://un-c6b17643b34c4e5bae0eefe1f3457a23.ecs.us-east-1.on.aws/mcp`.
 
+Tap the microphone once, then just talk: Alexa answers in about two seconds and you can cut in while she's speaking. Say you're finished ("thanks, that's all") and she says goodbye and stops listening; say **"Alexa"** and she picks the conversation up again, with your answers and the screen still there. She also rests on her own after about forty seconds of quiet, and the same word brings her back. Headphones are worth it, or she hears herself.
+
 ## How it works
 - **The model talks; code decides.** The language model phrases questions and explains results. Which question comes next, when to stop, and what the household qualifies for are decided by code: the Question Engine runs what-ifs through PolicyEngine and asks the question whose answer could change the most (eligibility flips first, then dollars), and stops when no remaining answer would.
 - **Nothing silently assumed.** Every answer is known, unknown or declined. The engine would quietly read a missing answer as 0/no; we never let it, and results that depend on an unknown say "if ...".
