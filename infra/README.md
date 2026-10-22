@@ -16,4 +16,4 @@ AWS_PROFILE=alexa-ai-user SKIP_BUILD=1 bash infra/deploy.sh  # redeploy the imag
 
 The simulator's settings (model, limits) come from `simulator/simulator/defaults.env`; any of them can be overridden in the environment when deploying.
 
-Cost: both services always run one task (the engine's cold start is seconds long), plus the load balancer; Bedrock is pay per use, capped by the simulator's daily token budget. The `unclaimed-monthly-25` budget emails at 50/80/100% of $25 of real spend.
+Cost: both services always run one task (the engine's cold start is seconds long), plus the load balancer; Bedrock is pay per use, capped by the simulator's daily limit on minutes of live conversation (`LIVE_MINUTES_PER_DAY`, and per visitor `LIVE_PER_IP_MINUTES_PER_DAY`). The `unclaimed-monthly-25` budget emails at 50/80/100% of $25 of real spend.
