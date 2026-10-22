@@ -42,7 +42,7 @@ Without Bedrock access, `cd mcp-server && npm run smoke` runs a whole screening 
 | `simulator/` | The Alexa+ stand-in: web page + Amazon Nova 2 Sonic live on Bedrock (a Strands BidiAgent) |
 | `eval/` | Tiers A (handwritten), B (generated), C (simulated conversations), and the research experiments |
 | `infra/` | AWS deployment (ECS Express Mode) |
-| `docs/` | Architecture, stages, scorecard, friction log, research |
+| `docs/` | Architecture, stages, scorecard, friction log, research, and a plain-words [explainer](docs/explainer.md) |
 
 ## Principles
 - The AI phrases questions; code does all the arithmetic and every eligibility decision.

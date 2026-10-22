@@ -29,3 +29,6 @@ paper/main.pdf
 
 # The paper is written up outside this repository
 paper/
+
+# Local notes and scratch for coding agents
+.claude/
