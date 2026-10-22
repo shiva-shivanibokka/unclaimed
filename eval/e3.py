@@ -17,7 +17,7 @@ The person is always played by the other model family from Alexa's.
 Run (simulator env, from simulator/), with the engine (and for `split` the MCP server) up:
   uv run python ../eval/e3.py --model MODEL_ID --designs split tool alone --budget 60 [--limit N]
 Needs `uv run python ../eval/tier_c.py prepare` first. `--budget` is the total for all E3
-runs so far (every model). Rows, with transcripts, go to paper/data/e3-*.json (published
+runs so far (every model). Rows, with transcripts, go to eval/transcripts/e3-*.json (published
 with the paper); the table to docs/research-results.md. Resumable: finished conversations
 are kept. Don't run alongside eval/experiments.py (both rewrite docs/research-results.md).
 """
@@ -47,7 +47,7 @@ from strands.models import BedrockModel  # noqa: E402
 from simulator import agent as alexa  # noqa: E402
 
 ENGINE_URL = os.environ.get("ENGINE_URL", "http://localhost:8000")
-DATA = ROOT / "paper" / "data"
+DATA = ROOT / "eval" / "transcripts"
 OUT = ROOT / "docs" / "research-results.md"
 DESIGNS = ("split", "tool", "alone")
 # The two model families compared. USD per million tokens: input, output, cache read, cache

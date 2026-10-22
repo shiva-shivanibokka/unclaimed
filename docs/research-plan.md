@@ -29,4 +29,4 @@ Metrics: false "you qualify" (per household and per program), programs missed, a
 - Same model family for the agent and the simulated person can flatter or hurt results; in E3 the person is always the other family (Nova for Claude, Claude for Nova).
 
 ## Artifacts
-Code and households are in this repository (AGPL-3.0); E3's conversation transcripts are in `paper/data/`. Paper source: `paper/`.
+Code and households are in this repository (AGPL-3.0); E3's conversation transcripts are in `eval/transcripts/`. The paper itself is written up separately and isn't in this repository.

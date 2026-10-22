@@ -26,3 +26,6 @@ Thumbs.db
 
 # Paper build output (the source is what arXiv takes)
 paper/main.pdf
+
+# The paper is written up outside this repository
+paper/
